@@ -7,8 +7,9 @@ else:
     from importlib_metadata import PackageNotFoundError, version  # pragma: no cover
 
 try:
-    # Change here if project is renamed and does not equal the package name
-    dist_name = __name__
+    # Use the distribution name (project name in setup.cfg/pyproject.toml)
+    # The import package is `science_jubilee`, while the dist name is `science-jubilee`.
+    dist_name = "science-jubilee"
     __version__ = version(dist_name)
 except PackageNotFoundError:  # pragma: no cover
     __version__ = "unknown"
