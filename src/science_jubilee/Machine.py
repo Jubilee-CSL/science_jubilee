@@ -10,10 +10,14 @@ import time
 import warnings
 from functools import wraps
 from pathlib import Path
-from typing import Union
+from typing import Union, Callable
 
 import requests  # for issuing commands
 from requests.adapters import HTTPAdapter, Retry
+
+from science_jubilee.transport.http import HTTPTransport
+from science_jubilee.transport.mock import MockTransport
+from science_jubilee.transport.base import BaseTransport
 
 from science_jubilee.decks.Deck import Deck
 from science_jubilee.tools.Tool import Tool
@@ -104,7 +108,7 @@ class Machine:
     # TODO: Set this up so that a keyboard interrupt leaves the machine in a safe state - ie tool offsets correct. I had an issue
     # where I keyboard interrupted during pipette tip pickup - tip was picked up but offset was not applied, crashing machine on next move. This should not be possible.
 
-    LOCALHOST = "192.168.1.2"
+    # Address is provided via constructor or JUBILEE_ADDRESS environment variable.
 
     def __init__(
         self,
@@ -115,6 +119,8 @@ class Machine:
         simulated: bool = False,
         crash_detection: bool = False,
         crash_handler=None,
+        transport: BaseTransport = None,
+        deck_clear_provider: Callable[[], bool] | None = None,
     ):
         """Initialize the Machine object.
 
@@ -132,16 +138,19 @@ class Machine:
         :type crash_detection: bool
         :param crash_handler: Function to call when crash is detected. See docs
         :type crash_handler: None or function
+        :param transport: Optional transport to use instead of default HTTP/Mock selection; must implement BaseTransport
+        :type transport: BaseTransport, optional
+        :param deck_clear_provider: Optional callable used by hardware transport to determine if deck is clear
+        :type deck_clear_provider: Callable[[], bool], optional
 
         :raises MachineStateError: If the machine is not in the correct state to perform the requested action. This is a user error, not a machine error.
         :raises MachineConfigurationError: If the machine does nto support the indicated configuration, e.g., a tool index is already in use.
         :raises ValueError: If Jubilee returns an invalid value, e.g., the axis limit queried is not correct or query is unsuccessful.
 
         """
-        if address != self.__class__.LOCALHOST:
-            print(
-                "Warning: disconnecting this application from the network will halt connection to Jubilee."
-            )
+        # Resolve address: prefer explicit argument, else environment variable
+        if address is None:
+            address = os.getenv("JUBILEE_ADDRESS")
         # Machine Specs
 
         # serial info
@@ -152,6 +161,7 @@ class Machine:
 
         # HTTP info
         self.address = address
+
 
         # self.debug = debug
         self.simulated = simulated
@@ -190,6 +200,21 @@ class Machine:
         requests_session.headers["Connection"] = "close"
         self.session = requests_session
 
+        # Initialize transport layer: allow explicit injection, otherwise choose by simulation flag
+        if transport is not None:
+            self.transport = transport
+        else:
+            if self.simulated:
+                self.transport = MockTransport()
+            else:
+                self.transport = HTTPTransport(
+                    address=self.address,
+                    session=self.session,
+                    crash_detection=self.crash_detection,
+                    crash_handler=self.crash_handler,
+                    deck_clear_provider=deck_clear_provider,
+                )
+
         if deck_config is not None:
             self.load_deck(deck_config)
 
@@ -198,32 +223,25 @@ class Machine:
         self._set_absolute_positioning()  # force=True)
 
     def connect(self):
-        """Connects to Jubilee over http.
+        """Connect using the transport, then populate cached object model state.
 
         :raises MachineStateError: If the connection to the machine is unsuccessful.
         """
-        # TODO: incorporate serial connection from machine agency version
-        if self.simulated:
-            return
-        # Do the equivalent of a ping to see if the machine is up.
+        # Verify transport connectivity first
+        if not self.transport.connect():
+            raise MachineStateError("Transport not reachable.")
 
-        # if self.debug:
-        #    print(f"Connecting to {self.address} ...")
+        # Query object model for initial state
         try:
-            # "Ping" the machine by updating the only cacheable information we care about.
-            # TODO: This should handle a response from self.gcode of 'None' gracefully.
             max_tries = 50
             for i in range(max_tries):
-                print(i)
-                response = json.loads(self.gcode('M409 K"move.axes[].homed"'))[
-                    "result"
-                ][:4]
-                print("response in connect: ", response)
-                if len(response) == 0:
+                homed = self.get_axes_homed()
+                if not homed:
                     continue
                 else:
                     break
-            self.axes_homed = response
+            # Cache first 4 axes (X, Y, Z, U)
+            self.axes_homed = homed[:4]
 
             # These data members are tied to @properties of the same name
             # without the '_' prefix.
@@ -233,25 +251,29 @@ class Machine:
             self._tool_z_offsets = None
             self._axis_limits = None
 
-            # To save time upon connecting, let's just hit the API on the
-            # first try for all the @properties we care about.
+            # Prime commonly used properties
             self.configured_axes
             self.active_tool_index
             self.tool_z_offsets
             self.axis_limits
-            # pprint.pprint(json.loads(requests.get("http://127.0.0.1/machine/status").text))
-            # TODO: recover absolute/relative from object model instead of enforcing it here.
+            # Enforce absolute positioning until recovered from model
             self._set_absolute_positioning()
         except json.decoder.JSONDecodeError as e:
-            print("Response in connect: ", response)
-            print("Error in connect: ", e)
             raise MachineStateError("DCS not ready to connect.") from e
         except requests.exceptions.Timeout as e:
             raise MachineStateError(
                 "Connection timed out. URL may be invalid, or machine may not be connected to the network."
             ) from e
-        # if self.debug:
-        #    print("Connected.")
+    def get_axes_homed(self):
+        """Return a list of homed flags for all configured axes using the object model.
+        Uses transport.send_gcode_json to parse the firmware response.
+        """
+        obj = self.transport.send_gcode_json('M409 K"move.axes[].homed"')
+        if isinstance(obj, dict):
+            result = obj.get("result")
+            if isinstance(result, list):
+                return result
+        return []
 
     @property
     def configured_axes(self):
@@ -324,23 +346,36 @@ class Machine:
                 max_tries = 50
                 for i in range(max_tries):
                     response = self.gcode("T")
-                    if len(response) == 0:
+                    if response is None or len(response) == 0:
                         continue
                     else:
                         break
-                # On HTTP Interface, we get a string instead of -1 when there are no tools.
-                if response.startswith("No tool"):
-                    # print('active tool prop thinks theres no tool')
+                # Normalize response for parsing
+                resp = response.strip()
+                lower = resp.lower()
+
+                # No tool selected
+                if lower.startswith("no tool"):
                     return -1
-                # On HTTP Interface, we get a string instead of the tool index.
-                elif response.startswith("Tool"):
+                # Tool query string
+                elif lower.startswith("tool"):
                     # Recover from the string: 'Tool X is selected.'
-                    self.active_tool_index = int(response.split()[1])
+                    parts = resp.split()
+                    try:
+                        self.active_tool_index = int(parts[1])
+                    except Exception:
+                        # Unrecognized format; default to -1
+                        self._active_tool_index = -1
+                # Numeric index
+                elif resp.isdigit():
+                    self.active_tool_index = int(resp)
                 else:
-                    self.active_tool_index = int(response)
+                    # Handle warnings or unrelated strings (e.g., 'Warning: Awaiting input, command ignored')
+                    # Default to -1 (no tool) to avoid raising during connect.
+                    self._active_tool_index = -1
             except ValueError as e:
-                # print("Error occurred trying to read current tool!")
-                raise e
+                # Gracefully default to no tool on parse errors
+                self._active_tool_index = -1
         # Return the cached value.
         return self._active_tool_index
 
@@ -467,111 +502,11 @@ class Machine:
         matches = [line for line in s.split("\n") if line.strip()]
         return matches
 
-    def gcode(self, cmd: str = "", timeout=None, response_wait: float = 60):
-        """Send a G-Code command to the Machine and return the response.
-
-        :param cmd: The G-Code command to send, defaults to ""
-        :type cmd: str, optional
-        :param timeout: The time to wait for a response from the machine, defaults to None
-        :type timeout: float, optional
-        :param response_wait: The time to wait for a response from the machine, defaults to 30
-        :type response_wait: float, optional
-
-        :return: The response message from the machine. If too long, the message might not display in the terminal.
-        :rtype: str
+    def gcode(self, cmd: str = "", timeout=None, response_wait: float = 60, wait: bool = False):
+        """Send a G-Code command to the Machine via the transport layer and return the response.
+        If wait is True, the transport will block until motion completes (e.g., by issuing M400).
         """
-        # print("gcode cmd: ", cmd)
-
-        # TODO: Add serial option for gcode commands from MA
-        if self.simulated:
-            print(f"sending: {cmd}")
-            return None
-
-        try:
-            # Try sending the command with requests.post
-            response = requests.post(
-                f"http://{self.address}/machine/code", data=f"{cmd}", timeout=timeout
-            ).text
-            if "rejected" in response:
-                raise requests.RequestException
-        except requests.RequestException:
-            # If requests.post fails ( not supported for standalone mode), try sending the command with requests.get
-            try:
-                # Paraphrased from Duet HTTP-requests page:
-                # Client should query `rr_model?key=seqs` and monitor `seqs.reply`. If incremented, the command went through
-                # and the response is available at `rr_reply`.
-                reply_response = self.session.get(
-                    f"http://{self.address}/rr_model?key=seqs"
-                )
-
-                logging.debug(
-                    f"MODEL response, status: {reply_response.status_code}, headers:{reply_response.headers}, content:{reply_response.content}"
-                )
-
-                reply_count = reply_response.json()["result"]["reply"]
-                buffer_response = self.session.get(
-                    f"http://{self.address}/rr_gcode?gcode={cmd}", timeout=timeout
-                )
-                logging.debug(
-                    f"GCODE response, status: {buffer_response.status_code}, headers:{buffer_response.headers}, content:{buffer_response.content}"
-                )
-                # wait for a response code to be appended
-                # TODO: Implement retry backoff for managing long-running operations to avoid too many requests error. Right now this is handled by the generic exception catch then sleep. Real fix is some sort of backoff for things running longer than a few seconds.
-                tic = time.time()
-                try_count = 0
-                while True:
-                    try:
-                        new_reply_response = self.session.get(
-                            f"http://{self.address}/rr_model?key=seqs"
-                        )
-
-                        logger.debug(
-                            f"MODEL response, status: {new_reply_response.status_code}, headers:{new_reply_response.headers}, content:{new_reply_response.content}"
-                        )
-                        new_reply_count = new_reply_response.json()["result"]["reply"]
-                        # print('new reply count: ', new_reply_count)
-
-                        if new_reply_count != reply_count:
-                            response = self.session.get(
-                                f"http://{self.address}/rr_reply"
-                            )
-
-                            logger.debug(
-                                f"REPLY response, status: {response.status_code}, headers:{response.headers}, content:{response.content}"
-                            )
-
-                            response = response.text
-
-                            responses = self.split_response_objects(response)
-
-                            if len(responses) > 0:
-                                response = responses[-1]
-                            else:
-                                response = None
-                                # print('response length 0 in gcode')
-
-                            # crash detection monitoring happens here
-                            if self.crash_detection:
-                                if "crash detected" in response:
-                                    logger.error("Jubilee crash detected")
-                                    handler_response = self.crash_handler.handle_crash()
-                            break
-                        elif time.time() - tic > response_wait:
-                            response = None
-                            break
-                        time.sleep(self.delay_time(try_count))
-                        try_count += 1
-                    except Exception as e:
-                        print(f"Connection error ({e}), sleeping 1 second")
-                        logging.debug(f"Error in gcode reply wait loop: {e}")
-                        time.sleep(2)
-                        continue
-
-            except requests.RequestException as e:
-                print(f"Both `requests.post` and `requests.get` requests failed: {e}")
-                response = None
-        # TODO: handle this with logging. Also fix so all output goes to logs
-        return response
+        return self.transport.send_gcode(cmd=cmd, timeout=timeout, response_wait=response_wait, wait=wait)
 
     def delay_time(self, n):
         """
@@ -657,7 +592,7 @@ class Machine:
         # TODO: Catch errors where tool is already on and forward to user for fix
         if self.active_tool_index != -1:
             self.park_tool()
-        self.gcode("G28")
+        self.gcode("G28", wait=True)
         self._set_absolute_positioning()
         # Update homing state. Do not query the object model because of race condition.
         self.axes_homed = [True, True, True, True]  # X, Y, Z, U
@@ -666,9 +601,9 @@ class Machine:
 
     def home_xyu(self):
         """Home the XYU axes. Home Y before X to prevent possibility of crashing into the tool rack."""
-        self.gcode("G28 Y")
-        self.gcode("G28 X")
-        self.gcode("G28 U")
+        self.gcode("G28 Y", wait=True)
+        self.gcode("G28 X", wait=True)
+        self.gcode("G28 U", wait=True)
         self._set_absolute_positioning()
         # Update homing state. Pull Z from the object model which will not create a race condition.
         z_home_status = json.loads(self.gcode('M409 K"move.axes[].homed"'))["result"][2]
@@ -677,33 +612,46 @@ class Machine:
     def home_x(self):
         """Home the X axis"""
         cmd = "G28 X"
-        self.gcode(cmd)
+        self.gcode(cmd, wait=True)
 
     def home_y(self):
         """Home the Y axis"""
         cmd = "G28 Y"
-        self.gcode(cmd)
+        self.gcode(cmd, wait=True)
 
     def home_u(self):
         """Home the U (tool) axis"""
         cmd = "G28 U"
-        self.gcode(cmd)
+        self.gcode(cmd, wait=True)
 
     def home_v(self):
         """Home the V axis"""
         cmd = "G28 V"
-        self.gcode(cmd)
+        self.gcode(cmd, wait=True)
 
-    def home_z(self):
+    def home_z(self, deck_clearance: bool | None = None):
         """Home the Z axis.
-        Note: The deck must be clear first. Will ask for user input to verify.
+        Minimal-fuss fallback: if deck_clearance is provided (True/False), use it directly without prompting.
+        Otherwise, defer to the transport's deck_is_clear() which may prompt on hardware.
         """
-        response = input("Is the Deck free of obstacles? [y/n]")
-        if response.lower() in ["y", "yes", "Yes", "Y", "YES"]:
-            self.gcode("G28 Z")
-        else:
-            print("The deck needs to be empty of all labware before proceeding.")
-        self._set_absolute_positioning()
+        def _home_z_noninteractive():
+            self.gcode("G28 Z", wait=True)
+            self._set_absolute_positioning()
+
+        # Caller-provided override requires no transport prompt
+        if deck_clearance is not None:
+            if deck_clearance:
+                _home_z_noninteractive()
+            else:
+                print("Deck is not clear (override). Aborting Z homing.")
+            return
+
+        # Fallback to transport behavior (may prompt on hardware if no provider)
+        if self.transport.deck_is_clear():
+            _home_z_noninteractive()
+            return
+
+        print("Deck is not clear. Aborting Z homing.")
 
     def home_e(self):
         """
@@ -794,9 +742,7 @@ class Machine:
             param_cmd = param
 
         cmd = f"G0 {z_cmd} {x_cmd} {y_cmd} {e_cmd} {v_cmd} {f_cmd} {param_cmd}"
-        self.gcode(cmd)
-        if wait:
-            self.gcode(f"M400")
+        self.gcode(cmd, wait=wait)
 
     def move_to(
         self,
