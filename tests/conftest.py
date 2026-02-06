@@ -70,14 +70,20 @@ def pytest_configure(config):
 
 
 @pytest.fixture
-def machine():
-    """Provide a Machine instance configured from pytest-selected env.
+def motion():
+    """Provide a MotionDriver instance configured from pytest-selected env.
 
     Uses JUBILEE_SIM and JUBILEE_ADDRESS set by pytest_configure or shell.
+    In simulation, uses MockTransport; on hardware, uses HTTPTransport.
     """
-    from science_jubilee.Machine import Machine
+    from science_jubilee.hal.motion_driver import MotionDriver
+    from science_jubilee.hal.transport.mock import MockTransport
+    from science_jubilee.hal.transport.http import HTTPTransport
 
     address = os.getenv("JUBILEE_ADDRESS")
     simulated_env = os.getenv("JUBILEE_SIM", "1").strip().lower()
     simulated = simulated_env in ("1", "true", "yes")
-    return Machine(address=address, simulated=simulated)
+
+    transport = MockTransport() if simulated else HTTPTransport(host=address)
+    return MotionDriver(transport)
+

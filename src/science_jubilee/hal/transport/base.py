@@ -38,3 +38,20 @@ class BaseTransport:
         Mock/digital twin transports can compute this from world state.
         """
         raise NotImplementedError()
+
+    # ---- Convenience: homing state ---------------------------------------
+    def get_axes_homed(self) -> list:
+        """Return homed state for all axes as reported by the firmware object model.
+
+        Uses M409 K"move.axes[].homed" via send_gcode_json(). Returns a list
+        of booleans in firmware axis order, or an empty list if unavailable.
+        """
+        obj = self.send_gcode_json('M409 K"move.axes[].homed"')
+        if obj and isinstance(obj, dict) and "result" in obj:
+            return obj["result"]
+        return []
+
+    def is_homed_all(self) -> bool:
+        """Return True if all reported axes are homed; False otherwise."""
+        homed = self.get_axes_homed()
+        return bool(homed) and all(homed)
