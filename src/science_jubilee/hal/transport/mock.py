@@ -190,3 +190,16 @@ class MockTransport(BaseTransport):
         letters to match firmware convention.
         """
         return [str(x).upper() for x in self.axes_letters]
+
+    def get_axis_limits(self) -> dict:
+        """Return axis limits for the mock machine: letter -> (min, max)."""
+        limits = {}
+        for letter, (lo, hi) in self.axis_limits.items():
+            limits[str(letter).upper()] = (float(lo), float(hi))
+        return limits
+
+    def get_positions(self) -> dict:
+        """Return current axis positions from mock state."""
+        return {str(k).upper(): float(v) for k, v in self.position.items()}
+
+    # Use BaseTransport.format_machine_summary()

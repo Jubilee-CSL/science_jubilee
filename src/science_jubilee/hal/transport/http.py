@@ -217,3 +217,37 @@ class HTTPTransport(BaseTransport):
             return ordered
         except Exception:
             return []
+
+    def get_axis_limits(self) -> dict:
+        """Return axis limits for the hardware: letter -> (min, max).
+
+        Uses the RepRapFirmware object model via M409 K"move.axes[]".
+        """
+        try:
+            obj = self.send_gcode_json('M409 K"move.axes[]"')
+            limits = {}
+            if obj and isinstance(obj, dict):
+                res = obj.get("result")
+                if isinstance(res, list):
+                    for axis_obj in res:
+                        if isinstance(axis_obj, dict):
+                            letter = str(axis_obj.get("letter", "")).upper()
+                            minv = axis_obj.get("min")
+                            maxv = axis_obj.get("max")
+                            if letter and isinstance(minv, (int, float)) and isinstance(maxv, (int, float)):
+                                limits[letter] = (float(minv), float(maxv))
+            return limits
+        except Exception:
+            return {}
+
+    def get_positions(self) -> dict:
+        """Return current axis positions by parsing M114 response."""
+        try:
+            text = self.send_gcode("M114") or ""
+        except Exception:
+            return {}
+        positions = {}
+        for m in re.finditer(r"([A-Za-z]):\s*(-?\d+(?:\.\d+)?)", text):
+            positions[m.group(1).upper()] = float(m.group(2))
+        return positions
+
