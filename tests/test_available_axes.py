@@ -1,6 +1,9 @@
 import os
+import logging
 import pytest
 
+
+logger = logging.getLogger(__name__)
 
 @pytest.mark.secondary
 def test_available_axes(motion):
@@ -16,6 +19,8 @@ def test_available_axes(motion):
     # In simulation, check deterministic default; on hardware, require X and Y to be present
     simulated_env = os.getenv("JUBILEE_SIM", "1").strip().lower()
     if simulated_env in ("1", "true", "yes"):
+        logger.info("Simulation mode detected; axes=%s", letters)
         assert letters[:4] == ["X", "Y", "Z", "U"], f"Unexpected mock axes list: {letters}"
     else:
+        logger.info("Hardware mode detected; axes=%s", letters)
         assert "X" in letters and "Y" in letters, f"Hardware axes should include X and Y, got: {letters}"
