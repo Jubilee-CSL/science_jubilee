@@ -64,3 +64,118 @@ class BaseTransport:
         in concrete transports (HTTPTransport, MockTransport) as needed.
         """
         raise NotImplementedError()
+
+    # ---- Convenience: axis limits ---------------------------------------
+    def get_axis_limits(self) -> dict:
+        """Return a dict of axis limits mapping letter -> (min, max).
+
+        Implement in concrete transports. Values should be floats.
+        Example: {"X": (0.0, 300.0), "Y": (0.0, 300.0)}
+        """
+        raise NotImplementedError()
+
+    # ---- Convenience: current positions --------------------------------
+    def get_positions(self) -> dict:
+        """Return the current axis positions mapping letter -> position.
+
+        Implement in concrete transports (HTTPTransport, MockTransport).
+        Values should be floats; letters uppercase.
+        """
+        raise NotImplementedError()
+
+    # ---- Machine summary (dict) -----------------------------------------
+    def get_machine_summary(self) -> dict:
+        """Return a JSON-serializable dict summarizing machine state.
+
+        Includes: transport, address, firmware, deck_clear, axes, homed,
+        homed_map (when available), limits, and positions.
+        """
+        summary: dict[str, Any] = {
+            "transport": self.__class__.__name__,
+        }
+        # Address/IP if available
+        if hasattr(self, "address"):
+            try:
+                summary["address"] = getattr(self, "address")
+            except Exception:
+                summary["address"] = None
+
+        # Firmware info via M115
+        try:
+            fw_resp = self.send_gcode("M115")
+            summary["firmware"] = (fw_resp or "").strip()
+        except Exception:
+            summary["firmware"] = None
+
+        # Deck clearance
+        try:
+            summary["deck_clear"] = bool(self.deck_is_clear())
+        except Exception:
+            summary["deck_clear"] = None
+
+        # Axes
+        try:
+            letters = [str(x).upper() for x in (self.get_available_axes() or [])]
+        except Exception:
+            letters = []
+        summary["axes"] = letters
+
+        # Homed
+        try:
+            homed = self.get_axes_homed() or []
+        except Exception:
+            homed = []
+        summary["homed"] = homed
+        if letters and homed and len(letters) == len(homed):
+            summary["homed_map"] = {l: bool(h) for l, h in zip(letters, homed)}
+        else:
+            summary["homed_map"] = {}
+
+        # Limits
+        try:
+            limits = self.get_axis_limits() or {}
+        except Exception:
+            limits = {}
+        summary["limits"] = limits
+
+        # Positions
+        try:
+            positions = self.get_positions() or {}
+        except Exception:
+            positions = {}
+        summary["positions"] = positions
+
+        return summary
+
+    # ---- Pretty summary (from dict) -------------------------------------
+    def format_machine_summary(self) -> str:
+        """Return a human-readable summary of machine state using dict summary."""
+        s = self.get_machine_summary()
+        lines: list[str] = []
+        lines.append(f"Transport: {s.get('transport')}")
+        addr = s.get("address")
+        if addr:
+            lines.append(f"Address: {addr}")
+        fw = s.get("firmware")
+        lines.append(f"Firmware: {fw[:120]}" if isinstance(fw, str) and fw else "Firmware: (unavailable)")
+        dc = s.get("deck_clear")
+        if dc is not None:
+            lines.append(f"Deck clear: {bool(dc)}")
+        letters = s.get("axes") or []
+        lines.append(f"Axes: {' '.join(letters) if letters else '(unknown)'}")
+        homed_map = s.get("homed_map") or {}
+        limits = s.get("limits") or {}
+        positions = s.get("positions") or {}
+
+        lines.append("Limits & state:")
+        seq = letters if letters else list(limits.keys() or positions.keys())
+        for l in seq:
+            rng = limits.get(l)
+            pos = positions.get(l)
+            h = homed_map.get(l)
+            rng_txt = f"[{rng[0]}, {rng[1]}]" if rng else "(no limits)"
+            pos_txt = f"{pos:.3f}" if isinstance(pos, (int, float)) else "(unknown)"
+            hm_txt = f" homed={h}" if l in homed_map else ""
+            lines.append(f"  {l}: {rng_txt} pos={pos_txt}{hm_txt}")
+
+        return "\n".join(lines)
