@@ -54,3 +54,11 @@ docs/autoapi/*
 .conda*/
 .python-version
 tool_library/OT2_pipette/designs/OT_post_base.3mf
+
+# Environment files (do not commit secrets)
+.env
+.env.*
+!.env.example
+
+# Jupyter checkpoints (ensure not tracked)
+.ipynb_checkpoints/
