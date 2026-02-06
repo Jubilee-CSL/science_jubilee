@@ -1,3 +1,3 @@
-def test_connect(machine):
+def test_connect(motion):
     """Single connection test that works for both simulation and hardware using the pytest-provided fixture."""
-    assert machine.transport.connect() is True
+    assert motion.transport.connect() is True
