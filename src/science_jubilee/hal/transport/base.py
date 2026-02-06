@@ -55,3 +55,12 @@ class BaseTransport:
         """Return True if all reported axes are homed; False otherwise."""
         homed = self.get_axes_homed()
         return bool(homed) and all(homed)
+
+    # ---- Convenience: available axes ------------------------------------
+    def get_available_axes(self) -> list:
+        """Return the list of available axis letters in firmware order.
+
+        Transports vary in how they expose this information; implement
+        in concrete transports (HTTPTransport, MockTransport) as needed.
+        """
+        raise NotImplementedError()

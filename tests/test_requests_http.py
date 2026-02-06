@@ -1,9 +1,13 @@
 import os
 import time
+from pathlib import Path
+from science_jubilee.utils.env import ensure_env_from_file
 
 import pytest
 import requests
 
+
+@pytest.mark.primary
 
 def test_requests_send_gcode_m115():
     """Smoke test that raw HTTP requests can reach the printer and return a plausible reply.
@@ -15,7 +19,9 @@ def test_requests_send_gcode_m115():
     if sim_env in ("1", "true", "yes"):
         pytest.skip("requests-based HTTP test is hardware-only")
 
-    address = os.getenv("JUBILEE_ADDRESS")
+    # Try to obtain address from environment; if missing, attempt to load .env.hardware
+    root = Path(__file__).resolve().parent.parent
+    address = ensure_env_from_file("JUBILEE_ADDRESS", root / ".env.hardware")
     if not address:
         pytest.skip("JUBILEE_ADDRESS not set")
 

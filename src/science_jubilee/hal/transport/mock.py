@@ -181,3 +181,12 @@ class MockTransport(BaseTransport):
         """Report deck clearance according to configured mock state.
         Future: compute based on world state (labware occupancy)."""
         return bool(self._deck_clear)
+
+    # ---- Convenience: available axes (mock-specific) ---------------------
+    def get_available_axes(self) -> list:
+        """Return axis letters configured in the mock's world state.
+
+        Provides a deterministic list used by simulation tests. Uppercases
+        letters to match firmware convention.
+        """
+        return [str(x).upper() for x in self.axes_letters]
