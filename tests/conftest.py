@@ -11,29 +11,12 @@ import os
 import sys
 from pathlib import Path
 import pytest
+from science_jubilee.utils.env import load_env_file
 ## Ensure package import for tests without editable install
 _root = Path(__file__).resolve().parent.parent
 _src_path = _root / "src"
 if str(_src_path) not in sys.path:
     sys.path.insert(0, str(_src_path))
-
-
-def _load_env_file(env_file: Path):
-    if not env_file.exists():
-        return
-    with env_file.open("r") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if "=" not in line:
-                continue
-            key, value = line.split("=", 1)
-            key = key.strip()
-            value = value.strip()
-            # Do not override already-set environment variables
-            if key not in os.environ:
-                os.environ[key] = value
 
 def pytest_addoption(parser):
     """Register command-line options for simulation vs hardware selection."""
@@ -57,7 +40,7 @@ def pytest_configure(config):
     root = Path(__file__).resolve().parent.parent
     profile = config.getoption("--jubilee-env")
     filename = ".env.sim" if profile == "sim" else ".env.hardware"
-    _load_env_file(root / filename)
+    load_env_file(root / filename)
 
     # Ensure JUBILEE_SIM reflects the selected profile unless already set
     if "JUBILEE_SIM" not in os.environ:
@@ -84,6 +67,6 @@ def motion():
     simulated_env = os.getenv("JUBILEE_SIM", "1").strip().lower()
     simulated = simulated_env in ("1", "true", "yes")
 
-    transport = MockTransport() if simulated else HTTPTransport(host=address)
+    transport = MockTransport() if simulated else HTTPTransport(address=address)
     return MotionDriver(transport)
 

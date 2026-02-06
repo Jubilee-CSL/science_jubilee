@@ -1,5 +1,6 @@
 import logging
 import time
+import re
 from typing import Optional, Callable
 
 import requests
@@ -174,3 +175,45 @@ class HTTPTransport(BaseTransport):
             return answer in ("y", "yes")
         except Exception:
             return False
+
+    # ---- Convenience: available axes (http-specific) ---------------------
+    def get_available_axes(self) -> list:
+        """Return axis letters available on the hardware in firmware order.
+
+        Tries the RepRapFirmware object model via M409. Falls back to parsing
+        M114 response if necessary. Letters are normalized to uppercase.
+        """
+        # Primary: direct letters list
+        obj = self.send_gcode_json('M409 K"move.axes[].letter"')
+        if obj and isinstance(obj, dict):
+            res = obj.get("result")
+            if isinstance(res, list) and all(isinstance(x, str) for x in res):
+                return [x.upper() for x in res]
+
+        # Fallback: axis objects
+        obj2 = self.send_gcode_json('M409 K"move.axes[]"')
+        if obj2 and isinstance(obj2, dict):
+            res2 = obj2.get("result")
+            if isinstance(res2, list):
+                letters = []
+                for axis_obj in res2:
+                    if isinstance(axis_obj, dict) and "letter" in axis_obj:
+                        letters.append(str(axis_obj["letter"]).upper())
+                if letters:
+                    return letters
+
+        # Final fallback: parse M114 text response for axis letters
+        try:
+            text = self.send_gcode("M114") or ""
+            # Find tokens like 'X:12.34' and collect the leading letters
+            letters = [m.group(1).upper() for m in re.finditer(r"([A-Za-z]):\s*-?\d+(?:\.\d+)?", text)]
+            # Preserve order and uniqueness
+            seen = set()
+            ordered = []
+            for l in letters:
+                if l not in seen:
+                    seen.add(l)
+                    ordered.append(l)
+            return ordered
+        except Exception:
+            return []
