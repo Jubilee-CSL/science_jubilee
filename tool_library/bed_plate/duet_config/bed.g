@@ -1,5 +1,6 @@
 M290 R0 S0                   ; Reset baby stepping
 M561                         ; Disable any Mesh Bed Compensation
+M557 X65:240 Y40:270 S30     ; Define mesh grid for probing (set to bed area)
 
 G1 Z50                       ; pop bed down
 G1 X195 Y40                  ; move near back leadscrew
