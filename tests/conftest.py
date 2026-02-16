@@ -67,6 +67,11 @@ def motion():
     simulated_env = os.getenv("JUBILEE_SIM", "1").strip().lower()
     simulated = simulated_env in ("1", "true", "yes")
 
-    transport = MockTransport() if simulated else HTTPTransport(address=address)
+    # For hardware runs under pytest, use a non-interactive deck-clear provider
+    # to avoid blocking prompts during motion tests. Ensure lab is clear!
+    if simulated:
+        transport = MockTransport()
+    else:
+        transport = HTTPTransport(address=address, deck_clear_provider=lambda: True)
     return MotionDriver(transport)
 
