@@ -17,6 +17,7 @@ if state.currentTool != -1
 
 M290 R0 S0              ; Reset baby stepping
 M561                    ; Disable any Mesh Bed Compensation
+M557 X65:240 Y40:270 S30 ; Define mesh grid for probing (set to bed area)
 
 G91                     ; Relative mode
 G1 H2 Z5 F5000          ; Lower the bed
