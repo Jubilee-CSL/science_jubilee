@@ -10,5 +10,5 @@ G30 P1 X240 Y270 Z-99999     ; probe near front left leadscrew
 G1 Z50
 G1 X65 Y270
 G30 P2 X65 Y270 Z-99999 S3   ; probe near front right leadscrew and calibrate 3 motors
-G29 S1                       ; Enable Mesh Bed Compensation
+G29                          ; Probe and enable Mesh Bed Compensation (creates /sys/heightmap.csv)
 G1 Z100                      ; pop bed down when finished

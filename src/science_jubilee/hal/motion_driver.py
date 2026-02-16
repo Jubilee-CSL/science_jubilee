@@ -196,9 +196,6 @@ class MotionDriver:
         """
         if not axes:
             return
-        if not self.is_deck_clear():
-            print("Deck is not clear. Aborting motion.")
-            return
 
         # Set positioning mode
         if absolute:
@@ -208,6 +205,15 @@ class MotionDriver:
 
         # Normalize axis keys and build parts; prefer Z, then X,Y,U,V,E, then others
         normalized = {self._normalize_axis(k): v for k, v in axes.items()}
+
+        # Gate motion behind deck-clear only if Z is being moved
+        try:
+            moving_z = any(ax.value == "Z" for ax in normalized.keys())
+        except Exception:
+            moving_z = False
+        if moving_z and not self.is_deck_clear():
+            print("Deck is not clear. Aborting Z motion.")
+            return
         # Optional: validate requested targets against axis limits if known
         for ax, val in list(normalized.items()):
             lim = self._axis_limits.get(ax.value)
