@@ -251,3 +251,94 @@ class HTTPTransport(BaseTransport):
             positions[m.group(1).upper()] = float(m.group(2))
         return positions
 
+    # ---- Tools API ------------------------------------------------------
+    def get_active_tool_index(self) -> int:
+        """Query current tool selection via "T" response; return -1 if none."""
+        try:
+            resp = (self.send_gcode("T") or "").strip()
+        except Exception:
+            return -1
+        lower = resp.lower()
+        if lower.startswith("no tool"):
+            return -1
+        if lower.startswith("tool"):
+            parts = resp.split()
+            try:
+                return int(parts[1])
+            except Exception:
+                return -1
+        if resp.isdigit():
+            try:
+                return int(resp)
+            except Exception:
+                return -1
+        return -1
+
+    def select_tool(self, index: int) -> bool:
+        try:
+            _ = self.send_gcode(f"T{int(index)}")
+            return True
+        except Exception:
+            return False
+
+    def park_tool(self) -> bool:
+        try:
+            _ = self.send_gcode("T-1")
+            return True
+        except Exception:
+            return False
+
+    def get_tools(self) -> dict:
+        """Return configured tools: {number: {"name": str}}."""
+        tools: dict[int, dict] = {}
+        try:
+            obj = self.send_gcode_json('M409 K"tools[]"')
+            if obj and isinstance(obj, dict):
+                res = obj.get("result")
+                if isinstance(res, list):
+                    for t in res:
+                        if isinstance(t, dict):
+                            num = t.get("number")
+                            name = t.get("name")
+                            if isinstance(num, int):
+                                tools[num] = {"name": name}
+        except Exception:
+            pass
+        return tools
+
+    def get_tool_offsets(self) -> dict:
+        """Return tool offsets mapping number -> [X, Y, Z]."""
+        offsets: dict[int, list[float]] = {}
+        try:
+            obj = self.send_gcode_json('M409 K"tools"')
+            if obj and isinstance(obj, dict):
+                res = obj.get("result")
+                if isinstance(res, list):
+                    for t in res:
+                        if isinstance(t, dict):
+                            num = t.get("number")
+                            offs = t.get("offsets")
+                            if isinstance(num, int) and isinstance(offs, list) and len(offs) >= 3:
+                                try:
+                                    x, y, z = float(offs[0]), float(offs[1]), float(offs[2])
+                                    offsets[num] = [x, y, z]
+                                except Exception:
+                                    pass
+        except Exception:
+            pass
+        return offsets
+
+    def set_tool_offset(self, tool_idx: int, *, x: float | None = None, y: float | None = None, z: float | None = None) -> bool:
+        parts = [f"P{int(tool_idx)}"]
+        if z is not None:
+            parts.append(f"Z{float(z):.2f}")
+        if x is not None:
+            parts.append(f"X{float(x):.2f}")
+        if y is not None:
+            parts.append(f"Y{float(y):.2f}")
+        try:
+            _ = self.send_gcode("G10 " + " ".join(parts))
+            return True
+        except Exception:
+            return False
+

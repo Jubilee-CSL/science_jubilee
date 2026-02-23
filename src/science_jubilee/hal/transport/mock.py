@@ -203,3 +203,56 @@ class MockTransport(BaseTransport):
         return {str(k).upper(): float(v) for k, v in self.position.items()}
 
     # Use BaseTransport.format_machine_summary()
+
+    # ---- Tools API (mock-specific) --------------------------------------
+    def get_active_tool_index(self) -> int:
+        return int(self.active_tool_index)
+
+    def select_tool(self, index: int) -> bool:
+        try:
+            self.active_tool_index = int(index)
+            # Ensure tool record exists
+            if self.active_tool_index not in self.tools:
+                self.tools[self.active_tool_index] = {"name": f"tool{self.active_tool_index}", "offsets": [0.0, 0.0, 0.0]}
+            return True
+        except Exception:
+            return False
+
+    def park_tool(self) -> bool:
+        self.active_tool_index = -1
+        return True
+
+    def get_tools(self) -> dict:
+        tools: Dict[int, Dict] = {}
+        for num, t in self.tools.items():
+            tools[int(num)] = {"name": t.get("name", f"tool{num}")}
+        return tools
+
+    def get_tool_offsets(self) -> dict:
+        offsets: Dict[int, list[float]] = {}
+        for num, t in self.tools.items():
+            offs = t.get("offsets", [0.0, 0.0, 0.0])
+            try:
+                x, y, z = float(offs[0]), float(offs[1]), float(offs[2])
+            except Exception:
+                x, y, z = 0.0, 0.0, 0.0
+            offsets[int(num)] = [x, y, z]
+        return offsets
+
+    def set_tool_offset(self, tool_idx: int, *, x: float | None = None, y: float | None = None, z: float | None = None) -> bool:
+        try:
+            rec = self.tools.get(int(tool_idx))
+            if rec is None:
+                rec = {"name": f"tool{int(tool_idx)}", "offsets": [0.0, 0.0, 0.0]}
+                self.tools[int(tool_idx)] = rec
+            offs = list(rec.get("offsets", [0.0, 0.0, 0.0]))
+            if x is not None:
+                offs[0] = float(x)
+            if y is not None:
+                offs[1] = float(y)
+            if z is not None:
+                offs[2] = float(z)
+            rec["offsets"] = offs
+            return True
+        except Exception:
+            return False

@@ -1,8 +1,6 @@
-"""
-Pytest configuration for science_jubilee.
+"""Pytest configuration for science_jubilee.
 
-Loads environment variables for simulation or hardware from .env files
-to simplify Windows runs without manual exports.
+Loads environment variables for hardware or mock simulation from .env files.
 Hardware is allowed for connection-only tests; movement tests that require
 user input should be skipped.
 """
@@ -23,9 +21,9 @@ def pytest_addoption(parser):
     parser.addoption(
         "--jubilee-env",
         action="store",
-        default="sim",
-        choices=["sim", "hardware"],
-        help="Environment profile: 'sim' uses the mock digital twin, 'hardware' connects to the real machine.",
+        default="mock",
+        choices=["hardware", "mock"],
+        help="Environment profile: 'mock' uses the mock digital twin, 'hardware' connects to the real machine.",
     )
     parser.addoption(
         "--jubilee-address",
@@ -39,12 +37,12 @@ def pytest_configure(config):
     """Apply selected profile and options before tests start."""
     root = Path(__file__).resolve().parent.parent
     profile = config.getoption("--jubilee-env")
-    filename = ".env.sim" if profile == "sim" else ".env.hardware"
+    env_map = {
+        "hardware": ".env.hardware",
+        "mock": ".env.mock",
+    }
+    filename = env_map.get(profile, ".env.mock")
     load_env_file(root / filename)
-
-    # Ensure JUBILEE_SIM reflects the selected profile unless already set
-    if "JUBILEE_SIM" not in os.environ:
-        os.environ["JUBILEE_SIM"] = "1" if profile == "sim" else "0"
 
     # Optional address override from CLI
     addr_opt = config.getoption("--jubilee-address")
@@ -56,22 +54,27 @@ def pytest_configure(config):
 def motion():
     """Provide a MotionDriver instance configured from pytest-selected env.
 
-    Uses JUBILEE_SIM and JUBILEE_ADDRESS set by pytest_configure or shell.
-    In simulation, uses MockTransport; on hardware, uses HTTPTransport.
+    Uses JUBILEE_TRANSPORT and JUBILEE_ADDRESS set by pytest_configure or shell.
+    - mock      -> MockTransport (wrapped in RecordingTransport)
+    - hardware  -> HTTPTransport (wrapped in RecordingTransport)
     """
     from science_jubilee.hal.motion_driver import MotionDriver
     from science_jubilee.hal.transport.mock import MockTransport
     from science_jubilee.hal.transport.http import HTTPTransport
+    from science_jubilee.hal.transport.recording import RecordingTransport
 
     address = os.getenv("JUBILEE_ADDRESS")
-    simulated_env = os.getenv("JUBILEE_SIM", "1").strip().lower()
-    simulated = simulated_env in ("1", "true", "yes")
+    transport_type = os.getenv("JUBILEE_TRANSPORT", "").strip().lower()
 
-    # For hardware runs under pytest, use a non-interactive deck-clear provider
-    # to avoid blocking prompts during motion tests. Ensure lab is clear!
-    if simulated:
-        transport = MockTransport()
+    # Choose base transport (mock or hardware)
+    if transport_type == "hardware":
+        base = HTTPTransport(address=address, deck_clear_provider=lambda: True)
     else:
-        transport = HTTPTransport(address=address, deck_clear_provider=lambda: True)
-    return MotionDriver(transport)
+        # Default to mock if not explicitly hardware
+        base = MockTransport()
+
+    # Wrap in RecordingTransport to log all G-code for later visualization
+    log_path = os.getenv("JUBILEE_GCODE_LOG", "gcode_logs/latest.gcode")
+    recording = RecordingTransport(base, log_path=log_path)
+    return MotionDriver(recording)
 

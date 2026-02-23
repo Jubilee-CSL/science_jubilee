@@ -277,3 +277,80 @@ class MotionDriver:
             self._init_runtime_axes()
         return list(self._axes_letters or [])
 
+    # ---- Tools convenience ----------------------------------------------
+    def get_active_tool_index(self) -> int:
+        """Return the currently selected tool index via transport, or -1."""
+        if hasattr(self.transport, "get_active_tool_index"):
+            try:
+                return int(self.transport.get_active_tool_index())
+            except Exception:
+                return -1
+        return -1
+
+    def list_tools(self) -> dict:
+        """Return a mapping of tool number -> info, when transport supports it."""
+        if hasattr(self.transport, "get_tools"):
+            try:
+                return dict(self.transport.get_tools() or {})
+            except Exception:
+                return {}
+        return {}
+
+    def get_tool_offsets(self) -> dict:
+        """Return tool offsets mapping number -> [X, Y, Z] when available."""
+        if hasattr(self.transport, "get_tool_offsets"):
+            try:
+                return dict(self.transport.get_tool_offsets() or {})
+            except Exception:
+                return {}
+        return {}
+
+    def pickup_tool(self, index: int) -> bool:
+        """Select a tool by index via the transport."""
+        if not isinstance(index, int):
+            raise TypeError("Tool index must be an integer.")
+        if hasattr(self.transport, "select_tool"):
+            try:
+                return bool(self.transport.select_tool(index))
+            except Exception:
+                return False
+        # Fallback: send raw gcode
+        try:
+            self._gcode(f"T{index}")
+            return True
+        except Exception:
+            return False
+
+    def park_tool(self) -> bool:
+        """Deselect any active tool via the transport."""
+        if hasattr(self.transport, "park_tool"):
+            try:
+                return bool(self.transport.park_tool())
+            except Exception:
+                return False
+        try:
+            self._gcode("T-1")
+            return True
+        except Exception:
+            return False
+
+    def set_tool_offset(self, tool_idx: int, *, x: float | None = None, y: float | None = None, z: float | None = None) -> bool:
+        """Set tool offset (G10) via transport if available, else fallback to raw gcode."""
+        if hasattr(self.transport, "set_tool_offset"):
+            try:
+                return bool(self.transport.set_tool_offset(tool_idx, x=x, y=y, z=z))
+            except Exception:
+                return False
+        parts = [f"P{int(tool_idx)}"]
+        if z is not None:
+            parts.append(f"Z{float(z):.2f}")
+        if x is not None:
+            parts.append(f"X{float(x):.2f}")
+        if y is not None:
+            parts.append(f"Y{float(y):.2f}")
+        try:
+            self._gcode("G10 " + " ".join(parts))
+            return True
+        except Exception:
+            return False
+
