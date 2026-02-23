@@ -17,24 +17,48 @@ python -m pip install -U pytest requests
 
 ## Environment setup
 
-The tests read environment variables from `.env` files or from the command line.
+The tests read environment variables from `.env` files or from the command line. The main profiles are:
 
-- Create a file `.env.hardware` in the repo root (next to `src/` and `tests/`) with:
+- **Hardware**: real Jubilee via HTTP/RepRapFirmware
+- **Mock**: pure in-process digital twin for fast, offline tests
+
+### .env files
+
+All `.env.*` files live in the repo root (next to `src/` and `tests/`).
+
+**Hardware** – `.env.hardware`:
 
 ```
-JUBILEE_SIM=0
+JUBILEE_TRANSPORT=hardware
 JUBILEE_ADDRESS=192.168.1.2
 ```
 
 Replace `192.168.1.2` with your printer’s IP.
 
-- Alternatively, you can pass the address via `pytest` CLI:
+**Mock simulation** – `.env.mock`:
 
-```powershell
-pytest -q --jubilee-env hardware --jubilee-address 192.168.1.2
+```
+JUBILEE_TRANSPORT=mock
 ```
 
-When running tests via `pytest`, the loader in `tests/conftest.py` automatically reads `.env.sim` or `.env.hardware`. When executing files directly (like `python tests/test_homing.py`), the test uses the shared env utility to load `.env.hardware`.
+### Selecting the profile
+
+When running tests via `pytest`, the loader in `tests/conftest.py` automatically reads the appropriate `.env.*` file based on `--jubilee-env`:
+
+- `--jubilee-env hardware`  → `.env.hardware`
+- `--jubilee-env mock`      → `.env.mock`
+
+Examples:
+
+```powershell
+# Hardware, overriding address on the command line
+pytest -q --jubilee-env hardware --jubilee-address 192.168.1.2
+
+# Pure mock simulation (default if you don’t specify anything)
+pytest -q --jubilee-env mock
+```
+
+When executing files directly (like `python tests/test_homing.py`), the tests use the shared env utility to load `.env.hardware` by default for hardware runs.
 
 ## Running tests
 
@@ -70,7 +94,7 @@ Verifies HTTP connectivity with the printer and checks for a plausible firmware 
 pytest -q --jubilee-env hardware -k test_requests_send_gcode_m115
 ```
 
-Skips automatically if `JUBILEE_SIM` is true or `JUBILEE_ADDRESS` is missing.
+Skips automatically unless `JUBILEE_TRANSPORT=hardware` and `JUBILEE_ADDRESS` is set.
 
 ### 2) Available axes (works in sim and hardware)
 
@@ -124,9 +148,8 @@ pytest -q --jubilee-env hardware --maxfail=1 -k "http or homing or available_axe
 ## Project notes
 
 - Env utilities live in `src/science_jubilee/utils/env.py` (`load_env_file`, `ensure_env_from_file`).
-- Simulation is selected by `JUBILEE_SIM=1` (default via `.env.sim`); hardware uses `JUBILEE_SIM=0`.
-- Transports:
-  - `MockTransport`: deterministic axes and world state for tests
-  - `HTTPTransport`: real hardware via `/machine/code`, `rr_gcode`, and object model
+- Transports are selected via `JUBILEE_TRANSPORT` (and `--jubilee-env`):
+  - `MockTransport`: deterministic axes and world state for tests (`--jubilee-env mock`)
+  - `HTTPTransport`: real hardware via `/machine/code`, `rr_gcode`, and object model (`--jubilee-env hardware`)
 
 Happy testing! 🚀

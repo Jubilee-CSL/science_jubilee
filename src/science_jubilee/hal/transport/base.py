@@ -39,6 +39,39 @@ class BaseTransport:
         """
         raise NotImplementedError()
 
+    # ---- Tools API (optional, but recommended) -------------------------
+    def get_active_tool_index(self) -> int:
+        """Return the currently selected tool index, or -1 if none.
+
+        Implementations may query firmware state (e.g., via "T" or object model).
+        Default implementation raises NotImplementedError.
+        """
+        raise NotImplementedError()
+
+    def select_tool(self, index: int) -> bool:
+        """Select tool by index using transport; return True on success."""
+        raise NotImplementedError()
+
+    def park_tool(self) -> bool:
+        """Deselect any active tool (e.g., via T-1); return True on success."""
+        raise NotImplementedError()
+
+    def get_tools(self) -> dict:
+        """Return tools configured on the machine.
+
+        Structure: {number: {"name": str|None}}
+        Implementations can add more keys (e.g., offsets).
+        """
+        raise NotImplementedError()
+
+    def get_tool_offsets(self) -> dict:
+        """Return tool offsets mapping number -> [X, Y, Z] floats if available."""
+        raise NotImplementedError()
+
+    def set_tool_offset(self, tool_idx: int, *, x: float | None = None, y: float | None = None, z: float | None = None) -> bool:
+        """Set tool offset via G10 P{tool} X.. Y.. Z..; return True on success."""
+        raise NotImplementedError()
+
     # ---- Convenience: homing state ---------------------------------------
     def get_axes_homed(self) -> list:
         """Return homed state for all axes as reported by the firmware object model.
@@ -88,7 +121,7 @@ class BaseTransport:
         """Return a JSON-serializable dict summarizing machine state.
 
         Includes: transport, address, firmware, deck_clear, axes, homed,
-        homed_map (when available), limits, and positions.
+        homed_map (when available), limits, positions, and tools info if available.
         """
         summary: dict[str, Any] = {
             "transport": self.__class__.__name__,
@@ -144,6 +177,23 @@ class BaseTransport:
         except Exception:
             positions = {}
         summary["positions"] = positions
+
+        # Tools
+        try:
+            active_tool = self.get_active_tool_index()
+        except Exception:
+            active_tool = None
+        summary["active_tool"] = active_tool
+        try:
+            tools = self.get_tools() or {}
+        except Exception:
+            tools = {}
+        summary["tools"] = tools
+        try:
+            offsets = self.get_tool_offsets() or {}
+        except Exception:
+            offsets = {}
+        summary["tool_offsets"] = offsets
 
         return summary
 

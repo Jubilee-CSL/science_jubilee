@@ -17,9 +17,14 @@ def test_requests_send_gcode_m115():
     Skips when simulation is selected or address is missing.
     """
     # Honor pytest-selected environment (via conftest.py)
-    sim_env = os.getenv("JUBILEE_SIM", "1").strip().lower()
-    if sim_env in ("1", "true", "yes"):
-        logger.info("Skipping HTTP test: simulation environment detected (JUBILEE_SIM=%s)", sim_env)
+    transport_type = os.getenv("JUBILEE_TRANSPORT", "").strip().lower()
+
+    # Skip when running in any non-hardware mode (e.g., mock)
+    if transport_type != "hardware":
+        logger.info(
+            "Skipping HTTP test: non-hardware environment detected (JUBILEE_TRANSPORT=%s)",
+            transport_type,
+        )
         pytest.skip("requests-based HTTP test is hardware-only")
 
     # Try to obtain address from environment; if missing, attempt to load .env.hardware
