@@ -49,6 +49,11 @@ def pytest_configure(config):
     if addr_opt:
         os.environ["JUBILEE_ADDRESS"] = addr_opt
 
+    # Default deck and labware definitions for navigation tests.
+    # These can be overridden in .env.mock / .env.hardware if desired.
+    os.environ.setdefault("JUBILEE_DECK_DEF", "lab_automation_deck_AFL_bolton.json")
+    os.environ.setdefault("JUBILEE_LABWARE_DEF", "corning_96_wellplate_360ul_flat.json")
+
 
 @pytest.fixture
 def motion():
