@@ -1,4 +1,6 @@
 import os
+import re
+import sys
 from pathlib import Path
 from typing import Optional, Any, Dict
 
@@ -20,8 +22,10 @@ class RecordingTransport(BaseTransport):
         if log_path is None:
             log_path = os.getenv("JUBILEE_GCODE_LOG", "gcode_logs/latest.gcode")
         self.log_path = Path(log_path)
+        self.run_log_path = self._resolve_run_log_path()
         try:
-            self.log_path.parent.mkdir(parents=True, exist_ok=True)
+            for p in self._iter_log_paths():
+                p.parent.mkdir(parents=True, exist_ok=True)
             # Start a fresh log for this session and seed with a tiny
             # synthetic extrusion segment so that viewers like OctoPrint's
             # G-code viewer detect at least one printable path. This is
@@ -34,10 +38,53 @@ class RecordingTransport(BaseTransport):
                 "G92 X0 Y0 Z0 E0\n"
                 "G1 X0.10 Y0.00 E0.10 F600\n"  # short extrusion move
             )
-            self.log_path.write_text(seed)
+            for p in self._iter_log_paths():
+                p.write_text(seed, encoding="utf-8")
         except Exception:
             # Logging should never break transport use
             pass
+
+    def _iter_log_paths(self) -> list[Path]:
+        paths = [self.log_path]
+        if self.run_log_path is not None and self.run_log_path != self.log_path:
+            paths.append(self.run_log_path)
+        return paths
+
+    @staticmethod
+    def _sanitize_name(name: str) -> str:
+        cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", str(name)).strip("._-")
+        return cleaned or "session"
+
+    def _resolve_run_log_path(self) -> Optional[Path]:
+        # Priority: explicit copy path > explicit run name > pytest test file > __main__ file
+        if copy := os.getenv("JUBILEE_GCODE_LOG_COPY"):
+            return Path(copy)
+
+        run_name = (
+            os.getenv("JUBILEE_RUN_NAME", "").strip()
+            or self._name_from_pytest()
+            or self._name_from_main()
+        )
+        if not run_name:
+            return None
+        suffix = self.log_path.suffix or ".gcode"
+        return self.log_path.with_name(f"{self._sanitize_name(run_name)}{suffix}")
+
+    @staticmethod
+    def _name_from_pytest() -> str:
+        """Return the test file stem from PYTEST_CURRENT_TEST if set.
+
+        pytest sets this automatically to e.g.:
+          tests/test_navigation_deck.py::test_move_to_well (call)
+        """
+        val = os.getenv("PYTEST_CURRENT_TEST", "")
+        return Path(val.split("::")[0]).stem if val else ""
+
+    @staticmethod
+    def _name_from_main() -> str:
+        """Return the stem of __main__.__file__ for plain script execution."""
+        main_file = getattr(sys.modules.get("__main__"), "__file__", None)
+        return Path(main_file).stem if main_file else ""
 
     # Expose address if the inner transport has one (used by machine summary)
     @property
@@ -51,8 +98,9 @@ class RecordingTransport(BaseTransport):
             s = str(cmd).rstrip()
             if not s:
                 return
-            with self.log_path.open("a", encoding="utf-8") as f:
-                f.write(s + "\n")
+            for p in self._iter_log_paths():
+                with p.open("a", encoding="utf-8") as f:
+                    f.write(s + "\n")
         except Exception:
             # Swallow logging errors to avoid affecting motion
             pass
