@@ -152,4 +152,4 @@ pytest -q --jubilee-env hardware --maxfail=1 -k "http or homing or available_axe
   - `MockTransport`: deterministic axes and world state for tests (`--jubilee-env mock`)
   - `HTTPTransport`: real hardware via `/machine/code`, `rr_gcode`, and object model (`--jubilee-env hardware`)
 
-Happy testing! 🚀
+Happy testing!

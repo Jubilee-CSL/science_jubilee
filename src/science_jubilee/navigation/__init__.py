@@ -13,3 +13,4 @@ Typical usage:
 """
 
 from .deck_navigation import DeckNavigator  # convenience re-export
+from .free_navigation import FreeNavigator  # convenience re-export

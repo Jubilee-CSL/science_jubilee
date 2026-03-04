@@ -4,7 +4,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 @pytest.mark.invasive
-def test_home_xyu_and_z(motion):
+def test_home_all(motion):
     driver = motion
     # Ensure any active tool is parked to avoid homing interference on hardware
     try:
@@ -13,14 +13,9 @@ def test_home_xyu_and_z(motion):
     except Exception:
         pass
 
-    # Home XYU (non-interactive); Z requires deck-clear caching
-    logger.info("Homing X, Y, U")
-    driver.home("u")
-    driver.home("y")
-    driver.home("x")
-    logger.info("Learning deck clearance: True, then homing Z")
-    driver.learn_deck_clearance(True)
-    driver.home("z")
+    # Home all axes using firmware's canonical homing macro
+    logger.info('Homing all axes via firmware macro: M98 P"homeall.g"')
+    driver._gcode('M98 P"homeall.g"', wait=True)
 
     # Query homing status via transport convenience method
     homed = driver.transport.get_axes_homed()

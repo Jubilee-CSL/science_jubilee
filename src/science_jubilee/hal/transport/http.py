@@ -1,7 +1,9 @@
 import logging
+import os
 import time
 import re
-from typing import Optional, Callable
+from pathlib import Path
+from typing import Optional, Callable, Union
 
 import requests
 from requests.adapters import HTTPAdapter, Retry
@@ -342,3 +344,208 @@ class HTTPTransport(BaseTransport):
         except Exception:
             return False
 
+    # ---- File upload ----------------------------------------------------
+
+    #: Accepted destination aliases -> Duet filesystem paths
+    _UPLOAD_DESTINATIONS: dict[str, str] = {
+        "sys": "0:/sys",
+        "macros": "0:/macros",
+        "macro": "0:/macros",
+    }
+
+    def upload_file(
+        self,
+        local_path: Union[str, os.PathLike],
+        *,
+        destination: str = "sys",
+        remote_name: str | None = None,
+        timeout: float = 30.0,
+    ) -> str:
+        """Upload a local .g file to the Duet filesystem.
+
+        Tries the DWC2 endpoint (``PUT /machine/file/``) first, then falls
+        back to the legacy ``rr_upload`` endpoint automatically.
+
+        Parameters
+        ----------
+        local_path:
+            Path to the local file to upload.
+        destination:
+            Target folder on the Duet: ``"sys"`` (default) or ``"macros"``.
+            A full Duet path like ``"0:/sys"`` is also accepted.
+        remote_name:
+            Filename to use on the Duet. Defaults to the local filename.
+        timeout:
+            HTTP request timeout in seconds.
+
+        Returns
+        -------
+        str
+            Full remote path, e.g. ``"0:/sys/toffsets.g"``.
+
+        Raises
+        ------
+        FileNotFoundError
+            If ``local_path`` does not exist.
+        RuntimeError
+            If both upload endpoints fail.
+
+        Example
+        -------
+        >>> transport.upload_file("C:/Jubilee/sys/toffsets.g")
+        >>> transport.upload_file("C:/local/my_macro.g", destination="macros")
+        >>> transport.upload_file("C:/local/offsets.g", destination="sys", remote_name="toffsets.g")
+        """
+        local_path = Path(local_path)
+        if not local_path.exists():
+            raise FileNotFoundError(f"Local file not found: {local_path}")
+
+        folder = self._UPLOAD_DESTINATIONS.get(destination.lower(), destination.rstrip("/"))
+        filename = remote_name if remote_name else local_path.name
+        remote_path = f"{folder}/{filename}"
+        file_bytes = local_path.read_bytes()
+
+        # --- Attempt 1: DWC2 endpoint (PUT /machine/file/...) ----------
+        encoded_path = remote_path.replace(":", "%3A").replace(" ", "%20")
+        dwc2_url = f"http://{self.address}/machine/file/{encoded_path}"
+        try:
+            resp = self.session.put(
+                dwc2_url,
+                data=file_bytes,
+                headers={"Content-Type": "application/octet-stream"},
+                timeout=timeout,
+            )
+            if resp.status_code in (200, 201):
+                logger.info("Uploaded via DWC2: %s -> %s", local_path.name, remote_path)
+                print(f"Uploaded '{local_path.name}' -> {remote_path}  (DWC2)")
+                return remote_path
+            logger.debug("DWC2 upload returned %s: %s", resp.status_code, resp.text[:200])
+        except requests.RequestException as e:
+            logger.debug("DWC2 upload failed: %s", e)
+
+        # --- Attempt 2: Legacy rr_upload endpoint ----------------------
+        rr_url = f"http://{self.address}/rr_upload"
+        try:
+            resp = self.session.put(
+                rr_url,
+                params={"name": remote_path},
+                data=file_bytes,
+                headers={"Content-Type": "application/octet-stream"},
+                timeout=timeout,
+            )
+            if resp.status_code == 200:
+                try:
+                    body = resp.json()
+                    if body.get("err", 1) == 0:
+                        logger.info("Uploaded via rr_upload: %s -> %s", local_path.name, remote_path)
+                        print(f"Uploaded '{local_path.name}' -> {remote_path}  (rr_upload)")
+                        return remote_path
+                    logger.debug("rr_upload returned err=%s", body.get("err"))
+                except Exception:
+                    # Some firmware versions return plain 200 with no JSON
+                    logger.info("Uploaded via rr_upload: %s -> %s", local_path.name, remote_path)
+                    print(f"Uploaded '{local_path.name}' -> {remote_path}  (rr_upload)")
+                    return remote_path
+            logger.debug("rr_upload returned %s: %s", resp.status_code, resp.text[:200])
+        except requests.RequestException as e:
+            logger.debug("rr_upload failed: %s", e)
+
+        raise RuntimeError(
+            f"Failed to upload '{local_path.name}' to '{remote_path}' on {self.address}. "
+            "Both /machine/file/ (DWC2) and /rr_upload (legacy) endpoints failed."
+        )
+
+    def upload_files(
+        self,
+        local_paths: list[Union[str, os.PathLike]],
+        *,
+        destination: str = "sys",
+        timeout: float = 30.0,
+    ) -> list[str]:
+        """Upload multiple files to the same destination folder.
+
+        Parameters
+        ----------
+        local_paths:
+            List of local file paths.
+        destination:
+            ``"sys"`` or ``"macros"`` (or a full Duet path).
+        timeout:
+            Per-file HTTP timeout.
+
+        Returns
+        -------
+        list[str]
+            Remote paths for each uploaded file.
+        """
+        return [
+            self.upload_file(p, destination=destination, timeout=timeout)
+            for p in local_paths
+        ]
+
+    def read_file(
+        self,
+        remote_path: str,
+        *,
+        timeout: float = 10.0,
+    ) -> str:
+        """Read a text file from the Duet filesystem and return its contents.
+
+        Tries the DWC2 endpoint (``GET /machine/file/``) first, then falls
+        back to the legacy ``rr_download`` endpoint.
+
+        Parameters
+        ----------
+        remote_path:
+            Full Duet path, e.g. ``"0:/sys/toffsets.g"``, or a short form
+            like ``"sys/toffsets.g"`` which will be prefixed with ``"0:/"``
+            automatically.
+        timeout:
+            HTTP request timeout in seconds.
+
+        Returns
+        -------
+        str
+            The text content of the file.
+
+        Raises
+        ------
+        RuntimeError
+            If neither endpoint returns the file successfully.
+
+        Example
+        -------
+        >>> content = transport.read_file("0:/sys/toffsets.g")
+        >>> content = transport.read_file("sys/config.g")
+        """
+        # Normalize: ensure the path starts with "0:/"
+        if not remote_path.startswith("0:/") and not remote_path.startswith("0%3A"):
+            remote_path = "0:/" + remote_path.lstrip("/")
+
+        # --- Attempt 1: DWC2 GET /machine/file/ --------------------------
+        encoded_path = remote_path.replace(":", "%3A").replace(" ", "%20")
+        dwc2_url = f"http://{self.address}/machine/file/{encoded_path}"
+        try:
+            resp = self.session.get(dwc2_url, timeout=timeout)
+            if resp.status_code == 200:
+                logger.debug("Read via DWC2: %s", remote_path)
+                return resp.text
+            logger.debug("DWC2 read returned %s for %s", resp.status_code, remote_path)
+        except requests.RequestException as e:
+            logger.debug("DWC2 read failed: %s", e)
+
+        # --- Attempt 2: Legacy rr_download --------------------------------
+        rr_url = f"http://{self.address}/rr_download"
+        try:
+            resp = self.session.get(rr_url, params={"name": remote_path}, timeout=timeout)
+            if resp.status_code == 200:
+                logger.debug("Read via rr_download: %s", remote_path)
+                return resp.text
+            logger.debug("rr_download returned %s for %s", resp.status_code, remote_path)
+        except requests.RequestException as e:
+            logger.debug("rr_download failed: %s", e)
+
+        raise RuntimeError(
+            f"Failed to read '{remote_path}' from {self.address}. "
+            "Both /machine/file/ (DWC2) and /rr_download (legacy) endpoints failed."
+        )
