@@ -166,7 +166,11 @@ class MockTransport(BaseTransport):
             self.active_tool_index = -1
             return self._reply("ok")
 
-        # Macros just return ok
+        # Macros
+        if cmd.startswith('M98 P"homeall.g"'):
+            # Mirror firmware homeall macro effect in simulation
+            self.axes_homed = [True] * len(self.axes_letters)
+            return self._reply("ok")
         if cmd.startswith("M98"):
             return self._reply("ok")
 

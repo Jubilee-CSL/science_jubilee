@@ -65,6 +65,51 @@ m.load_tool(pipette)                                           # configure the p
 ...
 ```
 
+### Setting up a new tool with the HAL layer
+For tool setup and calibration, a lower-level interface based on `MotionDriver` is available. It gives direct control over motion and handles generating the Duet firmware files needed for each tool (tpre, tpost, tfree):
+
+```python
+from science_jubilee.hal.transport.http import HTTPTransport
+from science_jubilee.hal.motion_driver import MotionDriver
+from science_jubilee.navigation import FreeNavigator
+from science_jubilee.calibration.tool_gfiles import generate_tool_gfiles
+
+# Connect
+transport = HTTPTransport(address="10.0.3.48")
+driver = MotionDriver(transport)
+nav = FreeNavigator(driver)
+
+# Home the machine
+nav.home_all()                          # runs homeall.g on the Duet
+
+# Jog to find the parking post position
+nav.move_to(z=150)
+nav.move_to(x=150, y=150)
+nav.jog(x=5, y=-2)                      # fine-tune with relative moves
+print(nav.get_position())               # {"X": ..., "Y": ..., "Z": ...}
+
+# Once you have your parking coordinates:
+tool_number     = 0
+x_park          = 120.0   # X position of the parking post
+y_park          = 295.0   # Y position where tool is locked/released
+y_clear         = 260.0   # Y position safely clear of all parking posts
+manhattan_offset = 60.0   # approach offset added to x_park in tpre
+
+# Generate tpre0.g, tpost0.g, tfree0.g and upload them to 0:/sys/ in one call
+generate_tool_gfiles(
+    tool_number=tool_number,
+    x_park=x_park,
+    y_park=y_park,
+    y_clear=y_clear,
+    manhattan_offset=manhattan_offset,
+    transport=transport,                # omit to only write files locally
+)
+```
+
+The generated files are written to `firmware/sys/` locally and, when `transport` is provided, uploaded directly to `0:/sys/` on the Duet — no copy-paste into DWC required.
+
+
+
 
 <!-- pyscaffold-notes -->
 
