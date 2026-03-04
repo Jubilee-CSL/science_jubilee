@@ -1,0 +1,371 @@
+2024-09-19 17:48:25 Event logging started
+2024-09-19 17:49:51 Warning: Lost connection to Duet (Timeout while waiting for transfer ready pin)
+2024-09-19 17:52:02 Event logging stopped
+2024-09-19 17:52:59 Event logging started
+2024-09-19 17:56:10 Event logging stopped
+2024-09-19 17:56:20 Event logging started
+2024-09-19 17:56:21 Error: in file macro line 146: M563: parameter 'P' too high
+2024-09-19 17:56:42 Error: M553: Failed to determine IP address required to set netmask
+2024-09-19 17:56:42 Event logging stopped
+2024-09-19 17:56:42 Event logging started
+2024-09-19 18:00:51 Event logging stopped
+2024-09-19 18:00:59 Event logging started
+2024-09-19 18:02:39 Error: M553: Failed to determine IP address required to set netmask
+2024-09-19 18:02:39 Event logging stopped
+2024-09-19 18:02:39 Event logging started
+2024-09-19 18:03:29 Event logging stopped
+2024-09-19 18:03:37 Event logging started
+2024-09-19 18:08:56 Event logging stopped
+2024-09-19 18:09:05 Event logging started
+2024-09-19 18:10:53 Error: in file macro line 6: G0: insufficient axes homed
+2024-09-19 18:10:58 Error: in file macro line 6: G0: insufficient axes homed
+2024-09-19 18:11:27 Error: in file macro line 31: G1: insufficient axes homed
+2024-09-19 18:11:58 Event logging stopped
+2024-09-19 18:12:07 Event logging started
+2024-09-19 18:16:46 Event logging stopped
+2024-09-19 18:16:54 Event logging started
+2024-09-19 18:20:47 Event logging stopped
+2024-09-19 18:20:56 Event logging started
+2024-09-19 18:22:45 Event logging stopped
+2024-09-19 18:22:55 Event logging started
+2024-09-19 18:24:50 Warning: Lost connection to Duet (Timeout while waiting for transfer ready pin)
+2024-09-19 18:24:54 Warning: SPI connection has been reset
+2024-09-19 18:24:54 Connection to SBC established!
+2024-09-19 18:24:59 Warning: Lost connection to Duet (Timeout while waiting for transfer ready pin)
+2024-09-19 18:25:13 Warning: SPI connection has been reset
+2024-09-19 18:25:13 Connection to SBC established!
+2024-09-19 18:25:13 Error: M553: Failed to determine IP address required to set netmask
+2024-09-19 18:25:13 Event logging stopped
+2024-09-19 18:25:13 Event logging started
+2024-09-19 18:27:02 Event logging stopped
+2024-09-19 18:27:11 Event logging started
+2024-09-19 18:32:14 Event logging stopped
+2024-09-19 18:32:23 Event logging started
+2024-09-19 18:35:03 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2024-09-19 18:35:03 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2024-09-19 18:35:12 Warning: Lost connection to Duet (Timeout while waiting for transfer ready pin)
+2024-09-19 18:35:15 Warning: SPI connection has been reset
+2024-09-19 18:35:15 Connection to SBC established!
+2024-09-19 18:35:16 Error: M553: Failed to determine IP address required to set netmask
+2024-09-19 18:35:16 Event logging stopped
+2024-09-19 18:35:16 Event logging started
+2024-09-19 18:37:46 Event logging stopped
+2024-09-19 18:37:55 Event logging started
+2024-09-19 18:39:09 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2024-09-19 18:39:09 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2024-09-19 18:39:23 Event logging stopped
+2024-09-19 18:39:31 Event logging started
+2024-09-19 18:42:56 Event logging stopped
+2024-09-19 18:43:05 Event logging started
+2024-09-19 18:44:04 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2024-09-19 18:44:04 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2024-09-19 18:45:40 Warning: Lost connection to Duet (Timeout while waiting for transfer ready pin)
+2024-09-19 20:23:24 Warning: SPI connection has been reset
+2024-09-19 20:23:24 Connection to SBC established!
+2024-09-19 20:23:26 Error: M553: Failed to determine IP address required to set netmask
+2024-09-19 20:23:26 Event logging stopped
+2024-09-19 20:23:26 Event logging started
+2024-09-19 20:23:33 Event logging stopped
+2024-09-19 20:23:42 Event logging started
+2024-09-19 20:24:09 Event logging stopped
+2024-09-19 20:24:19 Event logging started
+2024-09-19 20:28:16 Event logging stopped
+2024-09-19 20:36:04 Event logging started
+2024-09-19 20:37:46 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2024-09-19 20:37:47 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2024-09-19 20:39:26 Event logging stopped
+2024-09-19 20:39:36 Event logging started
+2024-09-19 20:39:51 Event logging stopped
+2024-09-19 20:40:00 Event logging started
+2024-09-19 20:40:33 Event logging stopped
+2024-09-19 20:40:42 Event logging started
+2024-09-19 20:41:39 Event logging stopped
+2024-09-19 20:41:47 Event logging started
+2024-09-19 20:42:58 Event logging stopped
+2024-09-19 20:43:07 Event logging started
+2024-09-19 20:43:36 Warning: VIN under-voltage event (9.3V)
+2024-09-19 20:43:40 Warning: Lost connection to Duet (Timeout while waiting for transfer ready pin)
+2024-09-19 20:44:53 Event logging stopped
+2024-09-19 20:45:29 Event logging started
+2024-09-19 20:47:17 Error: M553: Failed to determine IP address required to set netmask
+2024-09-19 20:47:17 Event logging stopped
+2024-09-19 20:47:17 Event logging started
+2024-09-19 20:48:29 Event logging stopped
+2024-09-19 20:48:38 Event logging started
+2024-09-19 20:50:09 Event logging stopped
+2024-09-19 20:50:18 Event logging started
+2024-09-19 20:51:10 Event logging stopped
+2024-09-19 20:51:19 Event logging started
+2024-09-19 20:54:06 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2024-09-19 20:54:07 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2024-09-19 20:55:14 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2024-09-19 20:55:14 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2024-09-19 20:58:01 Error: M553: Failed to determine IP address required to set netmask
+2024-09-19 20:58:01 Event logging stopped
+2024-09-19 20:58:01 Event logging started
+2024-09-19 20:58:01 Error: M574: Pin 1.io2.in is not free
+2024-09-19 20:58:43 Event logging stopped
+2024-09-19 20:58:52 Event logging started
+2024-09-19 20:59:45 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2024-09-19 20:59:46 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2024-09-19 21:05:04 Warning: Lost connection to Duet (Timeout while waiting for transfer ready pin)
+2024-09-19 21:05:20 Warning: SPI connection has been reset
+2024-09-19 21:05:20 Connection to SBC established!
+2024-09-19 21:05:22 Error: M553: Failed to determine IP address required to set netmask
+2024-09-19 21:05:22 Event logging stopped
+2024-09-19 21:05:22 Event logging started
+2024-09-19 21:05:46 Event logging stopped
+2024-09-19 21:05:55 Event logging started
+2024-09-19 21:07:10 Event logging stopped
+2024-09-19 21:07:19 Event logging started
+2024-09-19 21:20:50 Event logging stopped
+2024-09-19 21:20:59 Event logging started
+2024-09-19 21:21:35 Event logging stopped
+2024-09-19 21:21:44 Event logging started
+2024-09-19 21:26:48 Event logging started
+2024-09-19 21:26:48 Event logging started
+2024-09-19 21:53:27 Event logging started
+2026-01-28 14:05:18 Event logging started
+2026-01-30 17:04:52 Warning: : Awaiting input, command ignored
+2026-01-30 17:31:45 Warning: : Awaiting input, command ignored
+2026-01-30 17:31:46 Warning: G90: Awaiting input, command ignored
+2026-01-30 17:31:46 Warning: G90: Awaiting input, command ignored
+2026-01-30 17:31:46 Warning: : Awaiting input, command ignored
+2026-01-30 17:31:46 Warning: G90: Awaiting input, command ignored
+2026-01-30 17:31:47 Warning: G90: Awaiting input, command ignored
+2026-01-30 17:31:47 Warning: G28: Awaiting input, command ignored
+2026-01-30 17:31:47 Warning: G28: Awaiting input, command ignored
+2026-01-30 17:31:47 Warning: G28: Awaiting input, command ignored
+2026-01-30 17:31:47 Warning: G90: Awaiting input, command ignored
+2026-01-30 17:39:20 Warning: : Awaiting input, command ignored
+2026-01-30 17:39:20 Warning: G90: Awaiting input, command ignored
+2026-01-30 17:39:20 Warning: G90: Awaiting input, command ignored
+2026-01-30 17:39:20 Warning: : Awaiting input, command ignored
+2026-01-30 17:39:21 Warning: G90: Awaiting input, command ignored
+2026-01-30 17:39:21 Warning: G90: Awaiting input, command ignored
+2026-01-30 17:39:21 Warning: G28: Awaiting input, command ignored
+2026-01-30 17:39:21 Warning: G28: Awaiting input, command ignored
+2026-01-30 17:39:21 Warning: G28: Awaiting input, command ignored
+2026-01-30 17:39:21 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:10:16 Warning: : Awaiting input, command ignored
+2026-01-30 18:10:17 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:10:17 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:17:42 Warning: : Awaiting input, command ignored
+2026-01-30 18:17:42 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:17:42 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:17:43 Warning: : Awaiting input, command ignored
+2026-01-30 18:17:43 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:17:43 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:17:43 Warning: G28: Awaiting input, command ignored
+2026-01-30 18:17:44 Warning: G28: Awaiting input, command ignored
+2026-01-30 18:17:44 Warning: G28: Awaiting input, command ignored
+2026-01-30 18:17:44 Warning: G28: Awaiting input, command ignored
+2026-01-30 18:17:44 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:17:53 Warning: : Awaiting input, command ignored
+2026-01-30 18:17:53 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:17:53 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:17:54 Warning: : Awaiting input, command ignored
+2026-01-30 18:17:54 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:17:54 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:17:54 Warning: G28: Awaiting input, command ignored
+2026-01-30 18:17:54 Warning: G28: Awaiting input, command ignored
+2026-01-30 18:17:55 Warning: G28: Awaiting input, command ignored
+2026-01-30 18:17:55 Warning: G28: Awaiting input, command ignored
+2026-01-30 18:17:55 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:20:03 Warning: : Awaiting input, command ignored
+2026-01-30 18:20:03 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:20:03 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:20:04 Warning: : Awaiting input, command ignored
+2026-01-30 18:20:04 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:20:04 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:20:04 Warning: T-1: Awaiting input, command ignored
+2026-01-30 18:20:04 Warning: G28: Awaiting input, command ignored
+2026-01-30 18:20:05 Warning: G28: Awaiting input, command ignored
+2026-01-30 18:20:05 Warning: G28: Awaiting input, command ignored
+2026-01-30 18:20:05 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:20:05 Warning: G28: Awaiting input, command ignored
+2026-01-30 18:20:05 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:23:03 Warning: : Awaiting input, command ignored
+2026-01-30 18:23:04 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:23:04 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:23:04 Warning: : Awaiting input, command ignored
+2026-01-30 18:23:05 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:23:05 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:23:05 Warning: T-1: Awaiting input, command ignored
+2026-01-30 18:23:05 Warning: G28: Awaiting input, command ignored
+2026-01-30 18:23:05 Warning: M400: Awaiting input, command ignored
+2026-01-30 18:23:05 Warning: G28: Awaiting input, command ignored
+2026-01-30 18:23:06 Warning: M400: Awaiting input, command ignored
+2026-01-30 18:23:06 Warning: G28: Awaiting input, command ignored
+2026-01-30 18:23:06 Warning: M400: Awaiting input, command ignored
+2026-01-30 18:23:06 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:23:06 Warning: G28: Awaiting input, command ignored
+2026-01-30 18:23:06 Warning: M400: Awaiting input, command ignored
+2026-01-30 18:23:06 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:44:08 Warning: : Awaiting input, command ignored
+2026-01-30 18:44:08 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:44:08 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:44:09 Warning: : Awaiting input, command ignored
+2026-01-30 18:44:09 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:44:09 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:44:09 Warning: T-1: Awaiting input, command ignored
+2026-01-30 18:44:09 Warning: G28: Awaiting input, command ignored
+2026-01-30 18:44:09 Warning: M400: Awaiting input, command ignored
+2026-01-30 18:44:10 Warning: G28: Awaiting input, command ignored
+2026-01-30 18:44:10 Warning: M400: Awaiting input, command ignored
+2026-01-30 18:44:10 Warning: G28: Awaiting input, command ignored
+2026-01-30 18:44:10 Warning: M400: Awaiting input, command ignored
+2026-01-30 18:44:10 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:44:10 Warning: G28: Awaiting input, command ignored
+2026-01-30 18:44:10 Warning: M400: Awaiting input, command ignored
+2026-01-30 18:44:10 Warning: G90: Awaiting input, command ignored
+2026-01-30 18:58:22 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2026-01-30 18:58:22 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2026-01-30 19:15:54 Event logging started
+2026-02-06 16:33:27 Error: G30: Probe was not triggered during probing move
+2026-02-06 16:33:31 Error: G30: Probe already triggered at start of probing move
+2026-02-06 16:33:31 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2026-02-06 16:33:31 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2026-02-06 16:33:31 Error: G29: Probe already triggered at start of probing move
+2026-02-06 16:34:17 Event logging stopped
+2026-02-06 16:34:28 Event logging started
+2026-02-06 16:35:27 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2026-02-06 16:35:28 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2026-02-06 16:57:30 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2026-02-06 16:57:31 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2026-02-06 16:58:36 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2026-02-06 16:58:36 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2026-02-06 16:59:09 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2026-02-06 16:59:09 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2026-02-06 18:36:53 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2026-02-06 18:36:53 Error: G29: Height map file 0:/sys/heightmap.csv not found
+                                                            2026-02-06 18:59:56 Event logging started
+2026-02-06 19:05:00 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2026-02-06 19:05:01 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2026-02-06 19:05:34 Error: G30: Probe already triggered at start of probing move
+2026-02-06 19:05:44 Error: G30: Probe was not triggered during probing move
+2026-02-06 19:05:44 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2026-02-06 19:05:45 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2026-02-06 19:05:45 Error: G29: Probe was not triggered during probing move
+2026-02-06 19:09:54 Event logging stopped
+2026-02-06 19:10:03 Event logging started
+2026-02-06 19:11:53 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2026-02-06 19:11:53 Error: G29: Height map file 0:/sys/heightmap.csv not found
+2026-02-06 19:18:07 Event logging stopped
+2026-02-06 19:18:16 Event logging started
+2026-02-06 19:19:01 Error: G29: No valid grid defined for bed probing
+2026-02-06 19:19:02 Error: G29: No valid grid defined for bed probing
+2026-02-06 19:20:22 Error: G29: No valid grid defined for bed probing
+2026-02-06 19:20:22 Error: G29: No valid grid defined for bed probing
+2026-02-06 19:22:10 Error: G29: No valid grid defined for bed probing
+2026-02-06 19:22:10 Error: G29: No valid grid defined for bed probing
+2026-02-06 19:23:28 Error: G29: No valid grid defined for bed probing
+2026-02-06 19:23:28 Error: G29: No valid grid defined for bed probing
+2026-02-06 19:29:12 Event logging stopped
+2026-02-06 19:29:23 Event logging started
+2026-02-06 19:32:23 Error: G29: No valid grid defined for bed probing
+2026-02-06 19:32:23 Error: G29: No valid grid defined for bed probing
+2026-02-06 19:34:48 Error: G29: No valid grid defined for bed probing
+2026-02-06 19:34:48 Error: G29: No valid grid defined for bed probing
+2026-02-06 19:34:49 Error: G0: insufficient axes homed
+2026-02-06 19:37:42 Event logging started
+2026-02-06 20:31:26 Error: G29: No valid grid defined for bed probing
+2026-02-06 20:31:27 Error: G29: No valid grid defined for bed probing
+2026-03-02 15:16:35 Error: G29: No valid grid defined for bed probing
+2026-03-02 15:16:35 Error: G29: No valid grid defined for bed probing
+2026-03-02 17:14:17 Error: G29: No valid grid defined for bed probing
+2026-03-02 17:14:17 Error: G29: No valid grid defined for bed probing
+2026-03-02 17:14:57 Error: G30: Probe was not triggered during probing move
+2026-03-02 17:15:00 Error: Compensation or calibration cancelled due to probing errors
+2026-03-02 17:15:00 Error: G29: No valid grid defined for bed probing
+2026-03-02 17:15:00 Error: G29: No valid grid defined for bed probing
+2026-03-02 17:15:08 Event logging stopped
+2026-03-02 17:15:18 Event logging started
+2026-03-02 17:16:25 Error: G29: No valid grid defined for bed probing
+2026-03-02 17:16:25 Error: G29: No valid grid defined for bed probing
+2026-03-02 17:17:24 Error: G29: No valid grid defined for bed probing
+2026-03-02 17:17:24 Error: G29: No valid grid defined for bed probing
+2026-03-02 18:04:52 Event logging stopped
+2026-03-02 18:05:02 Event logging started
+2026-03-02 18:05:45 Error: in file macro line 6: G0: insufficient axes homed
+2026-03-02 18:05:48 Error: Must home axes [XY] before homing [Z]
+2026-03-02 18:06:54 Error: G29: No valid grid defined for bed probing
+2026-03-02 18:06:54 Error: G29: No valid grid defined for bed probing
+2026-03-02 18:10:10 Event logging started
+2026-03-02 18:21:40 Event logging stopped
+2026-03-02 18:54:51 Event logging started
+2026-03-02 18:54:53 Error: M350: Driver 1 does not support x6 microstepping with interpolation
+2026-03-02 19:02:08 Event logging stopped
+2026-03-02 19:02:19 Event logging started
+2026-03-02 19:02:20 Error: M350: Driver 1 does not support x6 microstepping with interpolation
+2026-03-02 19:04:18 Event logging stopped
+2026-03-02 19:04:30 Event logging started
+2026-03-02 19:04:50 Error: Homing file homeb.g not found
+2026-03-02 19:06:33 Event logging stopped
+2026-03-02 19:06:44 Event logging started
+2026-03-02 19:10:05 Event logging stopped
+2026-03-02 19:10:16 Event logging started
+2026-03-02 19:12:03 Warning: Lost connection to Duet (Timeout while waiting for transfer ready pin)
+2026-03-02 19:12:29 Warning: SPI connection has been reset
+2026-03-02 19:12:29 Connection to SBC established!
+2026-03-02 19:12:31 Event logging stopped
+2026-03-02 19:12:31 Event logging started
+2026-03-02 19:14:52 Event logging started
+2026-03-02 19:15:57 Error: in file macro line 3: G1: insufficient axes homed
+2026-03-02 19:16:05 Error: G92: expected number after 'C'
+2026-03-02 19:16:34 Error: in file macro line 5: G1: insufficient axes homed
+2026-03-02 19:17:10 Event logging started
+2026-03-02 19:19:02 Error: in file macro line 5: G1: insufficient axes homed
+2026-03-02 19:20:28 Error: in file macro line 5: G1: insufficient axes homed
+2026-03-02 19:21:20 Error: in file macro line 5: G1: insufficient axes homed
+2026-03-02 19:22:49 Error: in file macro line 5: G1: insufficient axes homed
+2026-03-02 19:25:42 Error: G29: No valid grid defined for bed probing
+2026-03-02 19:25:42 Error: G29: No valid grid defined for bed probing
+2026-03-02 19:27:04 Event logging stopped
+2026-03-02 19:27:15 Event logging started
+2026-03-02 19:27:38 Error: in file macro line 4: G1: insufficient axes homed
+2026-03-02 19:30:31 Event logging started
+2026-03-03 13:21:56 Event logging stopped
+2026-03-03 13:22:06 Event logging started
+2026-03-03 13:34:01 Error: G29: No valid grid defined for bed probing
+2026-03-03 13:34:01 Error: G29: No valid grid defined for bed probing
+2026-03-03 13:47:48 Event logging started
+2026-03-03 15:00:23 Event logging stopped
+2026-03-03 15:00:35 Event logging started
+2026-03-03 15:07:43 Event logging stopped
+2026-03-03 15:07:55 Event logging started
+2026-03-03 15:13:22 Error: G0: insufficient axes homed
+2026-03-03 15:15:02 Error: G29: No valid grid defined for bed probing
+2026-03-03 15:15:02 Error: G29: No valid grid defined for bed probing
+2026-03-03 15:31:32 Event logging stopped
+2026-03-03 15:31:43 Event logging started
+2026-03-03 15:32:02 Error: in file macro line 6: G0: insufficient axes homed
+2026-03-03 15:32:07 Error: in file macro line 6: G0: insufficient axes homed
+2026-03-03 15:32:34 Error: in file macro line 6: G0: insufficient axes homed
+2026-03-03 15:32:45 Error: in file macro line 11: G1: insufficient axes homed
+2026-03-03 15:32:50 Error: in file macro line 6: G0: insufficient axes homed
+2026-03-03 15:34:04 Error: G29: No valid grid defined for bed probing
+2026-03-03 15:34:04 Error: G29: No valid grid defined for bed probing
+2026-03-03 15:55:52 Event logging stopped
+2026-03-03 15:56:04 Event logging started
+2026-03-03 15:57:05 Event logging stopped
+2026-03-03 15:57:15 Event logging started
+2026-03-03 16:02:53 Warning: Lost connection to Duet (Timeout while waiting for transfer ready pin)
+                                                                                                                                                                                                                                            2026-03-03 17:31:47 Event logging started
+2026-03-03 17:31:57 Error: G29: Must home printer before bed probing
+2026-03-03 17:32:44 Error: G29: Must home printer before bed probing
+2026-03-03 17:32:44 Error: G29: Must home printer before bed probing
+2026-03-03 17:35:14 Error: G0: intermediate position outside machine limits
+2026-03-03 17:35:15 Error: G1: intermediate position outside machine limits
+2026-03-03 17:35:19 Event logging stopped
+2026-03-03 17:35:30 Event logging started
+2026-03-03 17:36:09 Event logging stopped
+2026-03-03 17:36:18 Event logging started
+2026-03-03 17:39:00 Error: G29: No valid grid defined for bed probing
+2026-03-03 17:39:01 Error: G29: No valid grid defined for bed probing
+2026-03-03 18:07:34 Event logging started
+2026-03-03 18:07:35 Error: in file macro line 7: G10: Invalid tool number
+2026-03-04 10:10:24 Error: G29: No valid grid defined for bed probing
+2026-03-04 10:10:24 Error: G29: No valid grid defined for bed probing
+2026-03-04 10:13:29 Error: G29: No valid grid defined for bed probing
+2026-03-04 10:13:29 Error: G29: No valid grid defined for bed probing
