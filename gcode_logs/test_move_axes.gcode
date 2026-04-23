@@ -1,0 +1,7 @@
+; visualization seed added by RecordingTransport
+G90
+M82
+G92 X0 Y0 Z0 E0
+G1 X0.10 Y0.00 E0.10 F600
+G90
+G0 Z160.00 X150.00 Y150.50 U100.00 B50.00 C50.00 F6000.00
