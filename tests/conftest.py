@@ -9,12 +9,14 @@ import os
 import sys
 from pathlib import Path
 import pytest
-from science_jubilee.utils.env import load_env_file
+
 ## Ensure package import for tests without editable install
 _root = Path(__file__).resolve().parent.parent
 _src_path = _root / "src"
 if str(_src_path) not in sys.path:
     sys.path.insert(0, str(_src_path))
+
+from science_jubilee.utils.env import load_env_file
 
 def pytest_addoption(parser):
     """Register command-line options for simulation vs hardware selection."""

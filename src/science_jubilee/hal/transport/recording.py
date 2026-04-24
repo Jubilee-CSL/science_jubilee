@@ -2,22 +2,50 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Optional, Any, Dict
+from typing import Optional, Any, Dict, List
 
 from .base import BaseTransport
+
+# Maximum depth for recursive M98 macro expansion (guards against circular includes)
+_MAX_EXPAND_DEPTH = 5
+
+# Default macro directories relative to the repo root.
+# recording.py lives at src/science_jubilee/hal/transport/recording.py so
+# parents[4] is the repo root.
+_REPO_ROOT = Path(__file__).parents[4]
+_DEFAULT_SYS_DIR = _REPO_ROOT / "firmware" / "sys"
+_DEFAULT_MACRO_DIR = _REPO_ROOT / "firmware" / "macro"
 
 
 class RecordingTransport(BaseTransport):
     """Wrapper transport that logs all G-code commands to a file and forwards
     them to an underlying transport (mock or hardware).
 
-    This is intended for generating G-code files that can be visualized
-    elsewhere (e.g., in OctoPrint's G-code viewer) while still using the
-    existing transport implementations for simulation or hardware.
+    Tool-change commands (T{n}) are expanded in the log into the full RRF
+    macro sequence that the firmware would execute:
+      - tfree{current}.g  (if a tool is currently active)
+      - tpre{n}.g
+      - tpost{n}.g
+    M98 P"..." macro calls within those files are expanded recursively.
+
+    Macro files are resolved from ``sys_dir`` and ``macro_dir``. The defaults
+    point to ``firmware/sys/`` and ``firmware/macro/`` in the repo root.
+    Pass ``sys_dir=None`` and ``macro_dir=None`` to disable expansion (useful
+    in tests that supply their own stub directories).
     """
 
-    def __init__(self, inner: BaseTransport, log_path: Optional[str] = None):
+    def __init__(
+        self,
+        inner: BaseTransport,
+        log_path: Optional[str] = None,
+        *,
+        sys_dir: Optional[Path] = _DEFAULT_SYS_DIR,
+        macro_dir: Optional[Path] = _DEFAULT_MACRO_DIR,
+    ):
         self._inner = inner
+        self._sys_dir: Optional[Path] = Path(sys_dir) if sys_dir is not None else None
+        self._macro_dir: Optional[Path] = Path(macro_dir) if macro_dir is not None else None
+
         # Default log path can be overridden via env
         if log_path is None:
             log_path = os.getenv("JUBILEE_GCODE_LOG", "gcode_logs/latest.gcode")
@@ -91,21 +119,161 @@ class RecordingTransport(BaseTransport):
     def address(self) -> Optional[str]:
         return getattr(self._inner, "address", None)
 
+    # ---- Macro resolution helpers --------------------------------------
+
+    def _resolve_macro_path(self, rrf_path: str) -> Optional[Path]:
+        """Resolve an RRF-style macro path to a local file, or None if not found.
+
+        RRF path conventions:
+          - ``"tfree0.g"``              -> look in sys_dir
+          - ``"/macros/tool_lock.g"``  -> look in macro_dir (strip /macros/ prefix)
+          - ``"macros/tool_lock.g"``   -> same as above
+        """
+        clean = rrf_path.strip().lstrip("/")
+        if clean.startswith("macros/"):
+            filename = clean[len("macros/"):]
+            if self._macro_dir is not None:
+                candidate = self._macro_dir / filename
+                if candidate.exists():
+                    return candidate
+        # Look in sys_dir by bare filename
+        bare = Path(clean).name
+        if self._sys_dir is not None:
+            candidate = self._sys_dir / bare
+            if candidate.exists():
+                return candidate
+        # Fallback: macro_dir by bare filename
+        if self._macro_dir is not None:
+            candidate = self._macro_dir / bare
+            if candidate.exists():
+                return candidate
+        return None
+
+    def _read_gfile(self, path: Path) -> List[str]:
+        """Read a .g file and return non-blank, non-comment-only lines."""
+        try:
+            raw = path.read_text(encoding="utf-8").splitlines()
+            result = []
+            for line in raw:
+                stripped = line.strip()
+                if stripped and not stripped.startswith(";"):
+                    result.append(stripped)
+            return result
+        except Exception:
+            return []
+
+    def _expand_lines(self, lines: List[str], depth: int = 0) -> List[str]:
+        """Recursively expand M98 macro calls within a list of G-code lines."""
+        if depth >= _MAX_EXPAND_DEPTH:
+            return lines
+        result: List[str] = []
+        for line in lines:
+            m98 = re.match(r'^M98\s+P"([^"]+)"', line.strip())
+            if m98:
+                result.append(f"; {line.strip()}")
+                macro_path = self._resolve_macro_path(m98.group(1))
+                if macro_path:
+                    inner = self._read_gfile(macro_path)
+                    result.extend(self._expand_lines(inner, depth + 1))
+                else:
+                    result.append(f"; (macro not found: {m98.group(1)})")
+            else:
+                result.append(line)
+        return result
+
+    def _expand_cmd(self, cmd: str) -> List[str]:
+        """Expand a single G-code command into the lines to be written to the log.
+
+        - T{n} (n >= 0): expands tfree{cur}.g (if a tool is active), tpre{n}.g,
+          tpost{n}.g, each with nested M98 calls resolved recursively.
+        - T-1 (park):   expands tfree{cur}.g only.
+        - M98 P"...":   expands the referenced macro file.
+        - Everything else: returns the command unchanged as a single-element list.
+        """
+        stripped = cmd.strip()
+        if not stripped:
+            return []
+
+        # Tool change: T{n} or T-1
+        tool_match = re.match(r'^T(-?\d+)$', stripped)
+        if tool_match:
+            idx = int(tool_match.group(1))
+            lines: List[str] = []
+            try:
+                cur = self._inner.get_active_tool_index()
+            except Exception:
+                cur = -1
+
+            if idx >= 0:
+                lines.append(f"; === tool change: T{idx} ===")
+                # Free current tool first
+                if cur >= 0:
+                    tfree_path = self._resolve_macro_path(f"tfree{cur}.g")
+                    if tfree_path:
+                        lines.append(f"; tfree{cur}.g")
+                        lines.extend(self._expand_lines(self._read_gfile(tfree_path)))
+                    else:
+                        lines.append(f"; (macro not found: tfree{cur}.g)")
+                # Approach new tool
+                tpre_path = self._resolve_macro_path(f"tpre{idx}.g")
+                if tpre_path:
+                    lines.append(f"; tpre{idx}.g")
+                    lines.extend(self._expand_lines(self._read_gfile(tpre_path)))
+                else:
+                    lines.append(f"; (macro not found: tpre{idx}.g)")
+                # Lock and restore
+                tpost_path = self._resolve_macro_path(f"tpost{idx}.g")
+                if tpost_path:
+                    lines.append(f"; tpost{idx}.g")
+                    lines.extend(self._expand_lines(self._read_gfile(tpost_path)))
+                else:
+                    lines.append(f"; (macro not found: tpost{idx}.g)")
+            else:
+                # T-1: park only
+                lines.append("; === park tool: T-1 ===")
+                if cur >= 0:
+                    tfree_path = self._resolve_macro_path(f"tfree{cur}.g")
+                    if tfree_path:
+                        lines.append(f"; tfree{cur}.g")
+                        lines.extend(self._expand_lines(self._read_gfile(tfree_path)))
+                    else:
+                        lines.append(f"; (macro not found: tfree{cur}.g)")
+
+            lines.append(f"; {stripped}")
+            return lines
+
+        # Standalone M98 call
+        m98_match = re.match(r'^M98\s+P"([^"]+)"', stripped)
+        if m98_match:
+            lines = [f"; {stripped}"]
+            macro_path = self._resolve_macro_path(m98_match.group(1))
+            if macro_path:
+                inner = self._read_gfile(macro_path)
+                lines.extend(self._expand_lines(inner))
+            else:
+                lines.append(f"; (macro not found: {m98_match.group(1)})")
+            return lines
+
+        return [stripped]
+
+    # ---- Logging -------------------------------------------------------
+
     def _log(self, cmd: str) -> None:
         try:
             if cmd is None:
                 return
-            s = str(cmd).rstrip()
-            if not s:
+            lines = self._expand_cmd(str(cmd))
+            if not lines:
                 return
+            text = "\n".join(lines) + "\n"
             for p in self._iter_log_paths():
                 with p.open("a", encoding="utf-8") as f:
-                    f.write(s + "\n")
+                    f.write(text)
         except Exception:
             # Swallow logging errors to avoid affecting motion
             pass
 
-    # ---- Core transport methods ---------------------------------------
+    # ---- Core transport methods ----------------------------------------
     def send_gcode(self, cmd: str = "", timeout: Optional[float] = None, response_wait: float = 60, wait: bool = False):
         # Record every command that goes through the transport
         self._log(cmd)
@@ -117,16 +285,25 @@ class RecordingTransport(BaseTransport):
     def deck_is_clear(self) -> bool:
         return self._inner.deck_is_clear()
 
-    # ---- Tools API -----------------------------------------------------
+    # ---- Tools API ----------------------------------------------------
     def get_active_tool_index(self) -> int:
         return self._inner.get_active_tool_index()
 
     def select_tool(self, index: int) -> bool:
-        # Tool commands also get logged via send_gcode, so just delegate
-        return self._inner.select_tool(index)
+        # Route through send_gcode so the full tool-change sequence is logged.
+        # MockTransport.send_gcode and HTTPTransport.send_gcode both handle T{n}.
+        try:
+            self.send_gcode(f"T{int(index)}")
+            return True
+        except Exception:
+            return False
 
     def park_tool(self) -> bool:
-        return self._inner.park_tool()
+        try:
+            self.send_gcode("T-1")
+            return True
+        except Exception:
+            return False
 
     def get_tools(self) -> Dict[int, Dict[str, Any]]:
         return self._inner.get_tools()
@@ -135,6 +312,15 @@ class RecordingTransport(BaseTransport):
         return self._inner.get_tool_offsets()
 
     def set_tool_offset(self, tool_idx: int, *, x: float | None = None, y: float | None = None, z: float | None = None) -> bool:
+        # Log the equivalent G10 command, then delegate for actual state update.
+        parts = [f"P{int(tool_idx)}"]
+        if x is not None:
+            parts.append(f"X{float(x):.4f}")
+        if y is not None:
+            parts.append(f"Y{float(y):.4f}")
+        if z is not None:
+            parts.append(f"Z{float(z):.4f}")
+        self._log("G10 " + " ".join(parts))
         return self._inner.set_tool_offset(tool_idx, x=x, y=y, z=z)
 
     # ---- Convenience: axes/limits/positions ---------------------------
