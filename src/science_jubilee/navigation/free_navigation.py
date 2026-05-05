@@ -9,41 +9,16 @@ from science_jubilee.tools.Tool import Tool
 
 
 class FreeNavigator:
-    """Free-form motion controller built on MotionDriver.
+    """Free-form motion: jog, home, tool operations. No deck geometry.
 
-    Unlike DeckNavigator, this class has no concept of a deck layout or
-    labware geometry. It is useful for:
-    - interactive setup and calibration workflows
-    - jogging individual axes by relative increments
-    - moving to arbitrary absolute positions
-    - tool pickup and parking during setup
+    Example::
 
-    All calls go through MotionDriver or ToolChanger; the transport is an
-    implementation detail that FreeNavigator never touches directly.
-
-    Parameters
-    ----------
-    driver:
-        A fully initialised MotionDriver instance.
-    tool_changer:
-        A ToolChanger instance built on the same transport.
-
-    Example
-    -------
-    >>> from science_jubilee.hal.transport.http import HTTPTransport
-    >>> from science_jubilee.hal.motion_driver import MotionDriver
-    >>> from science_jubilee.hal.tool_changer import ToolChanger
-    >>> from science_jubilee.navigation.free_navigation import FreeNavigator
-    >>>
-    >>> transport = HTTPTransport(address="10.0.3.48")
-    >>> driver = MotionDriver(transport)
-    >>> tc = ToolChanger(transport)
-    >>> nav = FreeNavigator(driver, tc)
-    >>>
-    >>> nav.move_to(x=150, y=150)
-    >>> nav.jog(x=5)
-    >>> nav.pickup_tool(0)
-    >>> nav.park_tool()
+        transport = HTTPTransport(address="10.0.3.48")
+        driver = MotionDriver(transport)
+        tc = ToolChanger(transport)
+        nav = FreeNavigator(driver, tc)
+        nav.move_to(x=150, y=150)
+        nav.pickup_tool(0)
     """
 
     def __init__(self, driver: MotionDriver, tool_changer: ToolChanger) -> None:
@@ -63,20 +38,7 @@ class FreeNavigator:
         wait: bool = True,
         **extra_axes: float,
     ) -> None:
-        """Move to an absolute position on any combination of axes.
-
-        Parameters
-        ----------
-        x, y, z:
-            Target positions in mm for those axes. Omit any axis to leave
-            it unchanged.
-        speed:
-            Feedrate in mm/min.
-        wait:
-            Block until motion is complete.
-        **extra_axes:
-            Any additional axes by single-letter keyword, e.g. ``u=30``.
-        """
+        """Move to absolute position. Omit any axis to leave it unchanged."""
         axes: dict[str, float] = {}
         if x is not None:
             axes["X"] = float(x)
@@ -102,19 +64,7 @@ class FreeNavigator:
         wait: bool = True,
         **extra_axes: float,
     ) -> None:
-        """Move relative to the current position (jog) on any axes.
-
-        Parameters
-        ----------
-        x, y, z:
-            Delta in mm to add to the current position.
-        speed:
-            Feedrate in mm/min.
-        wait:
-            Block until motion is complete.
-        **extra_axes:
-            Any additional axes by single-letter keyword, e.g. ``u=-2``.
-        """
+        """Move by relative deltas."""
         axes: dict[str, float] = {}
         if x is not None:
             axes["X"] = float(x)
@@ -132,31 +82,11 @@ class FreeNavigator:
     # ------------------------------------------------------------------
 
     def home_all(self) -> None:
-        """Home all axes by running the Duet's ``homeall.g`` macro.
-
-        Delegates to ``M98 P"homeall.g"`` so the firmware's own homing
-        sequence is used (U first to release any active tool, then Y, X, Z).
-        This is equivalent to pressing *Home All* in DWC.
-
-        Example
-        -------
-        >>> nav.home_all()
-        """
+        """Home all axes."""
         self.driver.home_all()
 
     def home(self, *axes: Union[str, Enum]) -> None:
-        """Home one or more specific axes sequentially.
-
-        Parameters
-        ----------
-        *axes:
-            Axis letters (str), e.g. ``'X'``.
-
-        Example
-        -------
-        >>> nav.home("x", "y")     # home X then Y only
-        >>> nav.home("z")
-        """
+        """Home one or more axes sequentially."""
         for axis in axes:
             self.driver.home(axis)
 
@@ -165,45 +95,13 @@ class FreeNavigator:
     # ------------------------------------------------------------------
 
     def tool_lock(self) -> None:
-        """Engage the toolchanger lock by running the tool_lock macro.
-
-        Use this during manual setup after physically placing a tool against
-        the carriage — it engages the U-axis lock without triggering a full
-        tool-change sequence.
-
-        Example
-        -------
-        >>> nav.tool_lock()
-        """
         self.tool_changer.tool_lock()
 
     def tool_unlock(self) -> None:
-        """Disengage the toolchanger lock by running the tool_unlock macro."""
         self.tool_changer.tool_unlock()
 
     def pickup_tool(self, tool: Union[int, Tool]) -> bool:
-        """Pick up a tool via the full RRF tool-change sequence (T{n}).
-
-        Sends ``T{n}`` which causes RepRapFirmware to automatically run:
-          1. ``tfree{current}.g`` — park the currently active tool (if any)
-          2. ``tpre{n}.g``        — approach the target parking post
-          3. ``tpost{n}.g``       — lock the tool and restore position
-
-        Parameters
-        ----------
-        tool:
-            Either an integer tool index or a Tool instance.
-
-        Returns
-        -------
-        bool
-            True if the command was sent successfully.
-
-        Example
-        -------
-        >>> nav.pickup_tool(0)
-        >>> nav.pickup_tool(my_tool)
-        """
+        """Pick up a tool by index or Tool instance."""
         index = tool.index if isinstance(tool, Tool) else int(tool)
         return self.tool_changer.pickup_tool(index)
 
