@@ -4,22 +4,17 @@ import logging
 logger = logging.getLogger(__name__)
 
 @pytest.mark.invasive
-def test_home_all(motion):
-    driver = motion
-    # Ensure any active tool is parked to avoid homing interference on hardware
+def test_home_all(transport):
     try:
         logger.info("Parking any active tool (T-1)")
-        driver.transport.send_gcode("T-1")
+        transport.park_tool()
     except Exception:
         pass
 
-    # Home all axes using firmware's canonical homing macro
-    logger.info('Homing all axes via firmware macro: M98 P"homeall.g"')
-    driver._gcode('M98 P"homeall.g"', wait=True)
+    logger.info("Homing all axes via transport.home_all()")
+    transport.home_all()
 
-    # Query homing status via transport convenience method
-    homed = driver.transport.get_axes_homed()
+    homed = transport.get_axes_homed()
     logger.info("Homed state: %s", homed)
 
-    # Ensure at least X, Y, Z, U are homed
     assert homed and all(homed[:4]), f"Expected first 4 axes homed, got: {homed}"

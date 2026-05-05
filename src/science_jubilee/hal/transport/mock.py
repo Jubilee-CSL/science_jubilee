@@ -107,6 +107,8 @@ class MockTransport(BaseTransport):
                 return self._reply("No tool is selected.")
             else:
                 self.active_tool_index = tool_idx
+                if tool_idx not in self.tools:
+                    self.tools[tool_idx] = {"name": f"tool{tool_idx}", "offsets": [0.0, 0.0, 0.0]}
                 return self._reply(f"Tool {tool_idx} is selected.")
 
         # Position query
@@ -168,7 +170,6 @@ class MockTransport(BaseTransport):
 
         # Macros
         if cmd.startswith('M98 P"homeall.g"'):
-            # Mirror firmware homeall macro effect in simulation
             self.axes_homed = [True] * len(self.axes_letters)
             return self._reply("ok")
         if cmd.startswith("M98"):

@@ -324,6 +324,9 @@ class RecordingTransport(BaseTransport):
         return self._inner.set_tool_offset(tool_idx, x=x, y=y, z=z)
 
     # ---- Convenience: axes/limits/positions ---------------------------
+    def home_all(self) -> None:
+        self.send_gcode('M98 P"homeall.g"', wait=True)
+
     def get_available_axes(self) -> list:
         return self._inner.get_available_axes()
 

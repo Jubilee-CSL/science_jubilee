@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.mark.invasive
-def test_eight_corners_xy_at_two_z(motion):
+def test_eight_corners_xy_at_two_z(motion, transport):
     """Move to the 4 XY corners at Z=0 (if within limits) and at Z=max.
 
     - Uses axis limits to compute corners with a small safety margin.
@@ -33,8 +33,8 @@ def test_eight_corners_xy_at_two_z(motion):
     # Home sequence: park tool if U exists, home Y, X, set deck clear, then home Z
     try:
         if "U" in letters:
-            logger.info("Parking any active tool (T-1)")
-            driver.transport.send_gcode("T-1")
+            logger.info("Parking any active tool")
+            transport.park_tool()
     except Exception:
         pass
 
@@ -79,8 +79,7 @@ def test_eight_corners_xy_at_two_z(motion):
         driver.move_to({"x": float(x), "y": float(y), "z": float(z_hi)}, s=feed, wait=True)
         print(f"  X:{x:.2f} Y:{y:.2f} Z:{z_hi:.2f}")
 
-    # Best-effort verification: positions reported by transport
-    pos = driver.transport.get_positions() or {}
+    pos = driver.get_positions()
     logger.info("Final positions: %s", pos)
     for ax in ("X", "Y", "Z"):
         v = pos.get(ax)

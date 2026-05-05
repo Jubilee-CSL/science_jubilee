@@ -145,7 +145,7 @@ class FreeNavigator:
         Parameters
         ----------
         *axes:
-            Axis letters (str) or MotionDriver.Axis enum members.
+            Axis letters (str), e.g. ``'X'``.
 
         Example
         -------
@@ -230,25 +230,16 @@ class FreeNavigator:
     # ------------------------------------------------------------------
 
     def get_position(self) -> dict[str, float]:
-        """Return the current axis positions as reported by the transport.
-
-        Returns
-        -------
-        dict mapping axis letter -> position in mm, e.g. ``{"X": 150.0, "Y": 75.0, "Z": 10.0}``.
-        Raises RuntimeError if the transport does not support get_positions().
-        """
-        if not hasattr(self.driver.transport, "get_positions"):
-            raise RuntimeError("Transport does not implement get_positions().")
-        pos = self.driver.transport.get_positions() or {}
-        return {str(k).upper(): float(v) for k, v in pos.items()}
+        """Return the current axis positions."""
+        return self.driver.get_positions()
 
     def get_active_tool(self) -> int:
         """Return the index of the currently active tool, or -1 if none."""
-        return self.driver.get_active_tool_index()
+        return self.driver.transport.get_active_tool_index()
 
     def list_tools(self) -> dict:
-        """Return a mapping of tool number -> info from the transport."""
-        return self.driver.list_tools()
+        """Return a mapping of tool number -> info."""
+        return self.driver.transport.get_tools()
 
     def get_available_axes(self) -> list[str]:
         """Return the list of axis letters available on this machine."""
