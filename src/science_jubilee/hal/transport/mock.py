@@ -5,9 +5,7 @@ from .base import BaseTransport
 
 
 class MockTransport(BaseTransport):
-    """Stateful mock transport that mirrors key HTTP responses for simulation and tests.
-    deck_clear controls whether the deck is considered clear (True) or obstructed (False).
-    """
+    """Stateful in-memory transport for tests and simulation."""
 
     def __init__(self, deck_clear: bool = True):
         # Machine state
@@ -179,37 +177,23 @@ class MockTransport(BaseTransport):
         return self._reply("")
 
     def connect(self, timeout: Optional[float] = 5.0) -> bool:
-        """Mock transport is always reachable in simulation."""
         return True
 
     def deck_is_clear(self) -> bool:
-        """Report deck clearance according to configured mock state.
-        Future: compute based on world state (labware occupancy)."""
         return bool(self._deck_clear)
 
-    # ---- Convenience: available axes (mock-specific) ---------------------
     def get_available_axes(self) -> list:
-        """Return axis letters configured in the mock's world state.
-
-        Provides a deterministic list used by simulation tests. Uppercases
-        letters to match firmware convention.
-        """
         return [str(x).upper() for x in self.axes_letters]
 
     def get_axis_limits(self) -> dict:
-        """Return axis limits for the mock machine: letter -> (min, max)."""
-        limits = {}
-        for letter, (lo, hi) in self.axis_limits.items():
-            limits[str(letter).upper()] = (float(lo), float(hi))
-        return limits
+        return {str(l).upper(): (float(lo), float(hi)) for l, (lo, hi) in self.axis_limits.items()}
 
     def get_positions(self) -> dict:
-        """Return current axis positions from mock state."""
         return {str(k).upper(): float(v) for k, v in self.position.items()}
 
     # Use BaseTransport.format_machine_summary()
 
-    # ---- Tools API (mock-specific) --------------------------------------
+    # ---- Tools API -------------------------------------------------------
     def get_active_tool_index(self) -> int:
         return int(self.active_tool_index)
 

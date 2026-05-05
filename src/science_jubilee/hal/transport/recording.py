@@ -18,20 +18,10 @@ _DEFAULT_MACRO_DIR = _REPO_ROOT / "firmware" / "macro"
 
 
 class RecordingTransport(BaseTransport):
-    """Wrapper transport that logs all G-code commands to a file and forwards
-    them to an underlying transport (mock or hardware).
+    """Wraps an inner transport, logging every G-code command to file.
 
-    Tool-change commands (T{n}) are expanded in the log into the full RRF
-    macro sequence that the firmware would execute:
-      - tfree{current}.g  (if a tool is currently active)
-      - tpre{n}.g
-      - tpost{n}.g
-    M98 P"..." macro calls within those files are expanded recursively.
-
-    Macro files are resolved from ``sys_dir`` and ``macro_dir``. The defaults
-    point to ``firmware/sys/`` and ``firmware/macro/`` in the repo root.
-    Pass ``sys_dir=None`` and ``macro_dir=None`` to disable expansion (useful
-    in tests that supply their own stub directories).
+    T{n} commands are expanded in the log into the full macro sequence
+    (tfree, tpre, tpost). M98 calls are expanded recursively.
     """
 
     def __init__(
@@ -100,11 +90,7 @@ class RecordingTransport(BaseTransport):
 
     @staticmethod
     def _name_from_pytest() -> str:
-        """Return the test file stem from PYTEST_CURRENT_TEST if set.
-
-        pytest sets this automatically to e.g.:
-          tests/test_navigation_deck.py::test_move_to_well (call)
-        """
+        """Return the test file stem from PYTEST_CURRENT_TEST if set."""
         val = os.getenv("PYTEST_CURRENT_TEST", "")
         return Path(val.split("::")[0]).stem if val else ""
 
@@ -114,7 +100,7 @@ class RecordingTransport(BaseTransport):
         main_file = getattr(sys.modules.get("__main__"), "__file__", None)
         return Path(main_file).stem if main_file else ""
 
-    # Expose address if the inner transport has one (used by machine summary)
+    # Expose address if the inner transport has one
     @property
     def address(self) -> Optional[str]:
         return getattr(self._inner, "address", None)
@@ -122,13 +108,7 @@ class RecordingTransport(BaseTransport):
     # ---- Macro resolution helpers --------------------------------------
 
     def _resolve_macro_path(self, rrf_path: str) -> Optional[Path]:
-        """Resolve an RRF-style macro path to a local file, or None if not found.
-
-        RRF path conventions:
-          - ``"tfree0.g"``              -> look in sys_dir
-          - ``"/macros/tool_lock.g"``  -> look in macro_dir (strip /macros/ prefix)
-          - ``"macros/tool_lock.g"``   -> same as above
-        """
+        """Resolve an RRF macro path to a local file, or None."""
         clean = rrf_path.strip().lstrip("/")
         if clean.startswith("macros/"):
             filename = clean[len("macros/"):]
@@ -150,7 +130,7 @@ class RecordingTransport(BaseTransport):
         return None
 
     def _read_gfile(self, path: Path) -> List[str]:
-        """Read a .g file and return non-blank, non-comment-only lines."""
+        """Read a .g file; skip blank lines and comments."""
         try:
             raw = path.read_text(encoding="utf-8").splitlines()
             result = []
@@ -163,7 +143,7 @@ class RecordingTransport(BaseTransport):
             return []
 
     def _expand_lines(self, lines: List[str], depth: int = 0) -> List[str]:
-        """Recursively expand M98 macro calls within a list of G-code lines."""
+        """Recursively expand M98 macro calls."""
         if depth >= _MAX_EXPAND_DEPTH:
             return lines
         result: List[str] = []
@@ -182,14 +162,7 @@ class RecordingTransport(BaseTransport):
         return result
 
     def _expand_cmd(self, cmd: str) -> List[str]:
-        """Expand a single G-code command into the lines to be written to the log.
-
-        - T{n} (n >= 0): expands tfree{cur}.g (if a tool is active), tpre{n}.g,
-          tpost{n}.g, each with nested M98 calls resolved recursively.
-        - T-1 (park):   expands tfree{cur}.g only.
-        - M98 P"...":   expands the referenced macro file.
-        - Everything else: returns the command unchanged as a single-element list.
-        """
+        """Expand a single command into log lines (T{n} -> macro sequence, M98 -> file)."""
         stripped = cmd.strip()
         if not stripped:
             return []
@@ -256,8 +229,6 @@ class RecordingTransport(BaseTransport):
 
         return [stripped]
 
-    # ---- Logging -------------------------------------------------------
-
     def _log(self, cmd: str) -> None:
         try:
             if cmd is None:
@@ -270,7 +241,6 @@ class RecordingTransport(BaseTransport):
                 with p.open("a", encoding="utf-8") as f:
                     f.write(text)
         except Exception:
-            # Swallow logging errors to avoid affecting motion
             pass
 
     # ---- Core transport methods ----------------------------------------
@@ -290,8 +260,7 @@ class RecordingTransport(BaseTransport):
         return self._inner.get_active_tool_index()
 
     def select_tool(self, index: int) -> bool:
-        # Route through send_gcode so the full tool-change sequence is logged.
-        # MockTransport.send_gcode and HTTPTransport.send_gcode both handle T{n}.
+        # Route through send_gcode so the tool-change sequence is logged.
         try:
             self.send_gcode(f"T{int(index)}")
             return True
@@ -312,7 +281,7 @@ class RecordingTransport(BaseTransport):
         return self._inner.get_tool_offsets()
 
     def set_tool_offset(self, tool_idx: int, *, x: float | None = None, y: float | None = None, z: float | None = None) -> bool:
-        # Log the equivalent G10 command, then delegate for actual state update.
+        # Log the equivalent G10 command, then delegate.
         parts = [f"P{int(tool_idx)}"]
         if x is not None:
             parts.append(f"X{float(x):.4f}")
@@ -323,7 +292,6 @@ class RecordingTransport(BaseTransport):
         self._log("G10 " + " ".join(parts))
         return self._inner.set_tool_offset(tool_idx, x=x, y=y, z=z)
 
-    # ---- Convenience: axes/limits/positions ---------------------------
     def home_all(self) -> None:
         self.send_gcode('M98 P"homeall.g"', wait=True)
 

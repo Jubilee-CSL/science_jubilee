@@ -1,60 +1,56 @@
 import json
+from abc import ABC, abstractmethod
 from typing import Optional, Any
 
 
-class BaseTransport:
-    """Abstract transport interface.
+class BaseTransport(ABC):
+    """Abstract base for all G-code transports (HTTP, serial, mock, ...).
 
-    Concrete transports translate semantic method calls into whatever
-    wire protocol the machine speaks (G-code over HTTP, serial, etc.).
-    Higher layers (MotionDriver) never construct protocol strings.
+    Subclasses implement delivery; this class owns G-code construction.
+    Higher layers never build G-code strings.
     """
 
-    def send_gcode(self, cmd: str = "", timeout: Optional[float] = None, response_wait: float = 60, wait: bool = False):
-        """Send a raw G-Code command. Prefer semantic methods over this."""
-        raise NotImplementedError()
+    @abstractmethod
+    def send_gcode(self, cmd: str = "", timeout: Optional[float] = None, response_wait: float = 60, wait: bool = False) -> Optional[str]:
+        """Send a G-code command; return response string or None."""
 
+    @abstractmethod
     def connect(self, timeout: Optional[float] = 5.0) -> bool:
-        """Establish or verify connectivity. Returns True if ready."""
-        raise NotImplementedError()
+        """Return True if the machine is reachable."""
 
-    # ---- Semantic motion API -------------------------------------------
-    # Higher layers call these; concrete transports translate to protocol.
+    @abstractmethod
+    def deck_is_clear(self) -> bool:
+        """Return True if the deck is clear of obstacles."""
 
-    def set_absolute_positioning(self) -> None:
-        """Switch to absolute positioning mode (e.g. G90 in G-code)."""
-        self.send_gcode("G90")
+    @abstractmethod
+    def get_available_axes(self) -> list:
+        """Return axis letters in firmware order (uppercase)."""
 
-    def set_relative_positioning(self) -> None:
-        """Switch to relative positioning mode (e.g. G91 in G-code)."""
-        self.send_gcode("G91")
+    @abstractmethod
+    def get_axis_limits(self) -> dict:
+        """Return axis limits: letter -> (min, max)."""
+
+    @abstractmethod
+    def get_positions(self) -> dict:
+        """Return current positions: letter -> float."""
 
     def move_axes(
         self,
         axes: dict[str, float],
         feedrate: Optional[float] = None,
         *,
+        absolute: bool = True,
         wait: bool = True,
     ) -> None:
-        """Move axes to the given positions/deltas at feedrate.
-
-        ``axes`` is a mapping of uppercase axis letter -> target value.
-        Positioning mode (absolute vs relative) must be set beforehand via
-        set_absolute_positioning() / set_relative_positioning().
-
-        Default implementation formats a G0 command; override for
-        non-G-code transports.
-        """
+        """Set positioning mode (G90/G91) then issue G0."""
+        self.send_gcode("G90" if absolute else "G91")
         parts = [f"{ax}{float(val):.4f}" for ax, val in axes.items()]
         if feedrate is not None:
             parts.append(f"F{float(feedrate):.2f}")
         self.send_gcode("G0 " + " ".join(parts), wait=wait)
 
     def send_gcode_json(self, cmd: str = "", timeout: Optional[float] = None, response_wait: float = 60, wait: bool = False) -> Optional[Any]:
-        """Send a G-Code command and parse a JSON response.
-        Returns the parsed JSON object or None if parsing fails or no response.
-        This does not interpret firmware-specific keys; it simply returns the decoded JSON.
-        """
+        """Send a G-code command and return the parsed JSON response, or None."""
         resp = self.send_gcode(cmd=cmd, timeout=timeout, response_wait=response_wait, wait=wait)
         if resp is None:
             return None
@@ -63,195 +59,104 @@ class BaseTransport:
         except Exception:
             return None
 
-    def deck_is_clear(self) -> bool:
-        """Return True if the deck is clear of obstacles according to the transport's knowledge.
-        Hardware transports may require an external provider or always return False.
-        Mock/digital twin transports can compute this from world state.
-        """
-        raise NotImplementedError()
-
-    # ---- Tools API (optional, but recommended) -------------------------
+    # ---- Tools API -------------------------------------------------------
     def get_active_tool_index(self) -> int:
-        """Return the currently selected tool index, or -1 if none.
-
-        Implementations may query firmware state (e.g., via "T" or object model).
-        Default implementation raises NotImplementedError.
-        """
+        """Return the active tool index, or -1 if none."""
         raise NotImplementedError()
 
     def select_tool(self, index: int) -> bool:
-        """Select tool by index using transport; return True on success."""
         raise NotImplementedError()
 
     def park_tool(self) -> bool:
-        """Deselect any active tool (e.g., via T-1); return True on success."""
         raise NotImplementedError()
 
     def get_tools(self) -> dict:
-        """Return tools configured on the machine.
-
-        Structure: {number: {"name": str|None}}
-        Implementations can add more keys (e.g., offsets).
-        """
+        """Return {number: {"name": str}} for configured tools."""
         raise NotImplementedError()
 
     def get_tool_offsets(self) -> dict:
-        """Return tool offsets mapping number -> [X, Y, Z] floats if available."""
+        """Return {number: [X, Y, Z]} offsets."""
         raise NotImplementedError()
 
     def set_tool_offset(self, tool_idx: int, *, x: float | None = None, y: float | None = None, z: float | None = None) -> bool:
-        """Set tool offset via G10 P{tool} X.. Y.. Z..; return True on success."""
         raise NotImplementedError()
 
-    # ---- Convenience: homing state ---------------------------------------
+    # ---- Homing ----------------------------------------------------------
     def get_axes_homed(self) -> list:
-        """Return homed state for all axes as reported by the firmware object model.
-
-        Uses M409 K"move.axes[].homed" via send_gcode_json(). Returns a list
-        of booleans in firmware axis order, or an empty list if unavailable.
-        """
+        """Return list of homed booleans in firmware axis order."""
         obj = self.send_gcode_json('M409 K"move.axes[].homed"')
         if obj and isinstance(obj, dict) and "result" in obj:
             return obj["result"]
         return []
 
     def is_homed_all(self) -> bool:
-        """Return True if all reported axes are homed; False otherwise."""
         homed = self.get_axes_homed()
         return bool(homed) and all(homed)
 
-    # ---- Convenience: available axes ------------------------------------
-    def get_available_axes(self) -> list:
-        """Return the list of available axis letters in firmware order.
-
-        Transports vary in how they expose this information; implement
-        in concrete transports (HTTPTransport, MockTransport) as needed.
-        """
-        raise NotImplementedError()
-
-    # ---- Convenience: axis limits ---------------------------------------
-    def get_axis_limits(self) -> dict:
-        """Return a dict of axis limits mapping letter -> (min, max).
-
-        Implement in concrete transports. Values should be floats.
-        Example: {"X": (0.0, 300.0), "Y": (0.0, 300.0)}
-        """
-        raise NotImplementedError()
-
-    # ---- Homing ----------------------------------------------------
     def home_all(self) -> None:
-        """Run the firmware homeall macro (M98 P\"homeall.g\")."""
         self.send_gcode('M98 P"homeall.g"', wait=True)
 
     def home_axis(self, letter: str) -> None:
-        """Home a single axis by letter (G28 {letter})."""
         self.send_gcode(f"G28 {letter.upper()}", wait=True)
 
     def home_in_place(self, letter: str) -> None:
-        """Set the current position of an axis to 0 (G92 {letter}0)."""
         self.send_gcode(f"G92 {letter.upper()}0")
 
     def tool_lock(self) -> None:
-        """Engage the toolchanger lock via the tool_lock macro."""
         self.send_gcode('M98 P"/macros/tool_lock.g"', wait=True)
 
     def tool_unlock(self) -> None:
-        """Disengage the toolchanger lock via the tool_unlock macro."""
         self.send_gcode('M98 P"/macros/tool_unlock.g"', wait=True)
 
-    # ---- Convenience: current positions --------------------------------
-    def get_positions(self) -> dict:
-        """Return the current axis positions mapping letter -> position.
-
-        Implement in concrete transports (HTTPTransport, MockTransport).
-        Values should be floats; letters uppercase.
-        """
-        raise NotImplementedError()
-
-    # ---- Machine summary (dict) -----------------------------------------
+    # ---- Machine summary -------------------------------------------------
     def get_machine_summary(self) -> dict:
-        """Return a JSON-serializable dict summarizing machine state.
-
-        Includes: transport, address, firmware, deck_clear, axes, homed,
-        homed_map (when available), limits, positions, and tools info if available.
-        """
-        summary: dict[str, Any] = {
-            "transport": self.__class__.__name__,
-        }
-        # Address/IP if available
+        """Return a dict of current machine state."""
+        summary: dict[str, Any] = {"transport": self.__class__.__name__}
         if hasattr(self, "address"):
-            try:
-                summary["address"] = getattr(self, "address")
-            except Exception:
-                summary["address"] = None
-
-        # Firmware info via M115
+            summary["address"] = getattr(self, "address", None)
         try:
-            fw_resp = self.send_gcode("M115")
-            summary["firmware"] = (fw_resp or "").strip()
+            summary["firmware"] = (self.send_gcode("M115") or "").strip()
         except Exception:
             summary["firmware"] = None
-
-        # Deck clearance
         try:
             summary["deck_clear"] = bool(self.deck_is_clear())
         except Exception:
             summary["deck_clear"] = None
-
-        # Axes
         try:
             letters = [str(x).upper() for x in (self.get_available_axes() or [])]
         except Exception:
             letters = []
         summary["axes"] = letters
-
-        # Homed
         try:
             homed = self.get_axes_homed() or []
         except Exception:
             homed = []
         summary["homed"] = homed
-        if letters and homed and len(letters) == len(homed):
-            summary["homed_map"] = {l: bool(h) for l, h in zip(letters, homed)}
-        else:
-            summary["homed_map"] = {}
-
-        # Limits
+        summary["homed_map"] = {l: bool(h) for l, h in zip(letters, homed)} if len(letters) == len(homed) else {}
         try:
-            limits = self.get_axis_limits() or {}
+            summary["limits"] = self.get_axis_limits() or {}
         except Exception:
-            limits = {}
-        summary["limits"] = limits
-
-        # Positions
+            summary["limits"] = {}
         try:
-            positions = self.get_positions() or {}
+            summary["positions"] = self.get_positions() or {}
         except Exception:
-            positions = {}
-        summary["positions"] = positions
-
-        # Tools
+            summary["positions"] = {}
         try:
-            active_tool = self.get_active_tool_index()
+            summary["active_tool"] = self.get_active_tool_index()
         except Exception:
-            active_tool = None
-        summary["active_tool"] = active_tool
+            summary["active_tool"] = None
         try:
-            tools = self.get_tools() or {}
+            summary["tools"] = self.get_tools() or {}
         except Exception:
-            tools = {}
-        summary["tools"] = tools
+            summary["tools"] = {}
         try:
-            offsets = self.get_tool_offsets() or {}
+            summary["tool_offsets"] = self.get_tool_offsets() or {}
         except Exception:
-            offsets = {}
-        summary["tool_offsets"] = offsets
-
+            summary["tool_offsets"] = {}
         return summary
 
-    # ---- Pretty summary (from dict) -------------------------------------
     def format_machine_summary(self) -> str:
-        """Return a human-readable summary of machine state using dict summary."""
+        """Return a human-readable summary string."""
         s = self.get_machine_summary()
         lines: list[str] = []
         lines.append(f"Transport: {s.get('transport')}")
