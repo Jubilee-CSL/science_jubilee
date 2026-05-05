@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.mark.invasive
-def test_eight_corners_xy_at_two_z(motion, transport):
+def test_eight_corners_xy_at_two_z(motion, tool_changer):
     """Move to the 4 XY corners at Z=0 (if within limits) and at Z=max.
 
     - Uses axis limits to compute corners with a small safety margin.
@@ -34,7 +34,7 @@ def test_eight_corners_xy_at_two_z(motion, transport):
     try:
         if "U" in letters:
             logger.info("Parking any active tool")
-            transport.park_tool()
+            tool_changer.park_tool()
     except Exception:
         pass
 

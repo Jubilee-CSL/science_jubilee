@@ -3,21 +3,52 @@ from typing import Optional, Any
 
 
 class BaseTransport:
-    """Abstract transport interface for gcode exchange."""
+    """Abstract transport interface.
+
+    Concrete transports translate semantic method calls into whatever
+    wire protocol the machine speaks (G-code over HTTP, serial, etc.).
+    Higher layers (MotionDriver) never construct protocol strings.
+    """
 
     def send_gcode(self, cmd: str = "", timeout: Optional[float] = None, response_wait: float = 60, wait: bool = False):
-        """Send a G-Code command and return the response string or None.
-        If wait is True, transports should block until motion completes (e.g., by issuing M400).
-        Implementations should block until a response is available or timeout/response_wait is reached.
-        """
+        """Send a raw G-Code command. Prefer semantic methods over this."""
         raise NotImplementedError()
 
     def connect(self, timeout: Optional[float] = 5.0) -> bool:
-        """Establish or verify connectivity for the transport.
-        Returns True if reachable/ready, False otherwise.
-        Implementations may perform a lightweight ping.
-        """
+        """Establish or verify connectivity. Returns True if ready."""
         raise NotImplementedError()
+
+    # ---- Semantic motion API -------------------------------------------
+    # Higher layers call these; concrete transports translate to protocol.
+
+    def set_absolute_positioning(self) -> None:
+        """Switch to absolute positioning mode (e.g. G90 in G-code)."""
+        self.send_gcode("G90")
+
+    def set_relative_positioning(self) -> None:
+        """Switch to relative positioning mode (e.g. G91 in G-code)."""
+        self.send_gcode("G91")
+
+    def move_axes(
+        self,
+        axes: dict[str, float],
+        feedrate: Optional[float] = None,
+        *,
+        wait: bool = True,
+    ) -> None:
+        """Move axes to the given positions/deltas at feedrate.
+
+        ``axes`` is a mapping of uppercase axis letter -> target value.
+        Positioning mode (absolute vs relative) must be set beforehand via
+        set_absolute_positioning() / set_relative_positioning().
+
+        Default implementation formats a G0 command; override for
+        non-G-code transports.
+        """
+        parts = [f"{ax}{float(val):.4f}" for ax, val in axes.items()]
+        if feedrate is not None:
+            parts.append(f"F{float(feedrate):.2f}")
+        self.send_gcode("G0 " + " ".join(parts), wait=wait)
 
     def send_gcode_json(self, cmd: str = "", timeout: Optional[float] = None, response_wait: float = 60, wait: bool = False) -> Optional[Any]:
         """Send a G-Code command and parse a JSON response.
@@ -119,6 +150,14 @@ class BaseTransport:
     def home_in_place(self, letter: str) -> None:
         """Set the current position of an axis to 0 (G92 {letter}0)."""
         self.send_gcode(f"G92 {letter.upper()}0")
+
+    def tool_lock(self) -> None:
+        """Engage the toolchanger lock via the tool_lock macro."""
+        self.send_gcode('M98 P"/macros/tool_lock.g"', wait=True)
+
+    def tool_unlock(self) -> None:
+        """Disengage the toolchanger lock via the tool_unlock macro."""
+        self.send_gcode('M98 P"/macros/tool_unlock.g"', wait=True)
 
     # ---- Convenience: current positions --------------------------------
     def get_positions(self) -> dict:
