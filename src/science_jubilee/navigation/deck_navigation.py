@@ -34,8 +34,7 @@ class DeckNavigator:
         transports directly.
         """
 
-        # Query current positions from the transport via MotionDriver
-        pos = self.driver.transport.get_positions() or {}
+        pos = self.driver.get_positions()
         current_z = float(pos.get("Z", 0.0))
         safe_z = float(self.deck.safe_z)
         target = safe_z + float(margin)

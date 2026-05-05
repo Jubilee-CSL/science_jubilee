@@ -58,14 +58,12 @@ def pytest_configure(config):
 
 
 @pytest.fixture
-def motion():
-    """Provide a MotionDriver instance configured from pytest-selected env.
+def transport():
+    """Provide a transport configured from pytest-selected env.
 
-    Uses JUBILEE_TRANSPORT and JUBILEE_ADDRESS set by pytest_configure or shell.
-    - mock      -> MockTransport (wrapped in RecordingTransport)
-    - hardware  -> HTTPTransport (wrapped in RecordingTransport)
+    - mock     -> MockTransport (wrapped in RecordingTransport)
+    - hardware -> HTTPTransport (wrapped in RecordingTransport)
     """
-    from science_jubilee.hal.motion_driver import MotionDriver
     from science_jubilee.hal.transport.mock import MockTransport
     from science_jubilee.hal.transport.http import HTTPTransport
     from science_jubilee.hal.transport.recording import RecordingTransport
@@ -73,15 +71,18 @@ def motion():
     address = os.getenv("JUBILEE_ADDRESS")
     transport_type = os.getenv("JUBILEE_TRANSPORT", "").strip().lower()
 
-    # Choose base transport (mock or hardware)
     if transport_type == "hardware":
         base = HTTPTransport(address=address, deck_clear_provider=lambda: True)
     else:
-        # Default to mock if not explicitly hardware
         base = MockTransport()
 
-    # Wrap in RecordingTransport to log all G-code for later visualization
     log_path = os.getenv("JUBILEE_GCODE_LOG", "gcode_logs/latest.gcode")
-    recording = RecordingTransport(base, log_path=log_path)
-    return MotionDriver(recording)
+    return RecordingTransport(base, log_path=log_path)
+
+
+@pytest.fixture
+def motion(transport):
+    """Provide a MotionDriver built on top of the transport fixture."""
+    from science_jubilee.hal.motion_driver import MotionDriver
+    return MotionDriver(transport)
 

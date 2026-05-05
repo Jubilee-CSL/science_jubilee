@@ -4,62 +4,53 @@ from enum import Enum
 from typing import Union, Optional
 
 class MotionDriver:
-    """Thin motion layer for homing and movement.
+    """Thin motion layer: G-code formatting, axis validation, and safety gates.
 
-    Public API is intentionally minimal:
+    Public API:
     - home(axis)
     - move_to({axes: positions}, ...)
     - move({axes: deltas}, ...)
     - home_in_place(*axes)
+    - get_positions() -> dict[str, float]
+    - get_available_axes() -> list[str]
+    - get_axis_limits() -> dict[str, tuple[float, float]]
 
-    Safety gates (deck clearance) are enforced here; higher layers can add
-    collision policies and axis-limit checks.
+    Does NOT manage tools. Tool pickup/park/offset belongs in a higher layer.
     """
+
+    # Preferred axis ordering for coordinated moves.
+    _PREFERRED_ORDER: list[str] = ["Z", "X", "Y", "U", "V", "E"]
 
     def __init__(self, transport):
         self.transport = transport
-        # Cache of deck clearance status; None means unknown and will be asked
-        # from the transport on demand.
         self._deck_clear_cached = None
-        # Cache of available axis letters as reported by the current machine
-        # state (transport or object model). None means not yet queried.
         self._axes_letters: Optional[list[str]] = None
-        # Axis limits cache: letter -> (min, max)
         self._axis_limits: dict[str, tuple[float, float]] = {}
-        # Initialize runtime Axis enum from current machine state
+        # Per-instance Axis enum built from machine state
+        self._axis: Optional[Enum] = None
         self._init_runtime_axes()
 
-    # ---- Axis definitions (runtime) --------------------------------------
-    # Axis is created at runtime from the machine's available letters.
-    Axis: Enum
-    # Preferred axis ordering for coordinated moves; any remaining axes
-    # not listed here will be appended in machine-reported order.
-    PREFERRED_ORDER: list[str] = ["Z", "X", "Y", "U", "V", "E"]
-
+    # ---- Axis definitions (runtime, per-instance) ------------------------
     def _init_runtime_axes(self) -> None:
-        # Fetch directly from transport to avoid driver-level fallbacks
         if not hasattr(self.transport, "get_available_axes"):
-            raise NotImplementedError("Transport must implement get_available_axes() for Axis initialization.")
+            raise NotImplementedError("Transport must implement get_available_axes().")
         try:
             letters_raw = self.transport.get_available_axes() or []
         except NotImplementedError:
             raise
         except Exception as e:
-            raise NotImplementedError("Transport get_available_axes() failed during Axis initialization.") from e
+            raise NotImplementedError("Transport get_available_axes() failed.") from e
 
         letters = [str(x).upper() for x in letters_raw]
         if not letters:
-            raise NotImplementedError("Transport reported no available axes for Axis initialization.")
+            raise NotImplementedError("Transport reported no available axes.")
 
-        # Dynamically construct the Axis enum based on machine truth
-        MotionDriver.Axis = Enum("Axis", {l: l for l in letters})
-        # Cache for later validations
+        self._axis = Enum("Axis", {l: l for l in letters})
         self._axes_letters = letters
-        # Fetch and cache axis limits from transport if available
+
         if hasattr(self.transport, "get_axis_limits"):
             try:
                 limits = self.transport.get_axis_limits() or {}
-                # Normalize keys to uppercase and values to float tuples
                 self._axis_limits = {
                     str(k).upper(): (float(v[0]), float(v[1]))
                     for k, v in limits.items()
@@ -126,32 +117,25 @@ class MotionDriver:
                 print("Deck is not clear. Aborting Z homing.")
                 return
 
-        self._gcode(f"G28 {axis.value}", wait=True)
+        self.transport.home_axis(axis.value)
+
 
     # ---- Motion (single-axis, absolute/relative) -------------------------
     def _normalize_axis(self, axis: Union[str, Enum]) -> Enum:
-        """Normalize input to an Axis enum member and validate availability.
-
-        Uses the transport-reported machine state to ensure the axis exists
-        on the current machine. This prevents issuing commands for axes that
-        are not configured.
-        """
-        if isinstance(axis, MotionDriver.Axis):
-            # Validate availability against runtime machine axes
-            letters = self._axes_letters or []
+        """Normalize a string or Axis enum member; validate it is available."""
+        letters = self._axes_letters or []
+        if isinstance(axis, self._axis):
             if axis.value not in letters:
                 raise ValueError(f"Axis '{axis.value}' is not available on this machine.")
             return axis
         if isinstance(axis, str):
             s = axis.strip().upper()
             if len(s) != 1:
-                raise ValueError("Expected a single axis like 'x'.")
+                raise ValueError("Expected a single axis letter like 'X'.")
+            if s not in letters:
+                raise ValueError(f"Axis '{s}' is not available on this machine.")
             try:
-                member = MotionDriver.Axis[s]
-                letters = self._axes_letters or []
-                if s not in letters:
-                    raise ValueError(f"Axis '{s}' is not available on this machine.")
-                return member
+                return self._axis[s]
             except KeyError:
                 raise ValueError(f"Unknown axis '{axis}'.") from None
         raise TypeError(f"Unsupported axis type: {type(axis).__name__}")
@@ -222,13 +206,12 @@ class MotionDriver:
                 if not (lo <= float(val) <= hi):
                     raise ValueError(f"Requested {ax.value}={val} outside limits [{lo}, {hi}]")
         letters = self._axes_letters or []
-        preferred = MotionDriver.PREFERRED_ORDER
+        preferred = self._PREFERRED_ORDER
         ordered_letters = [l for l in preferred if l in letters] + [l for l in letters if l not in preferred]
         parts = []
         for l in ordered_letters:
-            # Only include axes present in this command
-            if l in MotionDriver.Axis.__members__:
-                ax = MotionDriver.Axis[l]
+            if l in self._axis.__members__:
+                ax = self._axis[l]
                 if ax in normalized:
                     parts.append(f"{ax.value}{float(normalized[ax]):.2f}")
         if s is not None:
@@ -239,11 +222,7 @@ class MotionDriver:
         self._gcode("G0 " + " ".join(parts), wait=wait)
 
     def home(self, axis: Union[str, Enum]):
-        """Home a single axis, e.g., home('x') or home(MotionDriver.Axis.X).
-
-        Keep it simple: accept exactly one axis. Orchestration can handle
-        multi-axis homing if needed later.
-        """
+        """Home a single axis, e.g., home('X') or home(driver._axis.X)."""
         axis_member = self._normalize_axis(axis)
         self.home_axis(axis_member)
 
@@ -260,97 +239,18 @@ class MotionDriver:
             # Ensure axis is in the safe subset AND currently available
             if (axis_member.value not in allowed_letters) or (axis_member.value not in available):
                 raise ValueError(f"Error: cannot home-in-place unknown/unsafe axis: {axis}.")
-            self._gcode(f"G92 {axis_member.value}0")
+            self.transport.home_in_place(axis_member.value)
+
+    # ---- Queries forwarded from transport --------------------------------
+    def get_positions(self) -> dict[str, float]:
+        """Return current axis positions mapping letter -> float."""
+        return self.transport.get_positions() or {}
+
+    def get_available_axes(self) -> list[str]:
+        """Return cached available axis letters."""
+        return list(self._axes_letters or [])
 
     def get_axis_limits(self) -> dict[str, tuple[float, float]]:
         """Return cached axis limits mapping letter -> (min, max)."""
         return dict(self._axis_limits)
-
-    # ---- Expose runtime axes to callers ---------------------------------
-    def get_available_axes(self) -> list[str]:
-        """Return the machine's available axes letters from MotionDriver's cache.
-
-        If not yet initialized, this will call _init_runtime_axes() which
-        consults the transport. No additional fallbacks are performed here.
-        """
-        if self._axes_letters is None:
-            self._init_runtime_axes()
-        return list(self._axes_letters or [])
-
-    # ---- Tools convenience ----------------------------------------------
-    def get_active_tool_index(self) -> int:
-        """Return the currently selected tool index via transport, or -1."""
-        if hasattr(self.transport, "get_active_tool_index"):
-            try:
-                return int(self.transport.get_active_tool_index())
-            except Exception:
-                return -1
-        return -1
-
-    def list_tools(self) -> dict:
-        """Return a mapping of tool number -> info, when transport supports it."""
-        if hasattr(self.transport, "get_tools"):
-            try:
-                return dict(self.transport.get_tools() or {})
-            except Exception:
-                return {}
-        return {}
-
-    def get_tool_offsets(self) -> dict:
-        """Return tool offsets mapping number -> [X, Y, Z] when available."""
-        if hasattr(self.transport, "get_tool_offsets"):
-            try:
-                return dict(self.transport.get_tool_offsets() or {})
-            except Exception:
-                return {}
-        return {}
-
-    def pickup_tool(self, index: int) -> bool:
-        """Select a tool by index via the transport."""
-        if not isinstance(index, int):
-            raise TypeError("Tool index must be an integer.")
-        if hasattr(self.transport, "select_tool"):
-            try:
-                return bool(self.transport.select_tool(index))
-            except Exception:
-                return False
-        # Fallback: send raw gcode
-        try:
-            self._gcode(f"T{index}")
-            return True
-        except Exception:
-            return False
-
-    def park_tool(self) -> bool:
-        """Deselect any active tool via the transport."""
-        if hasattr(self.transport, "park_tool"):
-            try:
-                return bool(self.transport.park_tool())
-            except Exception:
-                return False
-        try:
-            self._gcode("T-1")
-            return True
-        except Exception:
-            return False
-
-    def set_tool_offset(self, tool_idx: int, *, x: float | None = None, y: float | None = None, z: float | None = None) -> bool:
-        """Set tool offset (G10) via transport if available, else fallback to raw gcode."""
-        if hasattr(self.transport, "set_tool_offset"):
-            try:
-                return bool(self.transport.set_tool_offset(tool_idx, x=x, y=y, z=z))
-            except Exception:
-                return False
-        parts = [f"P{int(tool_idx)}"]
-        if z is not None:
-            parts.append(f"Z{float(z):.2f}")
-        if x is not None:
-            parts.append(f"X{float(x):.2f}")
-        if y is not None:
-            parts.append(f"Y{float(y):.2f}")
-        try:
-            self._gcode("G10 " + " ".join(parts))
-            return True
-        except Exception:
-            return False
 

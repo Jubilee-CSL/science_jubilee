@@ -107,6 +107,19 @@ class BaseTransport:
         """
         raise NotImplementedError()
 
+    # ---- Homing ----------------------------------------------------
+    def home_all(self) -> None:
+        """Run the firmware homeall macro (M98 P\"homeall.g\")."""
+        self.send_gcode('M98 P"homeall.g"', wait=True)
+
+    def home_axis(self, letter: str) -> None:
+        """Home a single axis by letter (G28 {letter})."""
+        self.send_gcode(f"G28 {letter.upper()}", wait=True)
+
+    def home_in_place(self, letter: str) -> None:
+        """Set the current position of an axis to 0 (G92 {letter}0)."""
+        self.send_gcode(f"G92 {letter.upper()}0")
+
     # ---- Convenience: current positions --------------------------------
     def get_positions(self) -> dict:
         """Return the current axis positions mapping letter -> position.

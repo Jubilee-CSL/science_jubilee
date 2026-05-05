@@ -59,8 +59,7 @@ def test_navigation_with_motion_fixture_moves_control_point(motion):
         speed_z=3000.0,
     )
 
-    # Read back positions from the underlying transport via MotionDriver
-    pos = driver.transport.get_positions() or {}
+    pos = driver.get_positions()
     assert pos.get("X") == pytest.approx(float(x_exp), rel=1e-3)
     assert pos.get("Y") == pytest.approx(float(y_exp), rel=1e-3)
     assert pos.get("Z") == pytest.approx(float(z_exp), rel=1e-3)
@@ -97,8 +96,7 @@ def test_navigation_moves_to_all_wells(motion):
     assert last_loc is not None
     x_exp, y_exp, z_exp = last_loc.point
 
-    # Read back positions from the underlying transport via MotionDriver
-    pos = driver.transport.get_positions() or {}
+    pos = driver.get_positions()
     assert pos.get("X") == pytest.approx(float(x_exp), rel=1e-3)
     assert pos.get("Y") == pytest.approx(float(y_exp), rel=1e-3)
     assert pos.get("Z") == pytest.approx(float(z_exp), rel=1e-3)
