@@ -58,6 +58,12 @@ def pytest_configure(config):
 
 
 @pytest.fixture
+def jubilee_env(request):
+    """Return the selected environment string: 'mock' or 'hardware'."""
+    return request.config.getoption("--jubilee-env")
+
+
+@pytest.fixture
 def transport():
     """Provide a transport configured from pytest-selected env.
 
@@ -85,4 +91,11 @@ def motion(transport):
     """Provide a MotionDriver built on top of the transport fixture."""
     from science_jubilee.hal.motion_driver import MotionDriver
     return MotionDriver(transport)
+
+
+@pytest.fixture
+def tool_changer(transport):
+    """Provide a ToolChanger built on top of the transport fixture."""
+    from science_jubilee.hal.tool_changer import ToolChanger
+    return ToolChanger(transport)
 

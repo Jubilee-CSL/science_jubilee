@@ -71,13 +71,15 @@ For tool setup and calibration, a lower-level interface based on `MotionDriver` 
 ```python
 from science_jubilee.hal.transport.http import HTTPTransport
 from science_jubilee.hal.motion_driver import MotionDriver
+from science_jubilee.hal.tool_changer import ToolChanger
 from science_jubilee.navigation import FreeNavigator
 from science_jubilee.calibration.tool_gfiles import generate_tool_gfiles
 
 # Connect
 transport = HTTPTransport(address="10.0.3.48")
 driver = MotionDriver(transport)
-nav = FreeNavigator(driver)
+tc = ToolChanger(transport)
+nav = FreeNavigator(driver, tc)
 
 # Home the machine
 nav.home_all()                          # runs homeall.g on the Duet

@@ -4,29 +4,28 @@ from enum import Enum
 from typing import Union, Optional
 
 class MotionDriver:
-    """Thin motion layer: G-code formatting, axis validation, and safety gates.
+    """Motion layer: axis validation, safety gates, and semantic move dispatch.
+
+    Knows nothing about G-code or any other wire protocol.
+    All protocol work is delegated to the transport.
 
     Public API:
     - home(axis)
+    - home_all()
+    - home_in_place(*axes)
     - move_to({axes: positions}, ...)
     - move({axes: deltas}, ...)
-    - home_in_place(*axes)
     - get_positions() -> dict[str, float]
     - get_available_axes() -> list[str]
     - get_axis_limits() -> dict[str, tuple[float, float]]
-
-    Does NOT manage tools. Tool pickup/park/offset belongs in a higher layer.
+    - get_axes_homed() -> list
     """
-
-    # Preferred axis ordering for coordinated moves.
-    _PREFERRED_ORDER: list[str] = ["Z", "X", "Y", "U", "V", "E"]
 
     def __init__(self, transport):
         self.transport = transport
         self._deck_clear_cached = None
         self._axes_letters: Optional[list[str]] = None
         self._axis_limits: dict[str, tuple[float, float]] = {}
-        # Per-instance Axis enum built from machine state
         self._axis: Optional[Enum] = None
         self._init_runtime_axes()
 
@@ -58,27 +57,6 @@ class MotionDriver:
                 }
             except Exception:
                 self._axis_limits = {}
-
-    # ---- G-code helpers ---------------------------------------------------
-    def _gcode(self, cmd: str, wait: bool = False):
-        """Internal: send a raw G-code command via the transport.
-
-        MotionDriver's public API should remain high-level (home/move/etc.).
-        This private helper provides the minimal bridge to transports that
-        ultimately speak G-code.
-        """
-        # Prefer transport.send_gcode (HAL transports)
-        if hasattr(self.transport, "send_gcode"):
-            return self.transport.send_gcode(cmd=cmd, wait=wait)
-        raise RuntimeError("Transport does not support gcode sending API.")
-
-    def _set_absolute_positioning(self):
-        """Ensure absolute positioning (G90)."""
-        self._gcode("G90")
-
-    def _set_relative_positioning(self):
-        """Ensure relative positioning (G91)."""
-        self._gcode("G91")
 
     # ---- Deck clearance caching ------------------------------------------
     def is_deck_clear(self) -> bool:
@@ -172,54 +150,31 @@ class MotionDriver:
         param: Optional[str] = None,
         wait: bool = True,
     ) -> None:
-        """Issue a single G0 line moving multiple axes simultaneously.
-
-        This preserves coordinated motion preferred by CNC controllers.
-        Upper layers can prepare the axis map; MotionDriver validates, sets
-        G90/G91, and formats the command.
-        """
+        """Validate axes, gate on safety, then dispatch to transport."""
         if not axes:
             return
 
-        # Set positioning mode
-        if absolute:
-            self._set_absolute_positioning()
-        else:
-            self._set_relative_positioning()
-
-        # Normalize axis keys and build parts; prefer Z, then X,Y,U,V,E, then others
         normalized = {self._normalize_axis(k): v for k, v in axes.items()}
 
-        # Gate motion behind deck-clear only if Z is being moved
-        try:
-            moving_z = any(ax.value == "Z" for ax in normalized.keys())
-        except Exception:
-            moving_z = False
+        moving_z = any(ax.value == "Z" for ax in normalized)
         if moving_z and not self.is_deck_clear():
             print("Deck is not clear. Aborting Z motion.")
             return
-        # Optional: validate requested targets against axis limits if known
-        for ax, val in list(normalized.items()):
+
+        for ax, val in normalized.items():
             lim = self._axis_limits.get(ax.value)
             if lim is not None:
                 lo, hi = lim
                 if not (lo <= float(val) <= hi):
                     raise ValueError(f"Requested {ax.value}={val} outside limits [{lo}, {hi}]")
-        letters = self._axes_letters or []
-        preferred = self._PREFERRED_ORDER
-        ordered_letters = [l for l in preferred if l in letters] + [l for l in letters if l not in preferred]
-        parts = []
-        for l in ordered_letters:
-            if l in self._axis.__members__:
-                ax = self._axis[l]
-                if ax in normalized:
-                    parts.append(f"{ax.value}{float(normalized[ax]):.2f}")
-        if s is not None:
-            parts.append(f"F{float(s):.2f}")
-        if param:
-            parts.append(param)
 
-        self._gcode("G0 " + " ".join(parts), wait=wait)
+        if absolute:
+            self.transport.set_absolute_positioning()
+        else:
+            self.transport.set_relative_positioning()
+
+        axes_dict = {ax.value: float(val) for ax, val in normalized.items()}
+        self.transport.move_axes(axes_dict, feedrate=s, wait=wait)
 
     def home(self, axis: Union[str, Enum]):
         """Home a single axis, e.g., home('X') or home(driver._axis.X)."""
@@ -253,4 +208,12 @@ class MotionDriver:
     def get_axis_limits(self) -> dict[str, tuple[float, float]]:
         """Return cached axis limits mapping letter -> (min, max)."""
         return dict(self._axis_limits)
+
+    def home_all(self) -> None:
+        """Run the firmware homeall macro."""
+        self.transport.home_all()
+
+    def get_axes_homed(self) -> list:
+        """Return homed state for all axes."""
+        return self.transport.get_axes_homed()
 

@@ -4,11 +4,12 @@ from typing import Optional, Union
 from enum import Enum
 
 from science_jubilee.hal.motion_driver import MotionDriver
+from science_jubilee.hal.tool_changer import ToolChanger
 from science_jubilee.tools.Tool import Tool
 
 
 class FreeNavigator:
-    """Free-form motion controller built directly on MotionDriver.
+    """Free-form motion controller built on MotionDriver.
 
     Unlike DeckNavigator, this class has no concept of a deck layout or
     labware geometry. It is useful for:
@@ -17,33 +18,37 @@ class FreeNavigator:
     - moving to arbitrary absolute positions
     - tool pickup and parking during setup
 
-    All motion is delegated to the MotionDriver; no transport is accessed
-    directly here.
+    All calls go through MotionDriver or ToolChanger; the transport is an
+    implementation detail that FreeNavigator never touches directly.
 
     Parameters
     ----------
     driver:
         A fully initialised MotionDriver instance.
+    tool_changer:
+        A ToolChanger instance built on the same transport.
 
     Example
     -------
     >>> from science_jubilee.hal.transport.http import HTTPTransport
     >>> from science_jubilee.hal.motion_driver import MotionDriver
+    >>> from science_jubilee.hal.tool_changer import ToolChanger
     >>> from science_jubilee.navigation.free_navigation import FreeNavigator
     >>>
     >>> transport = HTTPTransport(address="10.0.3.48")
     >>> driver = MotionDriver(transport)
-    >>> nav = FreeNavigator(driver)
+    >>> tc = ToolChanger(transport)
+    >>> nav = FreeNavigator(driver, tc)
     >>>
     >>> nav.move_to(x=150, y=150)
-    >>> nav.move_to(z=50)
-    >>> nav.jog(x=5)          # relative +5 mm on X
+    >>> nav.jog(x=5)
     >>> nav.pickup_tool(0)
     >>> nav.park_tool()
     """
 
-    def __init__(self, driver: MotionDriver) -> None:
+    def __init__(self, driver: MotionDriver, tool_changer: ToolChanger) -> None:
         self.driver = driver
+        self.tool_changer = tool_changer
 
     # ------------------------------------------------------------------
     # Absolute motion
@@ -137,7 +142,7 @@ class FreeNavigator:
         -------
         >>> nav.home_all()
         """
-        self.driver._gcode('M98 P"homeall.g"', wait=True)
+        self.driver.home_all()
 
     def home(self, *axes: Union[str, Enum]) -> None:
         """Home one or more specific axes sequentially.
@@ -170,18 +175,11 @@ class FreeNavigator:
         -------
         >>> nav.tool_lock()
         """
-        self.driver._gcode('M98 P"/macros/tool_lock.g"', wait=True)
+        self.tool_changer.tool_lock()
 
     def tool_unlock(self) -> None:
-        """Disengage the toolchanger lock by running the tool_unlock macro.
-
-        Releases the U-axis lock so the tool can be removed manually.
-
-        Example
-        -------
-        >>> nav.tool_unlock()
-        """
-        self.driver._gcode('M98 P"/macros/tool_unlock.g"', wait=True)
+        """Disengage the toolchanger lock by running the tool_unlock macro."""
+        self.tool_changer.tool_unlock()
 
     def pickup_tool(self, tool: Union[int, Tool]) -> bool:
         """Pick up a tool via the full RRF tool-change sequence (T{n}).
@@ -207,23 +205,11 @@ class FreeNavigator:
         >>> nav.pickup_tool(my_tool)
         """
         index = tool.index if isinstance(tool, Tool) else int(tool)
-        return self.driver.pickup_tool(index)
+        return self.tool_changer.pickup_tool(index)
 
     def park_tool(self) -> bool:
-        """Park (deselect) the currently active tool via ``T-1``.
-
-        Runs ``tfree{n}.g`` for the active tool then deselects it.
-
-        Returns
-        -------
-        bool
-            True if the command was sent successfully.
-
-        Example
-        -------
-        >>> nav.park_tool()
-        """
-        return self.driver.park_tool()
+        """Park (deselect) the currently active tool."""
+        return self.tool_changer.park_tool()
 
     # ------------------------------------------------------------------
     # Convenience info
@@ -235,11 +221,11 @@ class FreeNavigator:
 
     def get_active_tool(self) -> int:
         """Return the index of the currently active tool, or -1 if none."""
-        return self.driver.transport.get_active_tool_index()
+        return self.tool_changer.get_active_tool_index()
 
     def list_tools(self) -> dict:
         """Return a mapping of tool number -> info."""
-        return self.driver.transport.get_tools()
+        return self.tool_changer.get_tools()
 
     def get_available_axes(self) -> list[str]:
         """Return the list of axis letters available on this machine."""
