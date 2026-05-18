@@ -1,224 +1,296 @@
 import json
 import os
-from dataclasses import dataclass
-from typing import Dict, Tuple
+from typing import Dict, Iterator
 
-from science_jubilee.labware.Labware import Labware
+from attrs import Factory, define, field, validators
+
+from science_jubilee.labware.Labware import Labware, Well
 
 
-@dataclass
+@define(slots=True, repr=False)
 class Slot:
-    """Class that defines a slot on the Jubilee deck.
-    Each slot has a unique index, offset, and can have a labware associated with it.
-
-    :param slot_index: The unique index of the slot, usually a number between 0 and 5.
-    :type slot_index: int
-    :param offset: The (x,y) offset of the slot from the origin of the deck/machine.
-    :type offset: Tuple[float]
-    :param has_labware: A boolean that indicates whether a labware has been loaded into the slot.
-    :type has_labware: bool
-    :param labware: The :class:`Labware` object that has been loaded into the slot.
-    :type labware: :class:`Labware`
+    """
+    Représente un slot physique du deck.
     """
 
-    slot_index: int
-    offset: Tuple[float]
-    has_labware: bool
-    labware: str
+    slot_index: str
 
+    offset: tuple[float, ...]
 
-@dataclass
-class SlotSet:
-    """Class that defines a set of slots on the Jubilee deck.
+    has_labware: bool = False
 
-    :param slots: A dictionary of :class:`Slot` objects, where the key is the slot's index.
-    :type slots: Dict[str, :class:`Slot`]
-    :param bedType: The type of bed that the slots are arranged in. Usually 'fixed' or 'removable'.
-    :type bedType: str
+    labware: Labware | None = None
 
-    """
+    @property
+    def is_empty(self) -> bool:
+        return self.labware is None
 
-    slots: Dict[str, Slot]
+    def load_labware(self, labware: Labware) -> None:
+
+        self.labware = labware
+        self.has_labware = True
+
+    def unload_labware(self) -> None:
+
+        self.labware = None
+        self.has_labware = False
+
+    def get_labware(self) -> Labware:
+
+        if self.labware is None:
+            raise ValueError(
+                f"No labware loaded in slot {self.slot_index}"
+            )
+
+        return self.labware
+
+    def get_well(self, well_id: str) -> Well:
+
+        return self.get_labware().get_well(well_id)
 
     def __repr__(self):
-        return str(self.bedType)
 
-    def __getitem__(self, id_):
-        """Allows the user to select a :class:`Slot` object by its index or key.
+        if self.labware is None:
+            return f"Slot({self.slot_index}, empty)"
 
-        :param id_: The index or key representing the slot.
-        :type id_: str or int
-        :return: The :class:`Slot` object associated with the index or key.
-        :rtype: :class:`Slot`
-        """
-        try:
-            return self.slots[id_]
-        except KeyError:
-            return list(self.slots.values())[id_]
+        return (
+            f"Slot("
+            f"{self.slot_index}, "
+            f"labware={self.labware.load_name}"
+            f")"
+        )
 
 
-class Deck(SlotSet):
-    """Class that defines the Jubilee deck.
-
-    The deck is a set of slots that can have labware loaded into them.
-    The deck is defined by a configuration file that specifies the number of slots, their offsets, and the type of bed they are arranged in.
-
-    :param deck_filename: The name of the deck configuration file.
-    :type deck_filename: str
-    :param path: The path to the deck configuration `.json` files for the labware,
-            defaults to the 'deck_definition/' in the science_jubilee/decks directory.
-    :type path: str, optional
+@define(slots=True, repr=False)
+class SlotSet:
+    """
+    Collection orientée domaine de slots.
     """
 
-    def __init__(
+    slots: Dict[str, Slot] = field(factory=dict)
+
+    def __iter__(self) -> Iterator[Slot]:
+        return iter(self.slots.values())
+
+    def __len__(self) -> int:
+        return len(self.slots)
+
+    def __contains__(self, slot_id: str) -> bool:
+        return slot_id in self.slots
+
+    def __getitem__(self, identifier):
+
+        if isinstance(identifier, str):
+            return self.get_slot(identifier)
+
+        if isinstance(identifier, int):
+            return list(self.slots.values())[identifier]
+
+        raise TypeError(
+            f"Unsupported identifier type: {type(identifier)}"
+        )
+
+    def __repr__(self):
+
+        return (
+            f"SlotSet("
+            f"slots={list(self.slots.keys())}"
+            f")"
+        )
+
+    def get_slot(self, slot_id: str) -> Slot:
+
+        return self.slots[slot_id]
+
+    def get_slots(self) -> list[Slot]:
+
+        return list(self.slots.values())
+
+    def get_labware(self, slot_id: str) -> Labware:
+
+        return self.get_slot(slot_id).get_labware()
+
+    def get_well(
         self,
-        deck_filename,
-        path: str = os.path.join(os.path.dirname(__file__), "deck_definition"),
-    ):
-        """Initializes the :class:`Deck` object by loading its configuration file and creating a dictionary of :class:`Slot` objects.
+        slot_id: str,
+        well_id: str,
+    ) -> Well:
 
-        :param deck_filename: The name of the deck configuration file.
-        :type deck_filename: str
-        :param path: The path to the deck configuration `.json` files for the labware,
-                defaults to the 'deck_definition/' in the science_jubilee/decks directory.
-        :type path: str, optional
-        """
-        # load in the deck configuration file
-        if deck_filename[-4:] != "json":
-            deck_filename = deck_filename + ".json"
+        return self.get_slot(slot_id).get_well(well_id)
 
-        config_path = os.path.join(path, f"{deck_filename}")
+    def has_labware(self, slot_id: str) -> bool:
 
-        with open(config_path, "r") as f:
-            deck_config = json.load(f)
+        return not self.get_slot(slot_id).is_empty
 
-        self.deck_config = deck_config
-        self.slots_data = self.deck_config.get("slots", {})
-        self.slots = self._get_slots()
-        self._safe_z = 10
 
-    def _get_slots(self):
-        """Function that creates a dictionary of :class:`Slot` objects from the deck configuration file.
+@define(slots=True, repr=False)
+class Deck(SlotSet):
+    """
+    Représente l’état runtime du deck.
+    """
 
-        :return: A dictionary of :class:`Slot` objects, where the key is the slot's index.
-        :rtype: Dict[str, :class:`Slot`]
-        """
-        slots = {}
-        for s, sv in self.slots_data.items():
-            if type(sv) == list:
-                sv = tuple(sv)
-            else:
-                pass
-            slots[s] = Slot(slot_index=s, **self.slots_data[s])
-        return slots
+    deck_filename: str
 
-    @property
-    def bedType(self):
-        """Function that returns the type of bed loaded onto Jubilee.
+    path: str = field(
+        default=os.path.join(
+            os.path.dirname(__file__),
+            "deck_definition",
+        )
+    )
 
-        :return: The name/type of deck loaded onto Jubilee, e.g., Lab Automation Deck, Heated Deck, etc.
-        :rtype: str
-        """
+    deck_config: dict = field(init=False, factory=dict)
 
-        return self.deck_config.get("bedType", "")
+    slots_data: dict = field(init=False, factory=dict)
 
-    @property
-    def totalslots(self):
-        """Function that returns the total number of slots on the deck.
+    safe_z: float = field(default=10.0)
 
-        :return: The total number of slots on the deck.
-        :rtype: int
-        """
+    config_path: str = field(init=False)
 
-        deckslots = self.deck_config.get("deckSlots", {})
-        return deckslots["total"]
+    @safe_z.validator
+    def validate_safe_z(self, attribute, value):
 
-    @property
-    def slotType(self):
-        """Function that returns the type of slot arrangement the deck might have.
+        if value < 0:
+            raise ValueError(
+                "safe_z must be positive"
+            )
 
-        :return: The slot arrangement type. This is inidcated in the configuration file. Standard is "SLAS".
-        :rtype: str
-        """
+    def __attrs_post_init__(self):
 
-        deckslots = self.deck_config.get("deckSlots", {})
-        return deckslots["type"]
+        filename = self.deck_filename
 
-    @property
-    def offsetFrom(self):
-        """Function that returns which corner or the slot to apply to a labware loaded on it.
+        if not filename.endswith(".json"):
+            filename += ".json"
 
-        :return: The corner of the slot to apply to the labware. This is inidcated in the configuration file.
-        :rtype: str
-        """
-        return self.deck_config.get("offsetFrom", {})
+        self.config_path = os.path.join(
+            self.path,
+            filename,
+        )
+
+        with open(self.config_path, "r") as f:
+            self.deck_config = json.load(f)
+
+        self.slots_data = self.deck_config.get(
+            "slots",
+            {},
+        )
+
+        self.slots = self._create_slots()
+
+    def __repr__(self):
+
+        return (
+            f"Deck("
+            f"bed_type={self.bed_type}, "
+            f"slots={len(self.slots)}"
+            f")"
+        )
 
     @property
-    def deck_material(self):
-        """Function that returns the material that the deck and possible mask are made of.
+    def bed_type(self) -> str:
 
-        :return: The material that the deck is made of, as well as any mask that is applied to it.
-        :rtype: Dict[str, str]
-        """
-        return self.deck_config.get("material", {})
+        return self.deck_config.get(
+            "bedType",
+            "",
+        )
 
     @property
-    def safe_z(self):
-        """Function that returns the movement clearance height of the deck.
+    def total_slots(self) -> int:
 
-        :return: The height at which the pipette can freely move without colliding with
-            labware on the deck.
-        :rtype: float
-        """
-        return self._safe_z
+        deck_slots = self.deck_config.get(
+            "deckSlots",
+            {},
+        )
 
-    @safe_z.setter
-    def safe_z(self, val):
-        """Function that updates the movement clearance height
-        every time a new labware is loaded onto the deck
+        return deck_slots.get("total", 0)
 
-        :param val: The new safe z height.
-        :type val: float
-        """
-        if self._safe_z is None:
-            self._safe_z = val
-        elif self._safe_z <= val:
-            self._safe_z = val
-        else:
-            pass
+    @property
+    def slot_type(self) -> str:
+
+        deck_slots = self.deck_config.get(
+            "deckSlots",
+            {},
+        )
+
+        return deck_slots.get("type", "")
+
+    @property
+    def offset_from(self) -> str:
+
+        return self.deck_config.get(
+            "offsetFrom",
+            "",
+        )
+
+    @property
+    def deck_material(self) -> dict:
+
+        return self.deck_config.get(
+            "material",
+            {},
+        )
+
+    def update_safe_z(self, z_height: float) -> None:
+
+        if z_height > self.safe_z:
+            self.safe_z = z_height
 
     def load_labware(
         self,
         labware_filename: str,
-        slot: int,
+        slot_id: str,
         path=os.path.join(
-            os.path.dirname(__file__), "..", "labware", "labware_definition"
+            os.path.dirname(__file__),
+            "..",
+            "labware",
+            "labware_definition",
         ),
         order: str = "rows",
-    ):
-        """Function that loads a labware and associates it with a specific slot on the deck.
-         The slot offset is also applied to the labware asocaite with it.
+    ) -> Labware:
 
-        :param labware_filename: The name of the labware configuration file.
-        :type labware_filename: str
-        :param slot: The index of the slot to load the labware into.
-        :type slot: int
-        :param path: The path to the labware configuration `.json` files for the labware,
-                defaults to the 'labware_definition/' in the science_jubilee/labware directory.
-        :type path: str, optional
-        :param order: The order in which the labware is arranged on the deck.
-                Can be 'rows' or 'columns', defaults to 'rows'.
-        :type order: str, optional
-        :return: The :class:`Labware` object that has been loaded into the slot.
-        :rtype: :class:`Labware`"""
+        slot = self.get_slot(str(slot_id))
 
-        labware = Labware(labware_filename, order=order)
-        labware.add_slot(slot)
-        offset = self.slots[str(slot)].offset
+        labware = Labware(
+            labware_filename,
+            order=order,
+            path=path,
+        )
 
-        labware.offset = offset
+        labware.add_slot(slot_id)
 
-        self.slots[str(slot)].has_labware = True
-        self.slots[str(slot)].labware = labware
-        self.safe_z = labware.dimensions["zDimension"]
+        labware.apply_offset(slot.offset)
+
+        slot.load_labware(labware)
+
+        self.update_safe_z(
+            labware.dimensions["zDimension"]
+        )
+
         return labware
+
+    def unload_labware(self, slot_id: str) -> None:
+
+        slot = self.get_slot(str(slot_id))
+
+        slot.unload_labware()
+
+    def _create_slots(self) -> Dict[str, Slot]:
+
+        slots = {}
+
+        for slot_id, slot_data in self.slots_data.items():
+
+            offset = slot_data.get("offset", ())
+
+            if isinstance(offset, list):
+                offset = tuple(offset)
+
+            slots[slot_id] = Slot(
+                slot_index=slot_id,
+                offset=offset,
+                has_labware=slot_data.get(
+                    "has_labware",
+                    False,
+                ),
+            )
+
+        return slots
