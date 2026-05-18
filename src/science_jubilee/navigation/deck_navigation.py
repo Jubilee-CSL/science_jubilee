@@ -42,6 +42,7 @@ class DeckNavigator:
             self.driver.move_to({"Z": target}, s=speed, wait=True)
 
     # --- well targeting ------------------------------------------------
+    #nettoyer les Z
     def move_to_well(
         self,
         well: Well | Location,
@@ -90,11 +91,14 @@ class DeckNavigator:
                 x, y, z = well.x, well.y, well.z
         else:
             raise TypeError(f"Unsupported well type: {type(well).__name__}")
+        
 
         # 1) Go up to safe travel height
         self.move_to_safe_z(margin=travel_margin, speed=speed_z)
 
         # 2) XY move over the target well at safe Z
+        # coordonnée récupérer dans dans well.x y z sont dans le réferentiel de la labware et non dans le réferentiel du plateau
+        # mouvement incomplet
         self.driver.move_to({"X": float(x), "Y": float(y)}, s=speed_xy, wait=True)
 
         # 3) Move down in Z to target height
