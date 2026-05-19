@@ -46,7 +46,7 @@ class Inoculator(Tool):
         position.y = source.y
         position.z = source.depth
         #si le randomize_pickup est actif
-        #On créé une Location qui sera une position alétoire dans le puit
+        #On créé une Location qui sera une position aléatoire dans le puit
         if (
                 randomize_pickup
             ):  # to make sure we don't try to pickup from an empty region

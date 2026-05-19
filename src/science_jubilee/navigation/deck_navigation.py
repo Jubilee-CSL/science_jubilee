@@ -80,7 +80,8 @@ class DeckNavigator:
     # Well movement
     # ------------------------------------------------------------------
 
-    def move_to_well(
+    #move safely to well only, ajouter une option not safe ?
+    def move_to_target(
         self,
         target: Well | Location,
         *,
@@ -89,6 +90,7 @@ class DeckNavigator:
         speed_xy: float | None = None,
         speed_z: float | None = None,
         travel_margin: float | None = None,
+        safe_movemet: bool = True
     ) -> None:
         """
         Collision-safe movement toward a Well or Location.
@@ -112,9 +114,9 @@ class DeckNavigator:
             z_from_top=z_from_top,
         )
 
-        # 1) Move to safe travel Z
-
-        self.move_to_safe_z(margin=travel_margin,speed=speed_z,)
+        # 1) Move to safe travel Z, if safe_movement is true
+        if safe_movemet == True:
+            self.move_to_safe_z(margin=travel_margin,speed=speed_z,)
 
         # 2) XY travel
 
