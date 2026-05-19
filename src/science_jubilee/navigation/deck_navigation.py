@@ -90,7 +90,7 @@ class DeckNavigator:
         speed_xy: float | None = None,
         speed_z: float | None = None,
         travel_margin: float | None = None,
-        safe_movemet: bool = True
+        safe_movement: bool = True
     ) -> None:
         """
         Collision-safe movement toward a Well or Location.
@@ -115,7 +115,7 @@ class DeckNavigator:
         )
 
         # 1) Move to safe travel Z, if safe_movement is true
-        if safe_movemet == True:
+        if safe_movement == True:
             self.move_to_safe_z(margin=travel_margin,speed=speed_z,)
 
         # 2) XY travel
