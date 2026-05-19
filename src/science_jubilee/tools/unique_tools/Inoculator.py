@@ -3,11 +3,7 @@ import random
 import math
 import random
 
-from science_jubilee.labware.Labware import (
-    Location,
-    Point,
-    Well,
-)
+from science_jubilee.labware.Labware import (Location,Point,Well)
 
 from science_jubilee.navigation.deck_navigation import DeckNavigator
 from science_jubilee.tools.Tool import Tool, requires_active_tool
