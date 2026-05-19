@@ -1,20 +1,56 @@
-# Refactorisation du module Labware avec `attrs`
+from __future__ import annotations
 
-```python
 import json
 import os
 import string
+from dataclasses import dataclass, field
 from itertools import chain
-from math import acos, cos, sin, sqrt
-from typing import Dict, Iterable, List, NamedTuple, Tuple, Union
+from typing import Dict, Iterator, NamedTuple
 
 import numpy as np
-from attrs import Factory, define, field, validators
 
 
-@define(slots=True)
+
+class Point(NamedTuple):
+    x: float = 0.0
+    y: float = 0.0
+    z: float = 0.0
+
+    def add(self, other: "Point") -> "Point":
+        return Point(
+            self.x + other.x,
+            self.y + other.y,
+            self.z + other.z,
+        )
+
+    def subtract(self, other: "Point") -> "Point":
+        return Point(
+            self.x - other.x,
+            self.y - other.y,
+            self.z - other.z,
+        )
+
+    def multiply(self, scalar: float) -> "Point":
+        return Point(
+            self.x * scalar,
+            self.y * scalar,
+            self.z * scalar,
+        )
+
+
+
+@dataclass(slots=True)
+class Location:
+    point: Point
+    resource: "Well | Labware"
+
+
+
+@dataclass(slots=True, repr=False)
 class Well:
-    """Represents a single well in a labware."""
+    """
+    Represents a physical well.
+    """
 
     name: str
     depth: float
@@ -29,13 +65,20 @@ class Well:
     xDimension: float | None = None
     yDimension: float | None = None
 
-    offset: Tuple[float, ...] | None = None
+    offset: tuple[float, ...] | None = None
     slot: str | None = None
 
     has_tip: bool = False
     clean_tip: bool = False
 
     labware_name: str | None = None
+
+    def __repr__(self):
+        return f"Well({self.name})"
+
+    # ------------------------------------------------------------------
+    # Geometry
+    # ------------------------------------------------------------------
 
     @property
     def top(self) -> float:
@@ -45,8 +88,11 @@ class Well:
     def bottom(self) -> float:
         return self.z
 
-    def apply_offset(self, offset: Tuple[float, ...]) -> None:
+    # ------------------------------------------------------------------
+    # Position helpers
+    # ------------------------------------------------------------------
 
+    def apply_offset(self, offset: tuple[float, ...]) -> None:
         self.x += offset[0]
         self.y += offset[1]
 
@@ -55,29 +101,20 @@ class Well:
 
         self.offset = offset
 
-    def get_top_location(self, z_offset: float = 0):
-
+    def get_top_location(self, z_offset: float = 0.0) -> Location:
         z = self.top + z_offset
 
         if z <= self.bottom:
-            raise ValueError(
-                "Top offset generates an invalid Z coordinate"
-            )
+            raise ValueError("Invalid top offset.")
 
         return Location(
             Point(self.x, self.y, z),
             self,
         )
 
-    def get_bottom_location(
-        self,
-        z_offset: float = 0,
-    ):
-
+    def get_bottom_location(self, z_offset: float = 0.0) -> Location:
         if z_offset < 0:
-            raise ValueError(
-                "Bottom offset must be positive"
-            )
+            raise ValueError("Bottom offset must be positive.")
 
         z = self.bottom + z_offset
 
@@ -86,46 +123,46 @@ class Well:
             self,
         )
 
+    # ------------------------------------------------------------------
+    # Tip state
+    # ------------------------------------------------------------------
+
     def set_tip_state(
         self,
         has_tip: bool,
         clean_tip: bool | None = None,
     ) -> None:
-
         self.has_tip = has_tip
 
         if clean_tip is not None:
             self.clean_tip = clean_tip
 
 
-@define(slots=True, repr=False)
-class WellSet:
 
-    wells: Dict[str, Well] = field(factory=dict)
+@dataclass(slots=True, repr=False)
+class WellSet:
+    """
+    Base collection of wells.
+    """
+
+    wells: Dict[str, Well] = field(default_factory=dict)
 
     def __repr__(self):
-        return str(list(self.wells.keys()))
+        return (
+            f"{self.__class__.__name__}"
+            f"({list(self.wells.keys())})"
+        )
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Well]:
         return iter(self.wells.values())
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.wells)
 
-    def __contains__(self, well_id: str):
+    def __contains__(self, well_id: str) -> bool:
         return well_id in self.wells
 
-    def get_well(self, well_id: str) -> Well:
-        return self.wells[well_id]
-
-    def get_wells(self) -> List[Well]:
-        return list(self.wells.values())
-
-    def __getitem__(
-        self,
-        identifier: Union[str, int, slice],
-    ):
-
+    def __getitem__(self, identifier: str | int | slice):
         if isinstance(identifier, str):
             return self.wells[identifier]
 
@@ -136,74 +173,96 @@ class WellSet:
             return list(self.wells.values())[identifier]
 
         raise TypeError(
-            f"Unsupported identifier type: {type(identifier)}"
+            f"Unsupported identifier: {type(identifier)}"
         )
 
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
 
-@define(slots=True, repr=False)
+    def get_well(self, well_id: str) -> Well:
+        return self.wells[well_id]
+
+    def get_wells(self) -> list[Well]:
+        return list(self.wells.values())
+
+
+
+@dataclass(slots=True, repr=False)
 class Row(WellSet):
-
     identifier: str = ""
 
 
-@define(slots=True, repr=False)
-class Column(WellSet):
 
+@dataclass(slots=True, repr=False)
+class Column(WellSet):
     identifier: int = 0
 
 
-@define(slots=True, repr=False)
+
+@dataclass(slots=True, repr=False)
 class Labware(WellSet):
+    """
+    Runtime representation of a labware.
+    """
 
-    labware_filename: str = field()
+    labware_filename: str
 
-    offset: Tuple[float, ...] | None = None
+    offset: tuple[float, ...] | None = None
+    order: str = "rows"
 
-    order: str = field(default="rows")
-
-    path: str = field(
-        default=os.path.join(
-            os.path.dirname(__file__),
-            "labware_definition",
-        )
+    path: str = os.path.join(
+        os.path.dirname(__file__),
+        "labware_definition",
     )
 
-    data: dict = field(init=False, factory=dict)
+    # Runtime state
 
+    data: dict = field(init=False, default_factory=dict)
     config_path: str = field(init=False)
 
-    wells_data: dict = field(init=False, factory=dict)
+    wells_data: dict = field(
+        init=False,
+        default_factory=dict,
+    )
 
-    row_data: Dict[str, Row] = field(init=False, factory=dict)
+    row_data: Dict[str, Row] = field(
+        init=False,
+        default_factory=dict,
+    )
 
-    column_data: Dict[int, Column] = field(init=False, factory=dict)
+    column_data: Dict[int, Column] = field(
+        init=False,
+        default_factory=dict,
+    )
 
-    slot: str | None = field(init=False, default=None)
+    slot: str | None = field(
+        init=False,
+        default=None,
+    )
 
-    manualOffset: dict = field(init=False, factory=dict)
+    manual_offset: dict = field(
+        init=False,
+        default_factory=dict,
+    )
 
-    @order.validator
-    def validate_order(self, attribute, value):
+    # ------------------------------------------------------------------
+    # Init
+    # ------------------------------------------------------------------
 
-        valid_orders = {
+    def __post_init__(self):
+        if self.order.lower() not in {
             "rows",
             "row",
-            "Rows",
-            "Row",
-            "R",
-            "cols",
-            "col",
-            "C",
+            "r",
             "columns",
-            "Columns",
-        }
-
-        if value not in valid_orders:
+            "column",
+            "col",
+            "c",
+        }:
             raise ValueError(
-                f"Invalid order: {value}"
+                f"Invalid order: {self.order}"
             )
-
-    def __attrs_post_init__(self):
 
         filename = self.labware_filename
 
@@ -215,8 +274,8 @@ class Labware(WellSet):
             filename,
         )
 
-        with open(self.config_path, "r") as f:
-            self.data = json.load(f)
+        with open(self.config_path, "r") as file:
+            self.data = json.load(file)
 
         self.wells_data = self.data.get("wells", {})
 
@@ -231,25 +290,24 @@ class Labware(WellSet):
         if self.offset is not None:
             self.apply_offset(self.offset)
 
-        self.manualOffset = self.data.get(
+        self.manual_offset = self.data.get(
             "manual_offset",
             {},
         )
 
     def __repr__(self):
-
-        display = (
-            f"{self.labware_type}: {self.load_name}"
-        )
+        display = f"Labware({self.load_name}"
 
         if self.slot is not None:
-            display += f" on {self.slot}"
+            display += f", slot={self.slot}"
+
+        display += ")"
 
         return display
 
-    @property
-    def ordering(self):
-        return np.array(self.data["ordering"]).T
+    # ------------------------------------------------------------------
+    # Metadata
+    # ------------------------------------------------------------------
 
     @property
     def metadata(self):
@@ -258,6 +316,14 @@ class Labware(WellSet):
     @property
     def parameters(self):
         return self.data.get("parameters", {})
+
+    @property
+    def dimensions(self):
+        return self.data.get("dimensions", {})
+
+    @property
+    def ordering(self):
+        return np.array(self.data["ordering"]).T
 
     @property
     def display_name(self):
@@ -276,10 +342,6 @@ class Labware(WellSet):
         return self.metadata["displayVolumeUnits"]
 
     @property
-    def dimensions(self):
-        return self.data.get("dimensions", {})
-
-    @property
     def is_tip_rack(self):
         return self.parameters["isTiprack"]
 
@@ -290,34 +352,40 @@ class Labware(WellSet):
             len(self.column_data),
         )
 
-    def apply_offset(
-        self,
-        offset: Tuple[float, ...],
-    ):
+    # ------------------------------------------------------------------
+    # Runtime helpers
+    # ------------------------------------------------------------------
 
+    def apply_offset(self, offset: tuple[float, ...]) -> None:
         self.offset = offset
 
         for well in self:
             well.apply_offset(offset)
 
-    def add_slot(self, slot: str):
-
+    def add_slot(self, slot: str) -> None:
         self.slot = slot
 
         for well in self:
             well.slot = slot
 
-    def get_row(self, row_id: str):
+    # ------------------------------------------------------------------
+    # Accessors
+    # ------------------------------------------------------------------
+
+    def get_row(self, row_id: str) -> Row:
         return self.row_data[row_id]
 
-    def get_column(self, column_id: int):
+    def get_column(self, column_id: int) -> Column:
         return self.column_data[column_id]
 
-    def with_well_order(self, order: str):
+    # ------------------------------------------------------------------
+    # Ordering
+    # ------------------------------------------------------------------
 
+    def with_well_order(self, order: str) -> None:
         ordered_wells = {}
 
-        if order.lower().startswith("row") or order == "R":
+        if order.lower().startswith("row") or order.lower() == "r":
 
             for well in chain(*self.row_data.values()):
                 ordered_wells[well.name] = well
@@ -329,8 +397,11 @@ class Labware(WellSet):
 
         self.wells = ordered_wells
 
-    def _create_rows_and_columns(self):
+    # ------------------------------------------------------------------
+    # Builders
+    # ------------------------------------------------------------------
 
+    def _create_rows_and_columns(self):
         rows = {}
         columns = {}
         wells = {}
@@ -342,7 +413,7 @@ class Labware(WellSet):
             if row_id not in rows:
                 rows[row_id] = {}
 
-            for col_order, well_id in enumerate(column_data):
+            for col_index, well_id in enumerate(column_data):
 
                 well = Well(
                     name=well_id,
@@ -351,7 +422,7 @@ class Labware(WellSet):
 
                 rows[row_id][well_id] = well
 
-                column_id = col_order + 1
+                column_id = col_index + 1
 
                 if column_id not in columns:
                     columns[column_id] = {}
@@ -381,12 +452,16 @@ class Labware(WellSet):
 
         return rows, columns, wells
 
+    # ------------------------------------------------------------------
+    # Geometry helpers
+    # ------------------------------------------------------------------
+
     @staticmethod
-    def _nominal_coordinates(
+    def nominal_coordinates(
         well: Well,
-        x_space: float,
-        y_space: float,
-    ):
+        x_spacing: float,
+        y_spacing: float,
+    ) -> tuple[float, float]:
 
         col_index = int(well.name[1:]) - 1
 
@@ -395,74 +470,6 @@ class Labware(WellSet):
         ).index(well.name[0])
 
         return (
-            col_index * x_space,
-            row_index * y_space,
+            col_index * x_spacing,
+            row_index * y_spacing,
         )
-
-    @staticmethod
-    def _getxyz(location):
-
-        if isinstance(location, Well):
-            return (
-                location.x,
-                location.y,
-                location.z,
-            )
-
-        if isinstance(location, tuple):
-            return location
-
-        if isinstance(location, Location):
-            return location.point
-
-        raise ValueError(
-            "Invalid location type"
-        )
-
-
-class Point(NamedTuple):
-
-    x: float = 0.0
-    y: float = 0.0
-    z: float = 0.0
-
-    def add(self, other):
-
-        if not isinstance(other, Point):
-            return NotImplemented
-
-        return Point(
-            self.x + other.x,
-            self.y + other.y,
-            self.z + other.z,
-        )
-
-    def subtract(self, other):
-
-        if not isinstance(other, Point):
-            return NotImplemented
-
-        return Point(
-            self.x - other.x,
-            self.y - other.y,
-            self.z - other.z,
-        )
-
-    def multiply(self, scalar):
-
-        if not isinstance(scalar, (float, int)):
-            return NotImplemented
-
-        return Point(
-            self.x * scalar,
-            self.y * scalar,
-            self.z * scalar,
-        )
-
-
-@define(slots=True)
-class Location:
-
-    point: Point
-
-    labware: Union[Well, Labware]

@@ -1,151 +1,230 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Dict, Iterable, List, Mapping, Optional
+from typing import Iterable
+
+from dataclasses import dataclass
+
 
 from science_jubilee.hal.motion_driver import MotionDriver
 from science_jubilee.decks.Deck import Deck
-from science_jubilee.labware.Labware import Labware, Well, Location
+from science_jubilee.labware.Labware import (
+    Labware,
+    Location,
+    Well,
+)
 
 
-@dataclass
+@dataclass(slots=True)
 class DeckNavigator:
-    """Coordinate motion across a deck and its labware using MotionDriver.
+    """
+    High-level navigation helper using Deck + Labware geometry.
 
-    This is a thin, high-level helper that:
-    - uses Deck + Labware geometry to compute well coordinates
-    - enforces safe Z travel based on Deck.safe_z
-    - delegates all actual motion to a MotionDriver instance
+    Responsibilities:
+    - compute motion targets from runtime geometry
+    - enforce safe Z travel
+    - delegate physical movement to MotionDriver
 
-    It does **not** talk to transports directly and does **not** know about
-    tools; tools can call into it to move the machine control point.
+    This class contains NO motion planning logic.
     """
 
     driver: MotionDriver
+
     deck: Deck
-    labware_by_slot: Mapping[int, Labware] = field(default_factory=dict)
 
-    # --- basic helpers -------------------------------------------------
-    def move_to_safe_z(self, margin: float = 20.0, speed: float = 6000.0) -> None:
-        """Raise Z to a deck-safe height plus an optional extra margin.
+    travel_margin: float = 20.0
 
-        This mirrors the legacy Machine.safe_z_movement() logic but routes
-        motion through MotionDriver and Deck.safe_z instead of talking to
-        transports directly.
+    default_speed_xy: float = 6000.0
+
+    default_speed_z: float = 3000.0
+
+    # ------------------------------------------------------------------
+    # Safe Z movement
+    # ------------------------------------------------------------------
+
+    def move_to_safe_z(
+        self,
+        margin: float | None = None,
+        speed: float | None = None,
+    ) -> None:
+        """
+        Raise the machine to a safe travel height.
         """
 
-        pos = self.driver.get_positions()
-        current_z = float(pos.get("Z", 0.0))
-        safe_z = float(self.deck.safe_z)
-        target = safe_z + float(margin)
-        if current_z < target:
-            self.driver.move_to({"Z": target}, s=speed, wait=True)
+        margin = (
+            self.travel_margin
+            if margin is None
+            else margin
+        )
 
-    # --- well targeting ------------------------------------------------
-    #nettoyer les Z
+        speed = (
+            self.default_speed_z
+            if speed is None
+            else speed
+        )
+
+        current_position = self.driver.get_positions()
+
+        current_z = float(current_position.get("Z", 0.0))
+
+        target_z = (float(self.deck.safe_z)+ float(margin))
+
+        if current_z < target_z:
+
+            self.driver.move_to(
+                {"Z": target_z},
+                s=speed,
+                wait=True,
+            )
+
+    # ------------------------------------------------------------------
+    # Well movement
+    # ------------------------------------------------------------------
+
     def move_to_well(
         self,
-        well: Well | Location,
+        target: Well | Location,
         *,
-        z_from_bottom: Optional[float] = None,
-        z_from_top: Optional[float] = None,
-        travel_margin: float = 20.0,
-        speed_xy: float = 6000.0,
-        speed_z: float = 3000.0,
+        z_from_bottom: float | None = None,
+        z_from_top: float | None = None,
+        speed_xy: float | None = None,
+        speed_z: float | None = None,
+        travel_margin: float | None = None,
     ) -> None:
-        """Move to a single well in a collision-aware way.
-
-        Parameters
-        ----------
-        well:
-            Either a Well instance or a Location returned by Well.bottom()/top().
-        z_from_bottom:
-            If `well` is a Well, move to Well.bottom(z_from_bottom). Mutually
-            exclusive with z_from_top. If both are None and well is a Well,
-            the raw well.z is used (e.g., for just "above" the well).
-        z_from_top:
-            If `well` is a Well, move to Well.top(z_from_top). Mutually
-            exclusive with z_from_bottom.
-        travel_margin:
-            Extra height (mm) above Deck.safe_z for XY travel.
-        speed_xy:
-            Feedrate for XY moves.
-        speed_z:
-            Feedrate for Z moves.
+        """
+        Collision-safe movement toward a Well or Location.
         """
 
-        if isinstance(well, Location):
-            x, y, z = well.point
-        elif isinstance(well, Well):
-            # Decide which Z helper to use
-            if (z_from_bottom is not None) and (z_from_top is not None):
-                raise ValueError("Specify at most one of z_from_bottom or z_from_top.")
+        speed_xy = (
+            self.default_speed_xy
+            if speed_xy is None
+            else speed_xy
+        )
+
+        speed_z = (
+            self.default_speed_z
+            if speed_z is None
+            else speed_z
+        )
+
+        x, y, z = self._resolve_target_position(
+            target=target,
+            z_from_bottom=z_from_bottom,
+            z_from_top=z_from_top,
+        )
+
+        # 1) Move to safe travel Z
+
+        self.move_to_safe_z(margin=travel_margin,speed=speed_z,)
+
+        # 2) XY travel
+
+        self.driver.move_to(
+            {
+                "X": float(x),
+                "Y": float(y),
+            },
+            s=speed_xy,
+            wait=True,
+        )
+
+        # 3) Descend in Z
+
+        self.driver.move_to(
+            {
+                "Z": float(z),
+            },
+            s=speed_z,
+            wait=True,
+        )
+
+    # ------------------------------------------------------------------
+    # Target resolution
+    # ------------------------------------------------------------------
+
+    def _resolve_target_position(
+        self,
+        *,
+        target: Well | Location,
+        z_from_bottom: float | None,
+        z_from_top: float | None,
+    ) -> tuple[float, float, float]:
+        """
+        Resolve runtime coordinates from Well or Location.
+        """
+
+        if (
+            z_from_bottom is not None
+            and z_from_top is not None
+        ):
+            raise ValueError(
+                "Specify only one of "
+                "z_from_bottom or z_from_top."
+            )
+
+        # --------------------------------------------------------------
+        # Direct location
+        # --------------------------------------------------------------
+
+        if isinstance(target, Location):
+
+            return (target.point.x,target.point.y,target.point.z,)
+
+        # --------------------------------------------------------------
+        # Well target
+        # --------------------------------------------------------------
+
+        if isinstance(target, Well):
+
             if z_from_bottom is not None:
-                loc = well.bottom(float(z_from_bottom))
-                x, y, z = loc.point
-            elif z_from_top is not None:
-                loc = well.top(float(z_from_top))
-                x, y, z = loc.point
-            else:
-                # Raw well bottom plane, slightly above by default
-                x, y, z = well.x, well.y, well.z
-        else:
-            raise TypeError(f"Unsupported well type: {type(well).__name__}")
-        
 
-        # 1) Go up to safe travel height
-        self.move_to_safe_z(margin=travel_margin, speed=speed_z)
+                location = target.get_bottom_location(
+                    z_from_bottom
+                )
 
-        # 2) XY move over the target well at safe Z
-        # coordonnée récupérer dans dans well.x y z sont dans le réferentiel de la labware et non dans le réferentiel du plateau
-        # mouvement incomplet
-        self.driver.move_to({"X": float(x), "Y": float(y)}, s=speed_xy, wait=True)
+                return (location.point.x,location.point.y,location.point.z)
 
-        # 3) Move down in Z to target height
-        self.driver.move_to({"Z": float(z)}, s=speed_z, wait=True)
+            if z_from_top is not None:
 
-    # --- iterating wells -----------------------------------------------
-    def iter_wells(self, labware: Labware, order: str = "rows") -> Iterable[Well]:
-        """Yield wells from a Labware in a specified logical order.
+                location = target.get_top_location(z_from_top)
 
-        Parameters
-        ----------
-        labware:
-            The Labware whose wells to iterate.
-        order:
-            "rows" (default) or "columns". This is thin sugar around the
-            structures already built inside Labware.
+                return (location.point.x,location.point.y,location.point.z)
+
+
+            return (target.x,target.y,target.z)
+
+        raise TypeError(
+            f"Unsupported target type: "
+            f"{type(target).__name__}"
+        )
+
+    # ------------------------------------------------------------------
+    # Deck helpers
+    # ------------------------------------------------------------------
+
+    def get_labware_in_slot(
+        self,
+        slot_id: str | int,
+    ) -> Labware:
+        """
+        Retrieve loaded labware from deck.
         """
 
-        order = order.lower()
-        if order not in {"rows", "columns"}:
-            raise ValueError("order must be 'rows' or 'columns'")
+        slot = self.deck.get_slot(
+            str(slot_id)
+        )
 
-        # Labware exposes row_data/column_data dicts of Row/Column objects.
-        if order == "rows":
-            for row in labware.row_data.values():
-                for w in row.wells.values():
-                    yield w
-        else:  # columns
-            for col in labware.column_data.values():
-                for w in col.wells.values():
-                    yield w
+        return slot.get_labware()
 
-    # --- helpers by slot -----------------------------------------------
-    def get_labware_in_slot(self, slot: int) -> Optional[Labware]:
-        """Return Labware in the given deck slot, if any."""
-
-        return self.labware_by_slot.get(int(slot))
-
-    def iter_wells_in_slot(self, slot: int, order: str = "rows") -> Iterable[Well]:
-        """Yield wells for the Labware loaded in a given deck slot.
-
-        Raises
-        ------
-        KeyError if no labware is registered in that slot.
+    def get_well(
+        self,
+        slot_id: str | int,
+        well_id: str,
+    ) -> Well:
+        """
+        Retrieve a well directly from deck state.
         """
 
-        lw = self.get_labware_in_slot(slot)
-        if lw is None:
-            raise KeyError(f"No labware registered in slot {slot}.")
-        return self.iter_wells(lw, order=order)
+        return self.deck.get_well(
+            str(slot_id),
+            well_id,
+        )
