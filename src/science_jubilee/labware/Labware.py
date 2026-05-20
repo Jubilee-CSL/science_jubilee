@@ -145,7 +145,7 @@ class WellSet:
     Base collection of wells.
     """
 
-    wells: Dict[str, Well] = field(default_factory=dict)
+    wells: Dict[str, Well] = field(default_factory=dict, kw_only=True)
 
     def __repr__(self):
         return (
@@ -206,11 +206,7 @@ class Labware(WellSet):
     Runtime representation of a labware.
     """
 
-    #Error de compilation ERROR tests/test_navigation_deck.py - TypeError: non-default argument 'labware_filename' follows default argument 'wells'
-    #le compilateur considère que l'ordre d'initialisation n'est pas correcte
-    #On donne une valeur a labware_filename pour faire disparaitre l'erreur 
-    #correction idéale, séparer dans 2 classes les paramètres class Base class Child
-    labware_filename: str = ""
+    labware_filename: str
 
     offset: tuple[float, ...] | None = None
     order: str = "rows"

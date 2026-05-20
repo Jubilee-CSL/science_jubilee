@@ -72,7 +72,7 @@ class SlotSet:
     Domain collection of slots.
     """
 
-    slots: Dict[str, Slot] = field(default_factory=dict)
+    slots: Dict[str, Slot] = field(default_factory=dict, kw_only=True)
 
     def __repr__(self):
         return (
@@ -135,12 +135,7 @@ class Deck(SlotSet):
     Runtime representation of a deck.
     """
     
-    #Error de compilation ERROR tests/test_navigation_deck.py - TypeError: non-default argument 'labware_filename' follows default argument 'wells'
-    #le compilateur considère que l'ordre d'initialisation n'est pas correcte
-    #On donne une valeur a deck_filename pour faire disparaitre l'erreur 
-    #correction idéale, séparer dans 2 classes les paramètres class Base class Child
-    deck_filename: str = ""
-
+    deck_filename: str
     path: str = os.path.join(os.path.dirname(__file__),"deck_definition",)
 
     safe_z: float = 10.0
