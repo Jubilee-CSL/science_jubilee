@@ -134,8 +134,12 @@ class Deck(SlotSet):
     """
     Runtime representation of a deck.
     """
-
-    deck_filename: str
+    
+    #Error de compilation ERROR tests/test_navigation_deck.py - TypeError: non-default argument 'labware_filename' follows default argument 'wells'
+    #le compilateur considère que l'ordre d'initialisation n'est pas correcte
+    #On donne une valeur a deck_filename pour faire disparaitre l'erreur 
+    #correction idéale, séparer dans 2 classes les paramètres class Base class Child
+    deck_filename: str = ""
 
     path: str = os.path.join(os.path.dirname(__file__),"deck_definition",)
 
