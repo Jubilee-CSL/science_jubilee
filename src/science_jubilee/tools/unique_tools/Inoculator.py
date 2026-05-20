@@ -155,11 +155,11 @@ class Inoculator(Tool):
         navigation.move_to_safe_z()
 
 
-"""
-    def transfert_to_all_well(source: str, destination: str)
-    #prend des slots en paramètres pour remplir tous les puits automatiquement
-    get labware in destination
-    for wells in labware
-        transfert(source, well)
 
-"""    
+    def transfert_to_all_well(self, source: str, destination: str) -> None:
+    #prend des slots en paramètres pour remplir tous les puits automatiquement
+        well_source = navigation.get_well(source,"A1")
+        labware_destination = navigation.get_labware_in_slot(destination)
+        for well in labware_destination:
+            self.transfer(well_source, well)
+

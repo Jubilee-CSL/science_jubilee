@@ -216,7 +216,7 @@ class Deck(SlotSet):
     def load_labware(
         self,
         labware_filename: str,
-        slot_id: str,
+        slot_id: int,
         path=os.path.join(os.path.dirname(__file__),
             "..",
             "labware",
@@ -239,7 +239,7 @@ class Deck(SlotSet):
 
         return labware
 
-    def unload_labware(self, slot_id: str) -> None:
+    def unload_labware(self, slot_id: int) -> None:
         slot = self.get_slot(str(slot_id))
         slot.unload_labware()
 
