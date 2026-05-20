@@ -94,7 +94,6 @@ class Tool:
 
     is_active_tool: bool = False
     
-
     tool_offset_is_set: bool = False
 
     configuration: dict[str, Any] = field(

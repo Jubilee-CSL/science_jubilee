@@ -28,9 +28,9 @@ def _make_navigator_for_driver(driver: MotionDriver):
 
     # Load a deck and labware into slot 0.
     deck = Deck(deck_def)
-    plate = deck.load_labware(labware_def, slot=0)
+    plate = deck.load_labware(labware_def, slot_id=0)
 
-    nav = DeckNavigator(driver=driver, deck=deck, labware_by_slot={0: plate})
+    nav = DeckNavigator(driver=driver, deck=deck)
     return nav, deck, plate
 
 
@@ -46,13 +46,13 @@ def test_navigation_with_motion_fixture_moves_control_point(motion):
     driver = motion
     nav, deck, plate = _make_navigator_for_driver(driver)
 
-    first_well = next(nav.iter_wells(plate, order="rows"))
+    well = plate.get_well("A1")
     offset = 2.0
-    loc = first_well.bottom(offset)
+    loc = well.get_bottom_location(z_offset=offset)
     x_exp, y_exp, z_exp = loc.point
 
-    nav.move_to_well(
-        first_well,
+    nav.move_to_target(
+        well,
         z_from_bottom=offset,
         travel_margin=10.0,
         speed_xy=4000.0,
@@ -81,9 +81,9 @@ def test_navigation_moves_to_all_wells(motion):
     last_loc = None
     offset = 2.0
     count = 0
-    for well in nav.iter_wells(plate, order="rows"):
-        last_loc = well.bottom(offset)
-        nav.move_to_well(
+    for well in plate:
+        last_loc = well.get_bottom_location(z_offset=offset)
+        nav.move_to_target(
             well,
             z_from_bottom=offset,
             travel_margin=10.0,
