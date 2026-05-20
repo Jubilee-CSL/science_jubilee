@@ -88,7 +88,7 @@ class Inoculator(Tool):
             ),
             resource=source,
         )
-
+        #tester la vitesse de optimal pour ne pas pousser les lentilles
         navigation.move_to_target(source, z_from_top=0)
         navigation.move_to_target(pickup_position, speed_z=sweep_speed, travel_margin=0,safe_movement= False)
 
@@ -104,6 +104,9 @@ class Inoculator(Tool):
 
             distance = math.sqrt(dx**2 + dy**2)
 
+            #autre possibilité que la correction automatique
+            #demander à l'utilisateur de donnée de meilleur valeur
+            #ou alors ne plus proposer a l'utilisateur et définir ces valeurs par le calcul
             if distance > max_r:
 
                 scale = max_r/ distance
@@ -123,6 +126,7 @@ class Inoculator(Tool):
             resource=source,
         )
 
+        #tester la vitesse de optimal pour attraper la lentille
         navigation.move_to_target(sweep_position, speed_z=sweep_speed, travel_margin=0, safe_movement= False)
         navigation.move_to_target(source,z_from_top=0)
 
@@ -146,6 +150,7 @@ class Inoculator(Tool):
             resource=destination,
         )
 
+        #tester la vitesse de optimal pour retirer la lentille
         navigation.move_to_target(destination_sweep,speed_z=sweep_speed,travel_margin=0, safe_movement= False)
         navigation.move_to_safe_z()
 
@@ -153,7 +158,7 @@ class Inoculator(Tool):
 """
     def transfert_to_all_well(source: str, destination: str)
     #prend des slots en paramètres pour remplir tous les puits automatiquement
-    get labware in slot
+    get labware in destination
     for wells in labware
         transfert(source, well)
 
