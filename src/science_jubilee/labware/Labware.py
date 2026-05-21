@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import os
 import string
+import math
+import random
 from dataclasses import dataclass, field
 from itertools import chain
 from typing import Dict, Iterator, NamedTuple
@@ -87,6 +89,25 @@ class Well:
     @property
     def bottom(self) -> float:
         return self.z
+    
+    def _validate_geometry(self)-> None:
+
+        if self.shape not in {"circular","rectangular",}:
+            raise ValueError(
+                f"Unsupported well shape: {self.shape}"
+            )
+
+        if self.shape == "circular":
+            if self.diameter is None:
+                raise ValueError("Circular wells require a diameter.")
+
+        if self.shape == "rectangular":
+            if (self.xDimension is None or self.yDimension is None):
+                raise ValueError(
+                    "Rectangular wells require "
+                    "xDimension and yDimension."
+                )
+
 
     # ------------------------------------------------------------------
     # Position helpers
@@ -122,6 +143,102 @@ class Well:
             Point(self.x, self.y, z),
             self,
         )
+    
+    def random_point(self,z: float | None = None,safety_margin: float = 0.8) -> Location:
+        """
+        Generate a random safe point inside the well.
+        """
+        self._validate_geometry()
+
+        if not 0 < safety_margin <= 1:
+            raise ValueError(
+                "safety_margin must be between 0 and 1."
+            )
+
+        if self.shape == "circular":
+
+            usable_radius = (self.diameter / 2) * safety_margin
+
+            angle = random.uniform(0, 2 * math.pi)
+            radius = random.uniform(0,usable_radius)
+
+            dx = math.cos(angle) * radius
+            dy = math.sin(angle) * radius
+
+        else:
+
+            half_x = (self.xDimension / 2) * safety_margin
+            half_y = (self.yDimension / 2) * safety_margin
+
+            dx = random.uniform(-half_x,half_x)
+            dy = random.uniform(-half_y,half_y)
+
+        point_z = self.z if z is None else z
+
+        return Location(
+        point=Point(self.x + dx, self.y + dy, point_z),
+        resource=self,
+    )
+
+    
+    def in_usable_space(self, location: Location, safety_margin: float = 0.95)-> bool:
+
+        """
+        Check if a point is inside the safe usable area.
+        """
+
+        self._validate_geometry()
+
+        dx = location.x - self.x
+        dy = location.y - self.y
+
+        if self.shape == "circular":
+
+            usable_radius = (self.diameter / 2) * safety_margin
+            distance = math.sqrt(dx**2 + dy**2)
+
+            return distance <= usable_radius
+        
+        
+
+        half_x = (self.xDimension / 2) * safety_margin
+        half_y = (self.yDimension / 2) * safety_margin
+
+        dx = random.uniform(-half_x,half_x)
+        dy = random.uniform(-half_y,half_y)
+        
+        return (-half_x <= dx <= half_x
+                and -half_y <= dy <= half_y)
+
+
+    def safe_sweep(self, start_point : Location, sweep_x: float = 2, sweep_y:float = 2, safety_margin: float = 0.9) -> Location:
+        
+        if not self.in_usable_space( start_point, 
+                                    safety_margin=safety_margin,):
+            raise ValueError("Start point is outside usable space.")
+        
+        finish_point = Location(
+            Point(start_point.x + sweep_x, 
+                  start_point.y + sweep_y, 
+                  start_point.z),
+                  self,)
+        
+        if not self.in_usable_space(finish_point,safety_margin=safety_margin):
+            raise ValueError("Finish point is outside usable space.")    
+            
+        #Possibilité de rajouter une auto correction
+        #Pour supprimer la partie du mouvement qui excédent l'espace de travail
+
+        #Créé une classe Geometry pourrait devenir intéressant
+        #cela eviterai certaines répétition sur les fonctions
+        return finish_point
+        
+        
+
+
+
+        
+
 
     # ------------------------------------------------------------------
     # Tip state
