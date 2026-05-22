@@ -60,11 +60,19 @@ class BaseTransport(ABC):
             return None
 
     # ---- Tools API -------------------------------------------------------
+    def load_tool(self,tool_idx: int,*,name: str, x: float = 0.0, y: float = 0.0, z: float = 0.0,) -> None:
+        """Load a tool at an empty index with a name and his offset."""
+        raise NotImplementedError()
+    
+    def unload_tool(self, tool_idx: int) -> None:
+        """Unload a tool if it exist at index."""
+        raise NotImplementedError()
+
     def get_active_tool_index(self) -> int:
         """Return the active tool index, or -1 if none."""
         raise NotImplementedError()
 
-    def select_tool(self, index: int) -> bool:
+    def select_tool(self, tool_idx: int) -> None:
         raise NotImplementedError()
 
     def park_tool(self) -> bool:
@@ -75,8 +83,9 @@ class BaseTransport(ABC):
         raise NotImplementedError()
 
     def get_tool_offsets(self) -> dict:
-        """Return {number: [X, Y, Z]} offsets."""
+        """Return {number: [X, Y, Z]} offsets for all tools."""
         raise NotImplementedError()
+
 
     def set_tool_offset(self, tool_idx: int, *, x: float | None = None, y: float | None = None, z: float | None = None) -> bool:
         raise NotImplementedError()

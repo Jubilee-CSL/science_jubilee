@@ -7,6 +7,12 @@ class ToolChanger:
     def __init__(self, transport) -> None:
         self.transport = transport
 
+    def load_tool(self,tool_idx: int,*,name: str,x: float = 0.0,y: float = 0.0,z: float = 0.0,) -> None:
+        self.transport.load_tool(tool_idx,name,x,y,z)
+
+    def unload_tool(self, tool_idx: int) -> None:
+        self.transport.unload_tool(tool_idx)
+
     def tool_lock(self) -> None:
         self.transport.tool_lock()
 
