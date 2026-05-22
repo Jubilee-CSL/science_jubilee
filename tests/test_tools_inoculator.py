@@ -47,7 +47,7 @@ def destination_well():
 
 
 @pytest.fixture
-def inoculator():
+def inoculator(tool_changer):
     tool = Inoculator(
         index=0,
         name="Inoculator",

@@ -254,6 +254,30 @@ class HTTPTransport(BaseTransport):
         return positions
 
     # ---- Tools API ------------------------------------------------------
+    def load_tool(self,tool_idx: int,*,
+                    name: str,
+                    x: float = 0.0,
+                    y: float = 0.0,
+                    z: float = 0.0,) -> None:
+        
+        parts = [f"P{int(tool_idx)} S"+name]
+        try:
+            _ = self.send_gcode("M563 " + " ".join(parts))
+            self.set_tool_offset(tool_idx, x, y ,z)
+            return True
+        except Exception:
+            return False
+         
+    def unload_tool(self, tool_idx: int) -> None:
+
+        parts = [f"P{int(tool_idx)} STool{int(tool_idx)}"]
+        try:
+            _ = self.send_gcode("M563 " + " ".join(parts))
+            self.set_tool_offset(tool_idx, x=0.0, y=0.0 ,z=0.0)
+            return True
+        except Exception:
+            return False
+
     def get_active_tool_index(self) -> int:
         """Query current tool selection via "T" response; return -1 if none."""
         try:
@@ -276,9 +300,9 @@ class HTTPTransport(BaseTransport):
                 return -1
         return -1
 
-    def select_tool(self, index: int) -> bool:
+    def select_tool(self, tool_idx: int) -> None:
         try:
-            _ = self.send_gcode(f"T{int(index)}")
+            _ = self.send_gcode(f"T{int(tool_idx)}")
             return True
         except Exception:
             return False

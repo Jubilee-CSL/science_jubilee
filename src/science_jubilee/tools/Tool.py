@@ -92,13 +92,8 @@ class Tool:
     index: int
     name: str
 
-    is_active_tool: bool = False
-    
+    is_active_tool: bool = False    
     tool_offset_is_set: bool = False
-
-    configuration: dict[str, Any] = field(
-        default_factory=dict,
-    )
 
     def __post_init__(self):
         if not isinstance(self.index, int):

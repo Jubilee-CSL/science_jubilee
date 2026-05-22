@@ -23,8 +23,14 @@ class MockTransport(BaseTransport):
         self.axes_homed: List[bool] = [False, False, False, False]
         self.active_tool_index: int = -1
         # No tools configured by default
-        self.tools: Dict[int, Dict] = {}
-
+        self.tools: Dict[int, dict] = {
+            idx: {
+                "name": "Tool"+str(idx),
+                "offsets": [0.0, 0.0, 0.0],
+            }
+            for idx in range(4)
+        }
+        
     def _reply(self, text: Optional[str]) -> Optional[str]:
         # For mock we simply return the text
         return text
@@ -194,54 +200,83 @@ class MockTransport(BaseTransport):
     # Use BaseTransport.format_machine_summary()
 
     # ---- Tools API -------------------------------------------------------
+    def load_tool(self,tool_idx: int,*,
+                    name: str,
+                    x: float = 0.0,
+                    y: float = 0.0,
+                    z: float = 0.0,) -> None:
+
+        if tool_idx not in self.tools:
+            raise ValueError(f"Invalid tool slot {tool_idx}")
+
+        tool = self.tools[tool_idx]
+
+        if tool["name"] == "Tool"+str(tool_idx):
+            raise ValueError(f"Tool slot {tool_idx} already occupied")
+
+        tool["name"] = name
+        tool["offsets"] = [x, y, z]
+    
+    def unload_tool(self, tool_idx: int) -> None:
+
+        tool = self.tools[tool_idx]
+
+        if tool["name"] == "Tool"+str(tool_idx):
+            raise ValueError(f"Tool slot {tool_idx} already empty")
+
+        if self.active_tool_index == tool_idx:
+            self.park_tool()
+
+        tool["name"] = "Tool"+str(tool_idx)
+        tool["offsets"] = [0.0, 0.0, 0.0]
+
     def get_active_tool_index(self) -> int:
         return int(self.active_tool_index)
 
-    def select_tool(self, index: int) -> bool:
-        try:
-            self.active_tool_index = int(index)
-            # Ensure tool record exists
-            if self.active_tool_index not in self.tools:
-                self.tools[self.active_tool_index] = {"name": f"tool{self.active_tool_index}", "offsets": [0.0, 0.0, 0.0]}
-            return True
-        except Exception:
-            return False
+    def select_tool(self, tool_idx: int) -> None:
 
+        if tool_idx not in self.tools:
+            raise ValueError(f"Invalid tool slot {tool_idx}")
+
+        tool = self.tools[tool_idx]
+
+        if tool["name"] == "Tool"+str(tool_idx):
+            raise ValueError(f"Tool slot {tool_idx} is empty")
+
+        self.active_tool_index = tool_idx
+        
     def park_tool(self) -> bool:
         self.active_tool_index = -1
         return True
 
     def get_tools(self) -> dict:
-        tools: Dict[int, Dict] = {}
-        for num, t in self.tools.items():
-            tools[int(num)] = {"name": t.get("name", f"tool{num}")}
-        return tools
+        return { idx: {"name": tool["name"],}
+                for idx, tool in self.tools.items()
+                }
 
     def get_tool_offsets(self) -> dict:
-        offsets: Dict[int, list[float]] = {}
-        for num, t in self.tools.items():
-            offs = t.get("offsets", [0.0, 0.0, 0.0])
-            try:
-                x, y, z = float(offs[0]), float(offs[1]), float(offs[2])
-            except Exception:
-                x, y, z = 0.0, 0.0, 0.0
-            offsets[int(num)] = [x, y, z]
-        return offsets
+        return {
+            idx: tuple(tool["offsets"])
+            for idx, tool in self.tools.items()
+        }
 
-    def set_tool_offset(self, tool_idx: int, *, x: float | None = None, y: float | None = None, z: float | None = None) -> bool:
-        try:
-            rec = self.tools.get(int(tool_idx))
-            if rec is None:
-                rec = {"name": f"tool{int(tool_idx)}", "offsets": [0.0, 0.0, 0.0]}
-                self.tools[int(tool_idx)] = rec
-            offs = list(rec.get("offsets", [0.0, 0.0, 0.0]))
-            if x is not None:
-                offs[0] = float(x)
-            if y is not None:
-                offs[1] = float(y)
-            if z is not None:
-                offs[2] = float(z)
-            rec["offsets"] = offs
-            return True
-        except Exception:
+    def set_tool_offset(self,tool_idx: int,*,
+        x: float | None = None,
+        y: float | None = None,
+        z: float | None = None,) -> bool:
+
+        if tool_idx not in self.tools:
             return False
+
+        offsets = self.tools[tool_idx]["offsets"]
+
+        if x is not None:
+            offsets[0] = float(x)
+
+        if y is not None:
+            offsets[1] = float(y)
+
+        if z is not None:
+            offsets[2] = float(z)
+
+        return True   
