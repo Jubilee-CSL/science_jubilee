@@ -1,19 +1,30 @@
 import logging
 import pytest
 
+from science_jubilee.tools.Tool import Tool
 
 logger = logging.getLogger(__name__)
 
 
 @pytest.mark.secondary
 def test_list_tools_and_active_index(tool_changer):
-    tools = tool_changer.get_tools()
+    tools = tool_changer.tools_state()
     assert isinstance(tools, dict)
-    logger.info("Initial tools: %s", tools)
+    logger.info("tools state: %s", tools)
 
     active = tool_changer.get_active_tool_index()
     assert isinstance(active, int)
     assert active in (-1, *tools.keys())
+
+    inoculateur = Tool(0,"inoculateur",False)
+    pipette = Tool(1,"pipette",False)
+
+    tool_changer.load_tool(inoculateur.index,inoculateur.name)
+    tool_changer.load_tool(pipette.index,pipette.name)
+
+    tools = tool_changer.tools_state()
+    assert isinstance(tools, dict)
+    logger.info("Initial tools: %s", tools)
 
     tool_changer.pickup_tool(0)
     assert tool_changer.get_active_tool_index() == 0
@@ -21,6 +32,7 @@ def test_list_tools_and_active_index(tool_changer):
     assert tool_changer.get_active_tool_index() == 1
 
     tools2 = tool_changer.get_tools()
+    logger.info("Loaded tools: %s", tools2)
     assert isinstance(tools2, dict)
     assert 0 in tools2 and 1 in tools2
 
