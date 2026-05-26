@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from functools import wraps
-from typing import Any
+from typing import Dict, Iterator
+
+from science_jubilee.hal.tool_changer import ToolChanger
 
 
 # ======================================================================
@@ -40,7 +42,6 @@ def requires_active_tool(func):
     def wrapper(self, *args, **kwargs):
 
         if not self.is_active_tool:
-
             raise ToolStateError(
                 f"Tool {self.name} is not the active tool."
             )
@@ -54,34 +55,6 @@ def requires_active_tool(func):
 # Tool
 # ======================================================================
 
-"""
-Architecture
-ToolPark
- └── ToolSlot
-      └── Tool
-risque de conflit avec les macros, a étudier 
-
-
-    class ToolStatus(Enum):
-    PARKED
-    LOADED
-    ACTIVE
-    ERROR
-    CALIBRATING
-
-    capabilities: set[ToolCapability]
-
-    tool.validate_before_motion()
-    # TODO:
-    # add a park tool method that every tool config can define to do things that need to be done pre or post parking
-    # ex: make sure pipette has dropped tips before parking
-
-    #si un outil utilise des modules externes s'assurer que l'utilisateur en est connaisance
-    def show_requierement(self):
-        # a débattre de l'utilité de cette fonction
-        pass
-
-"""
 
 @dataclass(slots=True, repr=False)
 class Tool:
@@ -92,23 +65,23 @@ class Tool:
     index: int
     name: str
 
-    is_active_tool: bool = False    
-    tool_offset_is_set: bool = False
-
+    is_active_tool: bool = False
+    offset: tuple[float, ...] | None = None
+    
     def __post_init__(self):
-        if not isinstance(self.index, int):
 
+        if not isinstance(self.index, int):
             raise ToolConfigurationError(
                 "Tool index must be an integer."
             )
 
         if not isinstance(self.name, str):
-
             raise ToolConfigurationError(
                 "Tool name must be a string."
             )
 
     def __repr__(self):
+
         return (
             f"{self.__class__.__name__}("
             f"index={self.index}, "
@@ -123,8 +96,236 @@ class Tool:
     def post_load(self) -> None:
         """
         Called after the tool is associated with the machine.
+        Can be very useful when you use a tool which required another system to be launched
         """
 
         pass
- 
-    
+
+    # ------------------------------------------------------------------
+    # State
+    # ------------------------------------------------------------------
+
+    def activate(self) -> None:
+
+        self.is_active_tool = True
+
+    def deactivate(self) -> None:
+
+        self.is_active_tool = False
+
+
+# ======================================================================
+# ToolSlot
+# ======================================================================
+
+
+@dataclass(slots=True, repr=False)
+class ToolSlot:
+    """
+    Represent a physical slot in the tool park.
+    """
+
+    slot_index: str
+
+    offset: tuple[float, ...] = ()
+
+    tool: Tool | None = None
+
+    @property
+    def is_empty(self) -> bool:
+
+        return self.tool is None
+
+    def load_tool(self, tool: Tool) -> None:
+
+        self.tool = tool
+
+    def unload_tool(self) -> None:
+
+        self.tool = None
+
+    def get_tool(self) -> Tool:
+
+        if self.tool is None:
+            raise ValueError(
+                f"No tool loaded in slot "
+                f"{self.slot_index}"
+            )
+
+        return self.tool
+
+    def __repr__(self):
+
+        if self.tool is None:
+            return (
+                f"ToolSlot("
+                f"{self.slot_index}, "
+                f"empty"
+                f")"
+            )
+
+        return (
+            f"ToolSlot("
+            f"{self.slot_index}, "
+            f"tool={self.tool.name}"
+            f")"
+        )
+
+
+# ======================================================================
+# ToolSlotSet
+# ======================================================================
+
+
+@dataclass(slots=True, repr=False)
+class ToolSlotSet:
+    """
+    Domain-oriented collection of tool slots.
+    """
+
+    slots: Dict[str, ToolSlot] = field(
+        default_factory=dict
+    )
+
+    def __iter__(self) -> Iterator[ToolSlot]:
+
+        return iter(self.slots.values())
+
+    def __len__(self) -> int:
+
+        return len(self.slots)
+
+    def __contains__(self, slot_id: str) -> bool:
+
+        return slot_id in self.slots
+
+    def __getitem__(self, identifier):
+
+        if isinstance(identifier, str):
+            return self.get_slot(identifier)
+
+        if isinstance(identifier, int):
+            return list(self.slots.values())[identifier]
+
+        raise TypeError(
+            f"Unsupported identifier type: "
+            f"{type(identifier)}"
+        )
+
+    def __repr__(self):
+
+        return (
+            f"ToolSlotSet("
+            f"slots={list(self.slots.keys())}"
+            f")"
+        )
+
+    # ------------------------------------------------------------------
+    # Slots
+    # ------------------------------------------------------------------
+
+    def get_slot(self, slot_id: str) -> ToolSlot:
+        return self.slots[slot_id]
+
+    def get_slots(self) -> list[ToolSlot]:
+        return list(self.slots.values())
+
+    # ------------------------------------------------------------------
+    # Tools
+    # ------------------------------------------------------------------
+
+    def get_tool(self, slot_id: str) -> Tool:
+        return self.get_slot(slot_id).get_tool()
+
+    def has_tool(self, slot_id: str) -> bool:
+        return not self.get_slot(slot_id).is_empty
+
+
+# ======================================================================
+# ToolPark
+# ======================================================================
+
+
+@dataclass(slots=True, repr=False)
+class ToolPark(ToolSlotSet):
+    """
+    Runtime representation of the tool park.
+    """
+
+    tool_changer: ToolChanger | None = None
+    active_tool: Tool | None = None
+
+    def load_tool(self,tool: Tool,slot_id: str) -> None:
+        """
+        Load a tool into a slot.
+        """
+        slot = self.get_slot(str(slot_id))
+        slot.load_tool(tool)
+
+    def unload_tool(self, slot_id: str) -> None:
+        """
+        Remove a tool from a slot.
+        """
+
+        slot = self.get_slot(str(slot_id))
+        slot.unload_tool()
+
+    # ------------------------------------------------------------------
+    # Active tool management
+    # ------------------------------------------------------------------
+
+    def set_active_tool(self, slot_id: str) -> Tool:
+        """
+        Activate a tool from a slot.
+        """
+
+        tool = self.get_tool(slot_id)
+
+        if self.active_tool is not None:
+            self.active_tool.deactivate()
+
+        tool.activate()
+        self.active_tool = tool
+
+        return tool
+
+    def clear_active_tool(self) -> None:
+
+        if self.active_tool is not None:
+            self.active_tool.deactivate()
+
+        self.active_tool = None
+
+    # ------------------------------------------------------------------
+    # Tool changer
+    # ------------------------------------------------------------------
+
+    def pickup_tool(self, slot_id: str) -> Tool:
+        """
+        Pickup a tool using the tool changer.
+        """
+
+        tool = self.set_active_tool(slot_id)
+
+        if self.tool_changer is not None:
+            self.tool_changer.pickup_tool(tool)
+
+        return tool
+
+    def park_tool(self) -> None:
+        """
+        Park the active tool.
+        """
+
+        if self.active_tool is None:
+            raise ToolStateError(
+                "No active tool to park."
+            )
+
+        if self.tool_changer is not None:
+            self.tool_changer.park_tool(
+                self.active_tool
+            )
+
+        self.active_tool.deactivate()
+        self.active_tool = None

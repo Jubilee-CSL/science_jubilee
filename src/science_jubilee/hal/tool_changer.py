@@ -1,8 +1,12 @@
 from __future__ import annotations
+from typing import Dict
+from science_jubilee.tools.Tool import Tool
+from dataclasses import dataclass, field
 
 
+@dataclass
 class ToolChanger:
-    """Tool actuation facade: lock/unlock, pickup, park, offsets."""
+    """Tool actuation facade: lock/unlock, load, pickup, park, offsets."""
 
     def __init__(self, transport) -> None:
         self.transport = transport

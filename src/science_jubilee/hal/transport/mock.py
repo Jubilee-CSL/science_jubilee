@@ -204,7 +204,7 @@ class MockTransport(BaseTransport):
                     name: str,
                     x: float = 0.0,
                     y: float = 0.0,
-                    z: float = 0.0,) -> None:
+                    z: float = 0.0,) -> bool:
 
         if tool_idx not in self.tools:
             raise ValueError(f"Invalid tool slot {tool_idx}")
