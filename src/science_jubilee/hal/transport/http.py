@@ -258,7 +258,7 @@ class HTTPTransport(BaseTransport):
                     name: str,
                     x: float = 0.0,
                     y: float = 0.0,
-                    z: float = 0.0,) -> None:
+                    z: float = 0.0,) -> bool:
         
         parts = [f"P{int(tool_idx)} S"+name]
         try:
@@ -268,7 +268,7 @@ class HTTPTransport(BaseTransport):
         except Exception:
             return False
          
-    def unload_tool(self, tool_idx: int) -> None:
+    def unload_tool(self, tool_idx: int) -> bool:
 
         parts = [f"P{int(tool_idx)} STool{int(tool_idx)}"]
         try:
@@ -300,7 +300,7 @@ class HTTPTransport(BaseTransport):
                 return -1
         return -1
 
-    def select_tool(self, tool_idx: int) -> None:
+    def select_tool(self, tool_idx: int) -> bool:
         try:
             _ = self.send_gcode(f"T{int(tool_idx)}")
             return True
