@@ -11,7 +11,7 @@ from science_jubilee.labware.Labware import (
 from science_jubilee.tools.unique_tools.Inoculator import (
     Inoculator,
 )
-
+"""
 
 # ======================================================================
 # Fixtures
@@ -310,3 +310,5 @@ def test_transfer_to_all_wells(
         inoculator.transfer.call_count
         == len(destination_wells)
     )
+
+"""

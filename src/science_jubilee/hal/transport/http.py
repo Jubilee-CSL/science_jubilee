@@ -254,7 +254,7 @@ class HTTPTransport(BaseTransport):
         return positions
 
     # ---- Tools API ------------------------------------------------------
-    def load_tool(self,tool_idx: int,*,
+    def load_tool(self,tool_idx: int,
                     name: str,
                     x: float = 0.0,
                     y: float = 0.0,

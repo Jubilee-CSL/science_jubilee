@@ -200,7 +200,7 @@ class MockTransport(BaseTransport):
     # Use BaseTransport.format_machine_summary()
 
     # ---- Tools API -------------------------------------------------------
-    def load_tool(self,tool_idx: int,*,
+    def load_tool(self,tool_idx: int,
                     name: str,
                     x: float = 0.0,
                     y: float = 0.0,
@@ -211,7 +211,7 @@ class MockTransport(BaseTransport):
 
         tool = self.tools[tool_idx]
 
-        if tool["name"] == "Tool"+str(tool_idx):
+        if tool["name"] != "Tool"+str(tool_idx):
             raise ValueError(f"Tool slot {tool_idx} already occupied")
 
         tool["name"] = name
