@@ -200,8 +200,7 @@ class MockTransport(BaseTransport):
     # Use BaseTransport.format_machine_summary()
 
     # ---- Tools API -------------------------------------------------------
-    def load_tool(self,tool_idx: int,
-                    name: str,
+    def load_tool(self,tool_idx: int,name: str,
                     x: float = 0.0,
                     y: float = 0.0,
                     z: float = 0.0,) -> bool:
@@ -216,8 +215,9 @@ class MockTransport(BaseTransport):
 
         tool["name"] = name
         tool["offsets"] = [x, y, z]
+        return True
     
-    def unload_tool(self, tool_idx: int) -> None:
+    def unload_tool(self, tool_idx: int) -> bool:
 
         tool = self.tools[tool_idx]
 
@@ -229,6 +229,7 @@ class MockTransport(BaseTransport):
 
         tool["name"] = "Tool"+str(tool_idx)
         tool["offsets"] = [0.0, 0.0, 0.0]
+        return True
 
     def get_active_tool_index(self) -> int:
         return int(self.active_tool_index)
