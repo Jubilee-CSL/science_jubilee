@@ -5,11 +5,11 @@ from science_jubilee.tools.Tool import Tool
 
 class ToolChanger:
     """Tool actuation facade: lock/unlock, load, pickup, park, offsets."""
+    tools: Dict[int, Tool] = None
 
 
     def __init__(self, transport) -> None:
         self.transport = transport
-        tools: Dict[int, Tool]
 
     def load_tool(self,tool_idx: int,name: str, x: float = 0.0, y: float = 0.0, z: float = 0.0,) -> bool:
         self.transport.load_tool(tool_idx,name,x,y,z)
@@ -43,7 +43,7 @@ class ToolChanger:
     #Il est préférable de retourner l'objet qui donnera de lui même l'accès aux données
     def get_tools(self) -> dict:
         return self.tools
-
+    
     def state_tool_offsets(self) -> dict:
         return self.transport.get_tool_offsets()
 
