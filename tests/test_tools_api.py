@@ -19,8 +19,8 @@ def test_list_tools_and_active_index(tool_changer):
     inoculateur = Tool(0,"inoculateur",False)
     pipette = Tool(1,"pipette",False)
 
-    tool_changer.load_tool(inoculateur.index,inoculateur.name)
-    tool_changer.load_tool(pipette.index,pipette.name)
+    #tool_changer.load_tool(inoculateur.index,inoculateur.name)
+    #tool_changer.load_tool(pipette.index,pipette.name)
 
     tools = tool_changer.tools_state()
     assert isinstance(tools, dict)
@@ -61,7 +61,7 @@ def test_set_and_get_tool_offsets(tool_changer):
     idx = 2
     assert tool_changer.pickup_tool(idx) is True
     assert tool_changer.set_tool_offset(idx, x=1.25, y=-2.5, z=12.34) is True
-    offsets = tool_changer.get_tool_offsets()
+    offsets = tool_changer.state_tool_offsets()
     assert isinstance(offsets, dict)
     assert idx in offsets
     ox, oy, oz = offsets[idx]

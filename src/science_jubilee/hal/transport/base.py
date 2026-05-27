@@ -60,11 +60,11 @@ class BaseTransport(ABC):
             return None
 
     # ---- Tools API -------------------------------------------------------
-    def load_tool(self,tool_idx: int,name: str, x: float = 0.0, y: float = 0.0, z: float = 0.0,) -> None:
+    def load_tool(self,tool_idx: int,name: str, x: float = 0.0, y: float = 0.0, z: float = 0.0,) -> bool:
         """Load a tool at an empty index with a name and his offset."""
         raise NotImplementedError()
     
-    def unload_tool(self, tool_idx: int) -> None:
+    def unload_tool(self, tool_idx: int) -> bool:
         """Unload a tool if it exist at index."""
         raise NotImplementedError()
 
@@ -72,7 +72,7 @@ class BaseTransport(ABC):
         """Return the active tool index, or -1 if none."""
         raise NotImplementedError()
 
-    def select_tool(self, tool_idx: int) -> None:
+    def select_tool(self, tool_idx: int) -> bool:
         raise NotImplementedError()
 
     def park_tool(self) -> bool:
