@@ -78,11 +78,11 @@ class BaseTransport(ABC):
     def park_tool(self) -> bool:
         raise NotImplementedError()
 
-    def get_tools(self) -> dict:
+    def state_tools(self) -> dict:
         """Return {number: {"name": str}} for configured tools."""
         raise NotImplementedError()
 
-    def get_tool_offsets(self) -> dict:
+    def state_tool_offsets(self) -> dict:
         """Return {number: [X, Y, Z]} offsets for all tools."""
         raise NotImplementedError()
 
