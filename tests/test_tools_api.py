@@ -19,8 +19,8 @@ def test_list_tools_and_active_index(tool_changer):
     inoculateur = Tool(0,"inoculateur",False)
     pipette = Tool(1,"pipette",False)
 
-    #tool_changer.load_tool(inoculateur.index,inoculateur.name)
-    #tool_changer.load_tool(pipette.index,pipette.name)
+    tool_changer.load_tool(inoculateur.index,inoculateur.name)
+    tool_changer.load_tool(pipette.index,pipette.name)
 
     tools = tool_changer.tools_state()
     assert isinstance(tools, dict)
