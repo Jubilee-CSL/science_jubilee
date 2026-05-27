@@ -12,17 +12,14 @@ class ToolChanger:
         self.transport = transport
 
     def load_tool(self,tool: Tool) -> bool:
-        if tool.tool_index not in self.tools:
+        if tool.index not in self.tools:
             raise ValueError(f"Invalid tool slot {tool.index}")
 
         if self.tools[tool.index] != None:
             raise ValueError(f"Tool slot {tool.index} already occupied")
-        
-        if tool in self.tools:
-            raise ValueError(f"This tool as already been loaded")
             
         self.tools[tool.index] = tool
-        self.transport.load_tool(tool.index,tool.name,tool.offset(0),tool.offset(1),tool.offset(2))
+        self.transport.load_tool(tool.index,tool.name,tool.x,tool.y,tool.z)
 
     def unload_tool(self, tool_idx: int) -> bool:
         if tool_idx not in self.tools:

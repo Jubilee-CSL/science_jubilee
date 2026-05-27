@@ -67,6 +67,8 @@ def requires_active_tool(func):
 
 """
 
+
+
 @dataclass(slots=True, repr=False)
 class Tool:
     """
@@ -76,8 +78,11 @@ class Tool:
     index: int
     name: str
 
-    is_active_tool: bool = False    
-    offset: tuple = (float, float, float)
+    x :float
+    y :float
+    z :float
+
+    is_active_tool: bool = False
 
     def __post_init__(self):
         if not isinstance(self.index, int):

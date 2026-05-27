@@ -205,14 +205,14 @@ class MockTransport(BaseTransport):
                     y: float = 0.0,
                     z: float = 0.0,) -> bool:
 
-        self.tool[tool_idx]["name"] = name
+        self.tools[tool_idx]["name"] = name
         self.set_tool_offset(tool_idx, x,y,z)
         return True
     
     def unload_tool(self, tool_idx: int) -> bool:
 
-        self.tool[tool_idx]["name"] = "Tool"+str(tool_idx)
-        self.tool[tool_idx]["offsets"] = [0.0, 0.0, 0.0]
+        self.tools[tool_idx]["name"] = "Tool"+str(tool_idx)
+        self.tools[tool_idx]["offsets"] = [0.0, 0.0, 0.0]
         return True
 
     def get_active_tool_index(self) -> int:
@@ -236,7 +236,7 @@ class MockTransport(BaseTransport):
             for idx, tool in self.tools.items()
         }
 
-    def set_tool_offset(self,tool_idx: int,*,
+    def set_tool_offset(self,tool_idx: int,
         x: float | None = None,
         y: float | None = None,
         z: float | None = None,) -> bool:
