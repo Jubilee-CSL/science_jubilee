@@ -60,7 +60,7 @@ class BaseTransport(ABC):
             return None
 
     # ---- Tools API -------------------------------------------------------
-    def load_tool(self,tool_idx: int,name: str, x: float = 0.0, y: float = 0.0, z: float = 0.0,) -> bool:
+    def load_tool(self,tool_idx: int,name: str, x: float, y: float, z: float,) -> bool:
         """Load a tool at an empty index with a name and his offset."""
         raise NotImplementedError()
     

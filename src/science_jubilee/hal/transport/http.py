@@ -255,14 +255,14 @@ class HTTPTransport(BaseTransport):
 
     # ---- Tools API ------------------------------------------------------
     def load_tool(self,tool_idx: int,name: str,
-                    x: float = 0.0,
-                    y: float = 0.0,
-                    z: float = 0.0,) -> bool:
+                    x: float,
+                    y: float,
+                    z: float,) -> bool:
         
-        parts = [f"P{int(tool_idx)} S"+name]
+        parts = [f"P{int(tool_idx)} S{str(name)}"]
         try:
-            _ = self.send_gcode("M563 " + " ".join(parts))
-            self.set_tool_offset(tool_idx, x, y ,z)
+            _ = self.send_gcode("M409" + " ".join(parts))
+            self.set_tool_offset(tool_idx, x=x, y=y ,z=z)
             return True
         except Exception:
             return False
@@ -271,7 +271,7 @@ class HTTPTransport(BaseTransport):
 
         parts = [f"P{int(tool_idx)} STool{int(tool_idx)}"]
         try:
-            _ = self.send_gcode("M563 " + " ".join(parts))
+            _ = self.send_gcode("M409 " + " ".join(parts))
             self.set_tool_offset(tool_idx, x=0.0, y=0.0 ,z=0.0)
             return True
         except Exception:
@@ -313,7 +313,7 @@ class HTTPTransport(BaseTransport):
         except Exception:
             return False
 
-    def get_tools(self) -> dict:
+    def state_tools(self) -> dict:
         """Return configured tools: {number: {"name": str}}."""
         tools: dict[int, dict] = {}
         try:
@@ -331,7 +331,7 @@ class HTTPTransport(BaseTransport):
             pass
         return tools
 
-    def get_tool_offsets(self) -> dict:
+    def state_tool_offsets(self) -> dict:
         """Return tool offsets mapping number -> [X, Y, Z]."""
         offsets: dict[int, list[float]] = {}
         try:
