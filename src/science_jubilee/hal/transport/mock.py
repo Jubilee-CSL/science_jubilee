@@ -205,57 +205,32 @@ class MockTransport(BaseTransport):
                     y: float = 0.0,
                     z: float = 0.0,) -> bool:
 
-        if tool_idx not in self.tools:
-            raise ValueError(f"Invalid tool slot {tool_idx}")
-
-        tool = self.tools[tool_idx]
-
-        if tool["name"] != "Tool"+str(tool_idx):
-            raise ValueError(f"Tool slot {tool_idx} already occupied")
-
-        tool["name"] = name
-        tool["offsets"] = [x, y, z]
+        self.tool[tool_idx]["name"] = name
+        self.set_tool_offset(tool_idx, x,y,z)
         return True
     
     def unload_tool(self, tool_idx: int) -> bool:
 
-        tool = self.tools[tool_idx]
-
-        if tool["name"] == "Tool"+str(tool_idx):
-            raise ValueError(f"Tool slot {tool_idx} already empty")
-
-        if self.active_tool_index == tool_idx:
-            self.park_tool()
-
-        tool["name"] = "Tool"+str(tool_idx)
-        tool["offsets"] = [0.0, 0.0, 0.0]
+        self.tool[tool_idx]["name"] = "Tool"+str(tool_idx)
+        self.tool[tool_idx]["offsets"] = [0.0, 0.0, 0.0]
         return True
 
     def get_active_tool_index(self) -> int:
         return int(self.active_tool_index)
 
     def select_tool(self, tool_idx: int) -> None:
-
-        if tool_idx not in self.tools:
-            raise ValueError(f"Invalid tool slot {tool_idx}")
-
-        tool = self.tools[tool_idx]
-
-        if tool["name"] == "Tool"+str(tool_idx):
-            raise ValueError(f"Tool slot {tool_idx} is empty")
-
         self.active_tool_index = tool_idx
         
     def park_tool(self) -> bool:
         self.active_tool_index = -1
         return True
 
-    def get_tools(self) -> dict:
+    def state_tools(self) -> dict:
         return { idx: {"name": tool["name"],}
                 for idx, tool in self.tools.items()
                 }
 
-    def get_tool_offsets(self) -> dict:
+    def state_tool_offsets(self) -> dict:
         return {
             idx: tuple(tool["offsets"])
             for idx, tool in self.tools.items()
@@ -265,9 +240,6 @@ class MockTransport(BaseTransport):
         x: float | None = None,
         y: float | None = None,
         z: float | None = None,) -> bool:
-
-        if tool_idx not in self.tools:
-            return False
 
         offsets = self.tools[tool_idx]["offsets"]
 
