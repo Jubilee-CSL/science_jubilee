@@ -223,7 +223,7 @@ class Deck(SlotSet):
             "labware_definition",
         ),
         order: str = "rows",
-    ) -> Labware:
+    ) -> None:
 
         slot = self.get_slot(str(slot_id))
 
@@ -236,8 +236,7 @@ class Deck(SlotSet):
         slot.load_labware(labware)
 
         self.update_safe_z(labware.dimensions["zDimension"])
-
-        return labware
+        
 
     def unload_labware(self, slot_id: int) -> None:
         slot = self.get_slot(str(slot_id))

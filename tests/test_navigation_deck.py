@@ -1,5 +1,4 @@
 import os
-
 import pytest
 
 from science_jubilee.hal.motion_driver import MotionDriver
@@ -28,10 +27,10 @@ def _make_navigator_for_driver(driver: MotionDriver):
 
     # Load a deck and labware into slot 0.
     deck = Deck(deck_def)
-    plate = deck.load_labware(labware_def, slot_id=0)
+    deck.load_labware(labware_def, slot_id=0)
 
     nav = DeckNavigator(driver=driver, deck=deck)
-    return nav, deck, plate
+    return nav
 
 
 @pytest.mark.invasive
@@ -44,9 +43,9 @@ def test_navigation_with_motion_fixture_moves_control_point(motion):
     """
 
     driver = motion
-    nav, deck, plate = _make_navigator_for_driver(driver)
+    nav = _make_navigator_for_driver(driver)
 
-    well = plate.get_well("A1")
+    well = nav.deck.get_well("0","A1")
     offset = 2.0
     loc = well.get_bottom_location(z_offset=offset)
     x_exp, y_exp, z_exp = loc.point
@@ -75,12 +74,13 @@ def test_navigation_moves_to_all_wells(motion):
     """
 
     driver = motion
-    nav, deck, plate = _make_navigator_for_driver(driver)
+    nav = _make_navigator_for_driver(driver)
 
     # Iterate all wells row-wise, recording the expected position of the last one
     last_loc = None
     offset = 2.0
     count = 0
+    plate = nav.get_labware_in_slot(0)
     for well in plate:
         last_loc = well.get_bottom_location(z_offset=offset)
         nav.move_to_target(
