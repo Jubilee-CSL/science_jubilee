@@ -254,29 +254,20 @@ class HTTPTransport(BaseTransport):
         return positions
 
     # ---- Tools API ------------------------------------------------------
+
+    #Pour l’instant on ne peut pas changer le dictionnaire présent dans config par sécurité 
+    #Il est possible que l’update se fasse d’une façon dérivé 
     def load_tool(self,tool_idx: int,name: str,
                     x: float,
                     y: float,
                     z: float,) -> bool:
+        return self.set_tool_offset(tool_idx, x=x, y=y ,z=z)
         
-        parts = [f"P{int(tool_idx)} S{str(name)}"]
-        try:
-            _ = self.send_gcode("M409" + " ".join(parts))
-            self.set_tool_offset(tool_idx, x=x, y=y ,z=z)
-            return True
-        except Exception:
-            return False
          
     def unload_tool(self, tool_idx: int) -> bool:
-
-        parts = [f"P{int(tool_idx)} STool{int(tool_idx)}"]
-        try:
-            _ = self.send_gcode("M409 " + " ".join(parts))
-            self.set_tool_offset(tool_idx, x=0.0, y=0.0 ,z=0.0)
-            return True
-        except Exception:
-            return False
-
+        return self.set_tool_offset(tool_idx, x=0.0, y=0.0 ,z=0.0)
+    
+    
     def get_active_tool_index(self) -> int:
         """Query current tool selection via "T" response; return -1 if none."""
         try:

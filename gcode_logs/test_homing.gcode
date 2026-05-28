@@ -3,8 +3,6 @@ G90
 M82
 G92 X0 Y0 Z0 E0
 G1 X0.10 Y0.00 E0.10 F600
-; === park tool: T-1 ===
-; T-1
 ; M98 P"homeall.g"
 ; M98 P"homeu.g" ; X and Z require U to be homed first in case a tool is currently active
 G90                     ; Set absolute mode

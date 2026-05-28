@@ -1,27 +1,16 @@
-import random
-
-import math
-import random
-
 from science_jubilee.labware.Labware import (Location,Point,Well)
+from dataclasses import dataclass
 
-from science_jubilee.navigation.deck_navigation import DeckNavigator
+
 from science_jubilee.tools.Tool import Tool, requires_active_tool
 
-
-navigation: DeckNavigator
-
-
+@dataclass(slots=True, repr=False)
 class Inoculator(Tool):
     """A class representation of an inoculator.
 
     :param Tool: The base tool class
     :type Tool: :class:`Tool`
     """
-
-    def __init__(self, index, name):
-        """Constructor method"""
-        super().__init__(index, name)
 
     @requires_active_tool
     def transfer(self, source: Well, destination: Well,
@@ -52,7 +41,7 @@ class Inoculator(Tool):
 
         #Déplacement vers la position définit comme position de départ
         #tester la vitesse de optimal pour ne pas pousser les lentilles
-        navigation.move_to_target(pickup_position, 
+        self.nav.move_to_target(pickup_position, 
                                   speed_z=sweep_speed, 
                                   travel_margin=4,safe_movement= True)
 
@@ -64,7 +53,7 @@ class Inoculator(Tool):
 
         #Mouvement de balayge
         #tester la vitesse de optimal pour attraper la lentille
-        navigation.move_to_target(sweep_position,
+        self.nav.move_to_target(sweep_position,
             speed_z=sweep_speed, 
             travel_margin=0, safe_movement= False)
 
@@ -80,7 +69,7 @@ class Inoculator(Tool):
         )
 
         #Déplacement vers la source
-        navigation.move_to_target(destination_position,
+        self.nav.move_to_target(destination_position,
             travel_margin= 0, safe_movement= True)
 
         sweep_position = destination.safe_sweep(
@@ -88,15 +77,20 @@ class Inoculator(Tool):
             sweep_x=sweep_x, sweep_y=sweep_y)
 
         #tester la vitesse de optimal pour retirer la lentille
-        navigation.move_to_target(sweep_position,speed_z=sweep_speed,travel_margin=0, safe_movement= False)
-        navigation.move_to_safe_z()
+        self.nav.move_to_target(sweep_position,speed_z=sweep_speed,travel_margin=0, safe_movement= False)
+        self.nav.move_to_safe_z()
 
 
-
-    def transfert_to_all_well(self, source: str, destination: str) -> None:
+    #réfléchir au paramètres utilisé, possibilités d'utiliser des listes de puits à la place
+    def transfert_to_all_well(self, slot_source: str, slot_destination: str,
+                              speed: int = 2000,
+                              sweep_x: float = 5.0, 
+                              sweep_y: float = 5.0, 
+                              sweep_speed: float = 100.0,
+                              randomize_pickup: bool = False) -> None:
     #prend des slots en paramètres pour remplir tous les puits automatiquement
-        well_source = navigation.get_well(source,"A1")
-        labware_destination = navigation.get_labware_in_slot(destination)
+        well_source = self.nav.get_well(slot_source,"A1")
+        labware_destination = self.nav.get_labware_in_slot(slot_destination)
         for well in labware_destination:
-            self.transfer(well_source, well)
+            self.transfer(well_source, well,speed,sweep_x,sweep_y,sweep_speed,randomize_pickup)
 

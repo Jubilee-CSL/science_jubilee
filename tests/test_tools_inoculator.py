@@ -1,314 +1,73 @@
-import math
-from unittest.mock import Mock
-
+import logging
 import pytest
+import os
 
-from science_jubilee.labware.Labware import (
-    Location,
-    Point,
-    Well,
-)
-from science_jubilee.tools.unique_tools.Inoculator import (
-    Inoculator,
-)
-"""
+from science_jubilee.hal.motion_driver import MotionDriver
+from science_jubilee.navigation import DeckNavigator
+from science_jubilee.tools.unique_tools.Inoculator import Inoculator
+from science_jubilee.decks.Deck import Deck
 
-# ======================================================================
-# Fixtures
-# ======================================================================
+logger = logging.getLogger(__name__)
 
+def _get_defs_from_env() -> tuple[str, str]:
+    """Return (deck_definition, labware_definition) from environment.
 
-@pytest.fixture
-def source_well():
-    return Well(
-        name="A1",
-        depth=10,
-        totalLiquidVolume=100,
-        shape="circular",
-        diameter=20,
-        x=100,
-        y=100,
-        z=0,
+    Defaults are set in tests/conftest.py but can be overridden via
+    JUBILEE_DECK_DEF and JUBILEE_LABWARE_DEF.
+    """
+
+    deck_def = os.getenv("JUBILEE_DECK_DEF", "lab_automation_deck_AFL_bolton.json")
+    labware_def = os.getenv(
+        "JUBILEE_LABWARE_DEF", "corning_96_wellplate_360ul_flat.json"
     )
+    return deck_def, labware_def
+
+def _make_navigator_for_driver(driver: MotionDriver):
+    """Construct a DeckNavigator for a given MotionDriver (mock or hardware)."""
+
+    deck_def, labware_def = _get_defs_from_env()
+
+    # Load a deck and labware into slot 0.
+    deck = Deck(deck_def)
+    plate = deck.load_labware(labware_def, slot_id=0)
+
+    nav = DeckNavigator(driver=driver, deck=deck )
+    return nav, deck, plate
+
+@pytest.mark.invasive
+def test_transfer(motion, tool_changer):
+    driver = motion 
+    nav, deck, plate = _make_navigator_for_driver(driver)
+
+    well_source = nav.deck.get_well("0","A1")
+    well_destination = nav.deck.get_well("0","A2")
+
+    inoculateur = Inoculator(nav, 0, "inoculateur")
+    inoculateur.set_offset(0, 7, 18)
+    tool_changer.load_tool(inoculateur)
+    tool_changer.pickup_tool(0)
+
+    #a terme il faudrait charger l'outil automatiquement comme le deck 
+    #et récupérer l'outil inoculateur dans la liste de tools de toolchanger 
+    #sans l'initier à la main
+    inoculateur.transfer(well_source,well_destination,randomize_pickup = False)
+
+    tool_changer.unload_tool(0)
+
+@pytest.mark.invasive
+def test_transfer_randomize(motion, tool_changer):
+    driver = motion 
+    nav, deck, plate = _make_navigator_for_driver(driver)
+
+    inoculateur = Inoculator(nav,0,"inoculateur", 0, 7, 18)
+    tool_changer.load_tool(inoculateur)
+    tool_changer.pickup_tool(0)
+
+    slot = nav.deck.get_slot(0)
+
+    inoculateur.transfert(slot,slot,randomize_pickup = False)
+
+    tool_changer.unload_tool(0)
 
 
-@pytest.fixture
-def destination_well():
-    return Well(
-        name="B1",
-        depth=10,
-        totalLiquidVolume=100,
-        shape="circular",
-        diameter=20,
-        x=200,
-        y=200,
-        z=0,
-    )
 
-
-@pytest.fixture
-def inoculator(tool_changer):
-    tool = Inoculator(
-        index=0,
-        name="Inoculator",
-    )
-
-    tool.activate()
-
-    return tool
-
-
-@pytest.fixture
-def mock_navigation(monkeypatch):
-
-    navigation = Mock()
-
-    monkeypatch.setattr(
-        "science_jubilee.tools.Inoculator.navigation",
-        navigation,
-    )
-
-    return navigation
-
-
-# ======================================================================
-# Tool state
-# ======================================================================
-
-@pytest.mark.secondary
-def test_transfer_requires_active_tool(
-    source_well,
-    destination_well,
-):
-    tool = Inoculator(
-        index=0,
-        name="Inoculator",
-    )
-
-    with pytest.raises(Exception):
-
-        tool.transfer(
-            source_well,
-            destination_well,
-        )
-
-
-# ======================================================================
-# Navigation
-# ======================================================================
-
-@pytest.mark.secondary
-def test_transfer_finishes_with_safe_z(
-    inoculator,
-    source_well,
-    destination_well,
-    mock_navigation,
-):
-    inoculator.transfer(
-        source_well,
-        destination_well,
-    )
-
-    mock_navigation.move_to_safe_z.assert_called_once()
-
-
-# ======================================================================
-# Random pickup geometry
-# ======================================================================
-
-@pytest.mark.secondary
-def test_random_pickup_stays_inside_well(
-    inoculator,
-    source_well,
-    destination_well,
-    mock_navigation,
-):
-    captured_locations = []
-
-    def capture_move(
-        target,
-        *args,
-        **kwargs,
-    ):
-        if isinstance(target, Location):
-            captured_locations.append(target)
-
-    mock_navigation.move_to_target.side_effect = (
-        capture_move
-    )
-
-    inoculator.transfer(
-        source_well,
-        destination_well,
-        randomize_pickup=True,
-    )
-
-    pickup_location = captured_locations[0]
-
-    dx = (
-        pickup_location.point.x
-        - source_well.x
-    )
-
-    dy = (
-        pickup_location.point.y
-        - source_well.y
-    )
-
-    distance = math.sqrt(
-        dx**2 + dy**2
-    )
-
-    max_radius = (
-        source_well.diameter / 2
-    ) * 0.7
-
-    assert distance <= max_radius
-
-
-# ======================================================================
-# Sweep safety
-# ======================================================================
-
-@pytest.mark.secondary
-def test_sweep_stays_inside_well(
-    inoculator,
-    source_well,
-    destination_well,
-    mock_navigation,
-):
-    captured_locations = []
-
-    def capture_move(
-        target,
-        *args,
-        **kwargs,
-    ):
-        if isinstance(target, Location):
-            captured_locations.append(target)
-
-    mock_navigation.move_to_target.side_effect = (
-        capture_move
-    )
-
-    inoculator.transfer(
-        source_well,
-        destination_well,
-        sweep_x=1000,
-        sweep_y=1000,
-    )
-
-    sweep_location = captured_locations[1]
-
-    dx = (
-        sweep_location.point.x
-        - source_well.x
-    )
-
-    dy = (
-        sweep_location.point.y
-        - source_well.y
-    )
-
-    distance = math.sqrt(
-        dx**2 + dy**2
-    )
-
-    max_radius = (
-        source_well.diameter / 2
-    ) * 0.85
-
-    assert distance <= max_radius
-
-
-# ======================================================================
-# Destination movement
-# ======================================================================
-
-@pytest.mark.secondary
-def test_transfer_moves_to_destination(
-    inoculator,
-    source_well,
-    destination_well,
-    mock_navigation,
-):
-    captured_locations = []
-
-    def capture_move(
-        target,
-        *args,
-        **kwargs,
-    ):
-        if isinstance(target, Location):
-            captured_locations.append(target)
-
-    mock_navigation.move_to_target.side_effect = (
-        capture_move
-    )
-
-    inoculator.transfer(
-        source_well,
-        destination_well,
-    )
-
-    destination_location = captured_locations[-1]
-
-    assert (
-        destination_location.point.x
-        >= destination_well.x
-    )
-
-    assert (
-        destination_location.point.y
-        >= destination_well.y
-    )
-
-
-# ======================================================================
-# Multiple transfers
-# ======================================================================
-
-@pytest.mark.secondary
-def test_transfer_to_all_wells(
-    inoculator,
-    source_well,
-    mock_navigation,
-    monkeypatch,
-):
-    destination_wells = [
-        Well(
-            name=f"A{i}",
-            depth=10,
-            totalLiquidVolume=100,
-            shape="circular",
-            diameter=20,
-            x=i * 10,
-            y=0,
-            z=0,
-        )
-        for i in range(1, 5)
-    ]
-
-    fake_labware = destination_wells
-
-    mock_navigation.get_well.return_value = (
-        source_well
-    )
-
-    mock_navigation.get_labware_in_slot.return_value = (
-        fake_labware
-    )
-
-    inoculator.transfer = Mock()
-
-    inoculator.transfert_to_all_well(
-        source="1",
-        destination="2",
-    )
-
-    assert (
-        inoculator.transfer.call_count
-        == len(destination_wells)
-    )
-
-"""
