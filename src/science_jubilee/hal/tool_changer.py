@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from enum import Enum
 from typing import Dict, Optional
-
 from science_jubilee.tools.Tool import Tool
 
 # ------------------------------------------------------------------
@@ -127,7 +124,7 @@ class ToolChanger:
     # Tool selection
     # ------------------------------------------------------------------
 
-    def pickup_tool(self,tool_idx: int,) -> bool:
+    def pickup_tool(self,tool_idx: int) -> bool:
         if tool_idx not in self.tools:
             raise ToolSlotError(f"Invalid tool slot {tool_idx}")
 
@@ -145,7 +142,7 @@ class ToolChanger:
         success = self.transport.select_tool(tool_idx)
 
         if success:
-            tool.activate()
+            self.tools[tool_idx].activate()
         return success
 
     def park_tool(self) -> bool:
@@ -174,6 +171,8 @@ class ToolChanger:
     # ------------------------------------------------------------------
     # Tool state inspection
     # ------------------------------------------------------------------
+    def get_tool(self, tool_idx:int) -> Tool:
+        return self.tools[tool_idx]
 
     def get_tools(self) -> Dict[int, Optional[Tool]]:
         """

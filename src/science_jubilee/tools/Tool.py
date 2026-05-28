@@ -172,8 +172,6 @@ class Tool:
         self.offset.y = float(y)
         self.offset.z = float(z)
 
-        self.tool_offset_is_set = True
-
     def get_offset(self) -> ToolOffset:
         return self.offset
 
@@ -184,7 +182,6 @@ class Tool:
 
     def reset_offset(self) -> None:
         self.offset = ToolOffset()
-        self.tool_offset_is_set = False
 
 """
     # ------------------------------------------------------------------
