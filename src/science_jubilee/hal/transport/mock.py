@@ -218,8 +218,9 @@ class MockTransport(BaseTransport):
     def get_active_tool_index(self) -> int:
         return int(self.active_tool_index)
 
-    def select_tool(self, tool_idx: int) -> None:
+    def select_tool(self, tool_idx: int) -> bool:
         self.active_tool_index = tool_idx
+        return True
         
     def park_tool(self) -> bool:
         self.active_tool_index = -1

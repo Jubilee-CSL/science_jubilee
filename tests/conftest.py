@@ -99,3 +99,48 @@ def tool_changer(transport):
     from science_jubilee.hal.tool_changer import ToolChanger
     return ToolChanger(transport)
 
+
+@pytest.fixture
+def navigator(
+    motion,
+):
+    """
+    Construct a reusable DeckNavigator
+    test environment.
+
+    Provides:
+    - Deck
+    - Loaded labware
+    - Motion driver
+    - Navigation API
+    """
+    from science_jubilee.decks.Deck import Deck
+    from science_jubilee.navigation.deck_navigation import (DeckNavigator)
+
+    deck_def, labware_def = (_get_defs_from_env())
+    deck = Deck(deck_def)
+
+    deck.load_labware(labware_def,slot_id=0)
+    nav = DeckNavigator(driver=motion,deck=deck)
+
+    return nav
+
+
+# ------------------------------------------------------------------
+# Environment helpers
+# ------------------------------------------------------------------
+
+
+def _get_defs_from_env() -> tuple[str, str]:
+    """
+    Return:
+        deck_definition,
+        labware_definition
+
+    Environment variables can override defaults.
+    """
+
+    deck_def = os.getenv("JUBILEE_DECK_DEF","lab_automation_deck_AFL_bolton.json")
+    labware_def = os.getenv("JUBILEE_LABWARE_DEF","corning_96_wellplate_360ul_flat.json")
+
+    return (deck_def,labware_def)
