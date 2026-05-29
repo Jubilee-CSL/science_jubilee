@@ -189,8 +189,8 @@ class Well:
 
         self._validate_geometry()
 
-        dx = location.x - self.x
-        dy = location.y - self.y
+        dx = location.point.x - self.x
+        dy = location.point.y - self.y
 
         if self.shape == "circular":
 
@@ -211,34 +211,57 @@ class Well:
                 and -half_y <= dy <= half_y)
 
 
-    def safe_sweep(self, start_point : Location, sweep_x: float = 2, sweep_y:float = 2, safety_margin: float = 0.9) -> Location:
-        
-        if not self.in_usable_space( start_point, 
-                                    safety_margin=safety_margin,):
+    def safe_sweep(self,start: Location,sweep_x: float = 2,sweep_y: float = 2 ,safety_margin: float = 0.9,) -> Location:
+        """
+        Return a safe sweep destination inside the well.
+
+        If the requested movement exceeds the usable
+        space, the sweep vector is automatically reduced
+        to fit inside the well geometry.
+        """
+
+        if not self.in_usable_space(start, safety_margin=safety_margin):
             raise ValueError("Start point is outside usable space.")
-        
-        finish_point = Location(
-            Point(start_point.x + sweep_x, 
-                  start_point.y + sweep_y, 
-                  start_point.z),
-                  self,)
-        
-        if not self.in_usable_space(finish_point,safety_margin=safety_margin):
-            raise ValueError("Finish point is outside usable space.")    
-            
-        #Possibilité de rajouter une auto correction
-        #Pour supprimer la partie du mouvement qui excédent l'espace de travail
 
-        #Créé une classe Geometry pourrait devenir intéressant
-        #cela eviterai certaines répétition sur les fonctions
-        return finish_point
-        
-        
+        target_x = start.point.x + sweep_x
+        target_y = start.point.y + sweep_y
 
+        finish = Location(Point(target_x,target_y,start.point.z),self)
 
+        # --------------------------------------------------------------
+        # Valid direct movement
+        # --------------------------------------------------------------
 
-        
+        if self.in_usable_space(finish,safety_margin=safety_margin,):
+            return finish
 
+        # --------------------------------------------------------------
+        # Auto correction
+        # --------------------------------------------------------------
+        # Reduce movement magnitude until the point fits
+        # inside the usable geometry.
+        # --------------------------------------------------------------
+
+        corrected_x = sweep_x
+        corrected_y = sweep_y
+
+        # sécurité anti boucle infinie
+        max_iterations = 100
+        for _ in range(max_iterations):
+
+            corrected_x *= 0.95
+            corrected_y *= 0.95
+
+            corrected_finish = Location(Point(
+                    start.point.x + corrected_x,
+                    start.point.y + corrected_y,
+                    start.point.z),self)
+
+            if self.in_usable_space(corrected_finish,safety_margin=safety_margin):
+                return corrected_finish
+
+        raise ValueError("Unable to compute a valid safe sweep.")
+    
 
     # ------------------------------------------------------------------
     # Tip state
@@ -464,10 +487,7 @@ class Labware(WellSet):
 
     @property
     def shape(self):
-        return (
-            len(self.row_data),
-            len(self.column_data),
-        )
+        return (len(self.row_data),len(self.column_data))
 
     # ------------------------------------------------------------------
     # Runtime helpers
@@ -574,19 +594,9 @@ class Labware(WellSet):
     # ------------------------------------------------------------------
 
     @staticmethod
-    def nominal_coordinates(
-        well: Well,
-        x_spacing: float,
-        y_spacing: float,
-    ) -> tuple[float, float]:
+    def nominal_coordinates(well: Well,x_spacing: float,y_spacing: float) -> tuple[float, float]:
 
         col_index = int(well.name[1:]) - 1
+        row_index = list(string.ascii_uppercase).index(well.name[0])
 
-        row_index = list(
-            string.ascii_uppercase
-        ).index(well.name[0])
-
-        return (
-            col_index * x_spacing,
-            row_index * y_spacing,
-        )
+        return (col_index * x_spacing,row_index * y_spacing,)
