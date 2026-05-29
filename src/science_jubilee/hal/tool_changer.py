@@ -136,9 +136,11 @@ class ToolChanger:
         if self.get_active_tool_index() == tool_idx:
             raise ToolStateError(f"Tool {tool_idx} already active")
 
-        if not tool.tool_offset_is_set:
+        if not tool.offset_is_set:
             raise ToolStateError("Tool offset must be configured")
-
+        
+        self.park_tool()
+        
         success = self.transport.select_tool(tool_idx)
 
         if success:
@@ -152,9 +154,12 @@ class ToolChanger:
             return True
 
         tool = self.tools.get(tool_idx)
+        if tool is None:
+            return True
+
         success = self.transport.park_tool()
 
-        if success and tool is not None:
+        if success:
             tool.deactivate()
         return success
 

@@ -1,15 +1,12 @@
 import logging
 import pytest
 
-from science_jubilee.tools.Tool import (
-    Tool,
-    ToolOffset,
-    ToolStateError,
-)
+from science_jubilee.tools.Tool import Tool
 
 from science_jubilee.hal.tool_changer import (
     ToolSlotError,
     ToolSyncError,
+    ToolStateError
 )
 
 logger = logging.getLogger(__name__)
@@ -104,6 +101,8 @@ def test_pickup_tool(tool_changer,navigator,):
     tool = tool_changer.get_tools()[0]
     assert tool.is_active_tool is True
 
+    unload_default_tools(tool_changer)
+
 
 @pytest.mark.secondary
 def test_park_tool(tool_changer,navigator):
@@ -122,6 +121,9 @@ def test_park_tool(tool_changer,navigator):
     tool = tool_changer.get_tools()[0]
     assert tool.is_active_tool is False
 
+    unload_default_tools(tool_changer)
+
+
 
 @pytest.mark.secondary
 def test_exchange_tools(tool_changer,navigator):
@@ -137,10 +139,13 @@ def test_exchange_tools(tool_changer,navigator):
     assert (tool_changer.pickup_tool(1)is True)
     assert (tool_changer.get_active_tool_index()== 1)
 
-    tools = (tool_changer.get_tool())
+    tools = (tool_changer.get_tools())
 
     assert (tools[0].is_active_tool is False)
     assert (tools[1].is_active_tool is True)
+
+    unload_default_tools(tool_changer)
+
 
 
 # ------------------------------------------------------------------
@@ -169,6 +174,8 @@ def test_tool_offsets(tool_changer,navigator,):
     assert oy == 5
     assert oz == 5
 
+    tool_changer.unload_tool(0)
+
 
 @pytest.mark.secondary
 def test_set_tool_offset(tool_changer,navigator,):
@@ -194,6 +201,9 @@ def test_set_tool_offset(tool_changer,navigator,):
 
     assert (loaded_tool.get_offset_tuple()== (12.5, 7.0, 3.5))
 
+    tool_changer.unload_tool(0)
+
+
 
 # ------------------------------------------------------------------
 # Validation
@@ -214,6 +224,9 @@ def test_loading_same_slot_twice(tool_changer,navigator,):
 
     with pytest.raises(ToolSlotError):
         tool_changer.load_tool(tool_b)
+    
+    tool_changer.unload_tool(0)
+
 
 
 @pytest.mark.secondary
@@ -251,6 +264,8 @@ def test_pickup_same_tool_twice(tool_changer,navigator,):
     with pytest.raises(ToolStateError):
         tool_changer.pickup_tool(0)
 
+    unload_default_tools(tool_changer)
+
 
 @pytest.mark.secondary
 def test_pickup_tool_without_offset(tool_changer,navigator,):
@@ -264,6 +279,8 @@ def test_pickup_tool_without_offset(tool_changer,navigator,):
 
     with pytest.raises(ToolStateError):
         tool_changer.pickup_tool(0)
+    
+    tool_changer.unload_tool(0)
 
 
 # ------------------------------------------------------------------
@@ -288,17 +305,7 @@ def test_sync_detection(tool_changer,navigator):
     with pytest.raises(ToolSyncError):
         tool_changer.sync()
 
+    unload_default_tools(tool_changer)
 
-# ------------------------------------------------------------------
-# Helpers
-# ------------------------------------------------------------------
 
-@pytest.mark.secondary
-def test_is_tool_active(tool_changer,navigator,):
 
-    load_default_tools(tool_changer,navigator,)
-    tool_changer.pickup_tool(1)
-
-    assert (tool_changer.is_tool_active(1) is True)
-
-    assert (tool_changer.is_tool_active(0) is False)

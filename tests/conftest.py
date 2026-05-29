@@ -141,6 +141,6 @@ def _get_defs_from_env() -> tuple[str, str]:
     """
 
     deck_def = os.getenv("JUBILEE_DECK_DEF","lab_automation_deck_AFL_bolton.json")
-    labware_def = os.getenv("JUBILEE_LABWARE_DEF","corning_96_wellplate_360ul_flat.json")
+    labware_def = os.getenv("JUBILEE_LABWARE_DEF","20mlscintillation_12_wellplate_18000ul.json")
 
     return (deck_def,labware_def)

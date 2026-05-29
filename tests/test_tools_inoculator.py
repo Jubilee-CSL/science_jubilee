@@ -31,7 +31,7 @@ def _get_defs_from_env() -> tuple[str, str]:
     """
 
     deck_def = os.getenv("JUBILEE_DECK_DEF","lab_automation_deck_AFL_bolton.json",)
-    labware_def = os.getenv("JUBILEE_LABWARE_DEF","corning_96_wellplate_360ul_flat.json",)
+    labware_def = os.getenv("JUBILEE_LABWARE_DEF","20mlscintillation_12_wellplate_18000ul.json",)
 
     return (deck_def,labware_def)
 
@@ -57,7 +57,7 @@ def make_inoculator(nav: DeckNavigator) -> Inoculator:
     Create configured inoculator.
     """
     inoculator = Inoculator(nav=nav,index=0,name="inoculator")
-    inoculator.set_offset(0,7,18)
+    inoculator.set_offset(0,70,100)
     return inoculator
 
 
@@ -76,8 +76,8 @@ def test_inoculator_creation(motion):
 
     assert inoculator.name == "inoculator"
     assert inoculator.index == 0
-    assert (inoculator.tool_offset_is_set is True)
-    assert (inoculator.get_offset_tuple() == (0.0, 7.0, 18.0))
+    assert (inoculator.offset_is_set is True)
+    assert (inoculator.get_offset_tuple() == (0.0, 70.0, 100.0))
 
 
 # ------------------------------------------------------------------
@@ -103,6 +103,7 @@ def test_inoculator_activation(motion,tool_changer,):
 
     assert (inoculator.is_active_tool is False)
 
+    tool_changer.unload_tool(0)
 
 # ------------------------------------------------------------------
 # Transfer safety
@@ -147,7 +148,6 @@ def test_transfer(motion,tool_changer):
     tool_changer.unload_tool(0)
 
     assert (tool_changer.get_active_tool_index()== -1)
-
 
 # ------------------------------------------------------------------
 # Randomized transfer
@@ -225,7 +225,7 @@ def test_offset_reset(motion,):
     inoculator = make_inoculator(nav)
     inoculator.reset_offset()
 
-    assert (inoculator.tool_offset_is_set is False)
+    assert (inoculator.offset_is_set is False)
     assert (inoculator.get_offset_tuple()== (None, None, None))
 
 

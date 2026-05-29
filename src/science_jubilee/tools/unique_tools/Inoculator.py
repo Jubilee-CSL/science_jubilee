@@ -48,7 +48,7 @@ class Inoculator(Tool):
         #Test de validité du mouvement et 
         #Retour de la position finale du balayage
         #possibilité d'améliorer la fonction pour obtenir une correction automatique
-        sweep_position = source.safe_sweep(start_point= pickup_position, 
+        sweep_position = source.safe_sweep(start= pickup_position, 
                 sweep_x=sweep_x, sweep_y=sweep_y)
 
         #Mouvement de balayge
@@ -73,7 +73,7 @@ class Inoculator(Tool):
             travel_margin= 0, safe_movement= True)
 
         sweep_position = destination.safe_sweep(
-            start_point= destination_position, 
+            start= destination_position, 
             sweep_x=sweep_x, sweep_y=sweep_y)
 
         #tester la vitesse de optimal pour retirer la lentille
@@ -83,7 +83,7 @@ class Inoculator(Tool):
 
     #réfléchir au paramètres utilisé, possibilités d'utiliser des listes de puits à la place
     def transfert_to_all_well(self, slot_source: str, slot_destination: str,
-                              speed: int = 2000,
+                              speed: int = 6000,
                               sweep_x: float = 5.0, 
                               sweep_y: float = 5.0, 
                               sweep_speed: float = 100.0,
@@ -92,5 +92,7 @@ class Inoculator(Tool):
         well_source = self.nav.get_well(slot_source,"A1")
         labware_destination = self.nav.get_labware_in_slot(slot_destination)
         for well in labware_destination:
-            self.transfer(well_source, well,speed,sweep_x,sweep_y,sweep_speed,randomize_pickup)
+            self.transfer(well_source, well,
+                          speed=speed,sweep_x=sweep_x,sweep_y=sweep_y,
+                          sweep_speed=sweep_speed,randomize_pickup=randomize_pickup)
 

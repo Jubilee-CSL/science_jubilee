@@ -126,7 +126,7 @@ class Tool:
         )
 
     @property
-    def tool_offset_is_set(self) -> bool:
+    def offset_is_set(self) -> bool:
         return self.offset != ToolOffset()
     # ------------------------------------------------------------------
     # Runtime lifecycle
