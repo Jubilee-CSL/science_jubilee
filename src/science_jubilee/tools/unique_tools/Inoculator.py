@@ -15,7 +15,7 @@ class Inoculator(Tool):
     @requires_active_tool
     def transfer(self, source: Well, destination: Well,
         *,
-        speed: int = 2000,
+        speed: int = 4000,
         sweep_x: float = 5.0, sweep_y: float = 5.0, sweep_speed: float = 100.0,
         randomize_pickup: bool = False,
     ) -> None:
@@ -42,7 +42,7 @@ class Inoculator(Tool):
         #Déplacement vers la position définit comme position de départ
         #tester la vitesse de optimal pour ne pas pousser les lentilles
         self.nav.move_to_target(pickup_position, 
-                                  speed_z=sweep_speed, 
+                                  speed_z=speed, 
                                   travel_margin=4,safe_movement= True)
 
         #Test de validité du mouvement et 
@@ -53,7 +53,7 @@ class Inoculator(Tool):
 
         #Mouvement de balayge
         #tester la vitesse de optimal pour attraper la lentille
-        self.nav.move_to_target(sweep_position,
+        self.nav.move_to_target(sweep_position,speed_xy=sweep_speed,
             speed_z=sweep_speed, 
             travel_margin=0, safe_movement= False)
 
@@ -77,7 +77,7 @@ class Inoculator(Tool):
             sweep_x=sweep_x, sweep_y=sweep_y)
 
         #tester la vitesse de optimal pour retirer la lentille
-        self.nav.move_to_target(sweep_position,speed_z=sweep_speed,travel_margin=0, safe_movement= False)
+        self.nav.move_to_target(sweep_position,speed_xy= sweep_speed, speed_z=sweep_speed,travel_margin=0, safe_movement= False)
         self.nav.move_to_safe_z()
 
 

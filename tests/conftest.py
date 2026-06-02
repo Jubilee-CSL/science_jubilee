@@ -54,7 +54,7 @@ def pytest_configure(config):
     # Default deck and labware definitions for navigation tests.
     # These can be overridden in .env.mock / .env.hardware if desired.
     os.environ.setdefault("JUBILEE_DECK_DEF", "lab_automation_deck_AFL_bolton.json")
-    os.environ.setdefault("JUBILEE_LABWARE_DEF", "corning_96_wellplate_360ul_flat.json")
+    os.environ.setdefault("JUBILEE_LABWARE_DEF", "20mlscintillation_12_wellplate_18000ul.json")
 
 
 @pytest.fixture
@@ -144,3 +144,17 @@ def _get_defs_from_env() -> tuple[str, str]:
     labware_def = os.getenv("JUBILEE_LABWARE_DEF","20mlscintillation_12_wellplate_18000ul.json")
 
     return (deck_def,labware_def)
+
+#Use this function for hardware test
+#It reset values in the Duet system
+#If a test fails without unloading, the duet system is not synchronized with the code
+@pytest.fixture(autouse=True)
+def reset_duet(tool_changer):
+    yield
+    try:
+        tool_changer.park_tool()
+        for idx in range(1,4):
+            tool_changer.set_tool_offset(idx,0,0,0)
+        return True
+    except:
+        return False
