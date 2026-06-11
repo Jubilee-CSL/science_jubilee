@@ -80,8 +80,8 @@ def test_navigation_moves_to_all_wells(motion):
     last_loc = None
     offset = 2.0
     count = 0
-    plate = nav.get_labware_in_slot(0)
-    for well in plate:
+    labware = nav.get_labware_in_slot(0)
+    for well in labware:
         last_loc = well.get_bottom_location(z_offset=offset)
         nav.move_to_target(
             well,
@@ -92,7 +92,7 @@ def test_navigation_moves_to_all_wells(motion):
         )
         count += 1
 
-    assert count == len(plate.wells)
+    assert count == len(labware.wells)
     assert last_loc is not None
     x_exp, y_exp, z_exp = last_loc.point
 

@@ -101,18 +101,10 @@ def tool_changer(transport):
 
 
 @pytest.fixture
-def navigator(
-    motion,
-):
+def navigator(motion):
     """
     Construct a reusable DeckNavigator
     test environment.
-
-    Provides:
-    - Deck
-    - Loaded labware
-    - Motion driver
-    - Navigation API
     """
     from science_jubilee.decks.Deck import Deck
     from science_jubilee.navigation.deck_navigation import (DeckNavigator)
@@ -144,17 +136,3 @@ def _get_defs_from_env() -> tuple[str, str]:
     labware_def = os.getenv("JUBILEE_LABWARE_DEF","20mlscintillation_12_wellplate_18000ul.json")
 
     return (deck_def,labware_def)
-
-#Use this function for hardware test
-#It reset values in the Duet system
-#If a test fails without unloading, the duet system is not synchronized with the code
-@pytest.fixture(autouse=True)
-def reset_duet(tool_changer):
-    yield
-    try:
-        tool_changer.park_tool()
-        for idx in range(1,4):
-            tool_changer.set_tool_offset(idx,0,0,0)
-        return True
-    except:
-        return False

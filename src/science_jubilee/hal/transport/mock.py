@@ -24,11 +24,23 @@ class MockTransport(BaseTransport):
         self.active_tool_index: int = -1
         # No tools configured by default
         self.tools: Dict[int, dict] = {
-            idx: {
-                "name": "Tool"+str(idx),
-                "offsets": [0.0, 0.0, 0.0],
+            0: {
+                "name": "Inoculator",
+                "offsets": [0.0, 16.0, -65.0],
+            },
+            1: {
+                "name": "Syringe",
+                "offsets": [0.0, 20, -80.0],
+            },
+            2: {
+                "name": "Tool_without_offset",
+                "offsets": [0.0, 0.0, -400.0],
+            },
+            3: {
+                "name": "None",
+                "offsets": [0.0, 0.0, -400.0],
             }
-            for idx in range(4)
+            
         }
         
     def _reply(self, text: Optional[str]) -> Optional[str]:
@@ -200,20 +212,6 @@ class MockTransport(BaseTransport):
     # Use BaseTransport.format_machine_summary()
 
     # ---- Tools API -------------------------------------------------------
-    def load_tool(self,tool_idx: int,name: str,
-                    x: float = 0.0,
-                    y: float = 0.0,
-                    z: float = 0.0,) -> bool:
-
-        self.tools[tool_idx]["name"] = name
-        self.set_tool_offset(tool_idx, x,y,z)
-        return True
-    
-    def unload_tool(self, tool_idx: int) -> bool:
-
-        self.tools[tool_idx]["name"] = "Tool"+str(tool_idx)
-        self.tools[tool_idx]["offsets"] = [0.0, 0.0, 0.0]
-        return True
 
     def get_active_tool_index(self) -> int:
         return int(self.active_tool_index)
@@ -226,31 +224,13 @@ class MockTransport(BaseTransport):
         self.active_tool_index = -1
         return True
 
-    def state_tools(self) -> dict:
+    def get_tools(self) -> dict:
         return { idx: {"name": tool["name"],}
                 for idx, tool in self.tools.items()
                 }
 
-    def state_tool_offsets(self) -> dict:
+    def get_tool_offsets(self) -> dict:
         return {
             idx: tuple(tool["offsets"])
             for idx, tool in self.tools.items()
         }
-
-    def set_tool_offset(self,tool_idx: int,
-        x: float | None = None,
-        y: float | None = None,
-        z: float | None = None,) -> bool:
-
-        offsets = self.tools[tool_idx]["offsets"]
-
-        if x is not None:
-            offsets[0] = float(x)
-
-        if y is not None:
-            offsets[1] = float(y)
-
-        if z is not None:
-            offsets[2] = float(z)
-
-        return True   
