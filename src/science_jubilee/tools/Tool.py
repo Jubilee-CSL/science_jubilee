@@ -51,25 +51,6 @@ def requires_active_tool(func):
 
 
 # ======================================================================
-# ToolOffset
-# ======================================================================
-
-
-@dataclass(slots=True)
-class ToolOffset:
-    """
-    Tool offset in machine coordinates.
-    """
-
-    x: float = None
-    y: float = None
-    z: float = None
-
-    def as_tuple(self) -> tuple[float, float, float]:
-
-        return (self.x,self.y,self.z,)
-
-# ======================================================================
 # Tool
 # ======================================================================
 
@@ -94,14 +75,10 @@ class Tool:
     This class is intended to be inherited by all
     runtime tools.
     """
-    nav: DeckNavigator
     index: int
     name: str
 
-    offset: ToolOffset = field(
-        default_factory=ToolOffset
-    )
-
+    offset: tuple
     is_active_tool: bool = False
 
     def __post_init__(self):
@@ -125,9 +102,6 @@ class Tool:
             f")"
         )
 
-    @property
-    def offset_is_set(self) -> bool:
-        return self.offset != ToolOffset()
     # ------------------------------------------------------------------
     # Runtime lifecycle
     # ------------------------------------------------------------------
@@ -140,7 +114,7 @@ class Tool:
 
         pass
 
-        # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
     # Runtime state
     # ------------------------------------------------------------------
 
@@ -149,54 +123,3 @@ class Tool:
 
     def deactivate(self) -> None:
         self.is_active_tool = False
-
-    # ------------------------------------------------------------------
-    # Tool offset
-    # ------------------------------------------------------------------
-
-    def set_offset(
-        self,
-        x: float,
-        y: float,
-        z: float,
-    ) -> None:
-        """
-        Set tool offset values.
-
-        This only modifies runtime state.
-        Hardware synchronization must be
-        handled by ToolChanger or HAL.
-        """
-
-        self.offset.x = float(x)
-        self.offset.y = float(y)
-        self.offset.z = float(z)
-
-    def get_offset(self) -> ToolOffset:
-        return self.offset
-
-    def get_offset_tuple(
-        self,
-    ) -> tuple[float, float, float]:
-        return self.offset.as_tuple()
-
-    def reset_offset(self) -> None:
-        self.offset = ToolOffset()
-
-"""
-    # ------------------------------------------------------------------
-    # Axis shortcuts
-    # ------------------------------------------------------------------
-
-    @property
-    def x(self) -> float:
-        return self.offset.x
-
-    @property
-    def y(self) -> float:
-        return self.offset.y
-
-    @property
-    def z(self) -> float:
-        return self.offset.z
-"""

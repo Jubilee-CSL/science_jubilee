@@ -3,107 +3,10 @@ import os
 
 import pytest
 
-from science_jubilee.decks.Deck import Deck
-from science_jubilee.hal.motion_driver import MotionDriver
-from science_jubilee.navigation.deck_navigation import (
-    DeckNavigator,
-)
+from science_jubilee.tools.Tool import ToolStateError
 
-from science_jubilee.tools.Tool import (
-    ToolStateError,
-)
-
-from science_jubilee.tools.unique_tools.Inoculator import (
-    Inoculator,
-)
 
 logger = logging.getLogger(__name__)
-
-
-# ------------------------------------------------------------------
-# Environment helpers
-# ------------------------------------------------------------------
-def _get_defs_from_env() -> tuple[str, str]:
-    """
-    Return:
-        deck_definition,
-        labware_definition
-    """
-
-    deck_def = os.getenv("JUBILEE_DECK_DEF","lab_automation_deck_AFL_bolton.json",)
-    labware_def = os.getenv("JUBILEE_LABWARE_DEF","20mlscintillation_12_wellplate_18000ul.json",)
-
-    return (deck_def,labware_def)
-
-
-def _make_navigator_for_driver(driver: MotionDriver):
-    """
-    Construct test navigation environment.
-    """
-    deck_def, labware_def = (_get_defs_from_env())
-    deck = Deck(deck_def)
-
-    deck.load_labware(labware_def,slot_id=0)
-    nav = DeckNavigator(driver=driver,deck=deck,)
-
-    return nav
-
-
-# ------------------------------------------------------------------
-# Helpers
-# ------------------------------------------------------------------
-def make_inoculator(nav: DeckNavigator) -> Inoculator:
-    """
-    Create configured inoculator.
-    """
-    inoculator = Inoculator(nav=nav,index=0,name="inoculator")
-    inoculator.set_offset(0,70,100)
-    return inoculator
-
-
-# ------------------------------------------------------------------
-# Tool initialization
-# ------------------------------------------------------------------
-
-@pytest.mark.secondary
-def test_inoculator_creation(motion):
-    """
-    Verify inoculator initialization.
-    """
-
-    nav=_make_navigator_for_driver(motion)
-    inoculator = make_inoculator(nav)
-
-    assert inoculator.name == "inoculator"
-    assert inoculator.index == 0
-    assert (inoculator.offset_is_set is True)
-    assert (inoculator.get_offset_tuple() == (0.0, 70.0, 100.0))
-
-
-# ------------------------------------------------------------------
-# Activation lifecycle
-# ------------------------------------------------------------------
-
-@pytest.mark.secondary
-def test_inoculator_activation(motion,tool_changer,):
-    """
-    Verify activation/deactivation lifecycle.
-    """
-
-    nav = _make_navigator_for_driver(motion)
-    inoculator = make_inoculator(nav)
-
-    tool_changer.load_tool(inoculator)
-    assert (inoculator.is_active_tool is False)
-
-    tool_changer.pickup_tool(0)
-    assert (inoculator.is_active_tool is True)
-
-    tool_changer.park_tool()
-
-    assert (inoculator.is_active_tool is False)
-
-    tool_changer.unload_tool(0)
 
 # ------------------------------------------------------------------
 # Transfer safety
@@ -111,41 +14,38 @@ def test_inoculator_activation(motion,tool_changer,):
 
 
 @pytest.mark.secondary
-def test_transfer_requires_active_tool(motion):
+def test_transfer_requires_active_tool(tool_changer,navigator):
     """
     Transfer must fail if tool
     is not active.
     """
 
-    nav = _make_navigator_for_driver(motion)
-    inoculator = make_inoculator(nav)
+    source = navigator.deck.get_well("0","A1")
+    destination = navigator.deck.get_well("0","A2")
 
-    source = nav.deck.get_well("0","A1")
-    destination = nav.deck.get_well("0","A2")
+    inoculator = tool_changer.get_tool(0)
 
     with pytest.raises(ToolStateError):
-        inoculator.transfer(source,destination,)
+        inoculator.transfer(navigator,source,destination)
 
 # ------------------------------------------------------------------
 # Basic transfer
 # ------------------------------------------------------------------
 
 @pytest.mark.invasive
-def test_transfer(motion,tool_changer):
+def test_transfer(tool_changer,navigator):
     """
     Verify standard transfer.
     """
 
-    nav =_make_navigator_for_driver(motion)
-    source = nav.deck.get_well("0","A1")
-    destination = nav.deck.get_well("0","A2")
-    inoculator = make_inoculator(nav)
+    source = navigator.deck.get_well("0","A1")
+    destination = navigator.deck.get_well("0","A2")
+    inoculator = tool_changer.get_tool(0)
 
-    tool_changer.load_tool(inoculator)
     tool_changer.pickup_tool(0)
 
-    inoculator.transfer(source,destination,randomize_pickup=False)
-    tool_changer.unload_tool(0)
+    inoculator.transfer(navigator,source,destination,randomize_pickup=False)
+    tool_changer.park_tool()
 
     assert (tool_changer.get_active_tool_index()== -1)
 
@@ -154,80 +54,42 @@ def test_transfer(motion,tool_changer):
 # ------------------------------------------------------------------
 
 @pytest.mark.invasive
-def test_transfer_randomized_pickup(motion,tool_changer,):
+def test_transfer_randomized_pickup(tool_changer,navigator):
     """
     Verify randomized pickup transfer.
     """
+    source = navigator.deck.get_well("0","A1")
+    destination = navigator.deck.get_well("0","A2")
+    inoculator = tool_changer.get_tool(0)
 
-    nav = _make_navigator_for_driver(motion)
-    source = nav.deck.get_well("0","A1")
-    destination = nav.deck.get_well("0","A2")
-    inoculator = make_inoculator(nav)
-
-    tool_changer.load_tool(inoculator)
     tool_changer.pickup_tool(0)
 
     inoculator.transfer(source,destination,randomize_pickup=True)
-    tool_changer.unload_tool(0)
+    tool_changer.park_tool()
 
 
 # ------------------------------------------------------------------
 # Transfer to all wells
 # ------------------------------------------------------------------
 
-
 @pytest.mark.invasive
-def test_transfer_to_all_wells(motion,tool_changer):
+def test_transfer_to_all_wells(tool_changer,navigator):
     """
     Verify broadcast transfer
     over full destination plate.
     """
+    inoculator = tool_changer.get_tool(0)
 
-    nav = _make_navigator_for_driver(motion)
-    inoculator = make_inoculator(nav)
-
-    tool_changer.load_tool(inoculator)
     tool_changer.pickup_tool(0)
 
     inoculator.transfert_to_all_well(
+        navigator,
         slot_source="0",
         slot_destination="0",
         randomize_pickup=False,
     )
 
-    tool_changer.unload_tool(0)
-
-
-# ------------------------------------------------------------------
-# Offset handling
-# ------------------------------------------------------------------
-
-@pytest.mark.secondary
-def test_offset_update(motion):
-    """
-    Verify offset mutation.
-    """
-
-    nav = _make_navigator_for_driver(motion)
-    inoculator = make_inoculator(nav)
-    inoculator.set_offset(1,2,3,)
-
-    assert (inoculator.get_offset_tuple()== (1.0, 2.0, 3.0))
-
-
-@pytest.mark.secondary
-def test_offset_reset(motion,):
-    """
-    Verify offset reset.
-    """
-
-    nav =_make_navigator_for_driver(motion)
-    inoculator = make_inoculator(nav)
-    inoculator.reset_offset()
-
-    assert (inoculator.offset_is_set is False)
-    assert (inoculator.get_offset_tuple()== (None, None, None))
-
+    tool_changer.park_tool()
 
 # ------------------------------------------------------------------
 # Runtime state
@@ -235,13 +97,12 @@ def test_offset_reset(motion,):
 
 
 @pytest.mark.secondary
-def test_manual_activate_deactivate(motion):
+def test_manual_activate_deactivate(tool_changer):
     """
     Verify manual activation state.
     """
 
-    nav =_make_navigator_for_driver(motion)
-    inoculator = make_inoculator(nav)
+    inoculator = tool_changer.get_tool(0)
 
     assert (inoculator.is_active_tool is False)
 

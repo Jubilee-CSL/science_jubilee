@@ -256,15 +256,6 @@ class RecordingTransport(BaseTransport):
         return self._inner.deck_is_clear()
 
     # ---- Tools API ----------------------------------------------------
-    def load_tool(self,tool_idx: int,name: str,
-                    x: float,
-                    y: float,
-                    z: float,) -> bool:
-        return self._inner.load_tool(tool_idx,name,x,y,z,)
-
-    def unload_tool(self,tool_idx: int) -> bool:
-        return self._inner.unload_tool(tool_idx)
-    
     def get_active_tool_index(self) -> int:
         return self._inner.get_active_tool_index()
 
@@ -283,23 +274,11 @@ class RecordingTransport(BaseTransport):
         except Exception:
             return False
 
-    def state_tools(self) -> Dict[int, Dict[str, Any]]:
-        return self._inner.state_tools()
+    def get_tools(self) -> Dict[int, Dict[str, Any]]:
+        return self._inner.get_tools()
 
-    def state_tool_offsets(self) -> Dict[int, list[float]]:
-        return self._inner.state_tool_offsets()
-
-    def set_tool_offset(self, tool_idx: int, *, x: float | None = None, y: float | None = None, z: float | None = None) -> bool:
-        # Log the equivalent G10 command, then delegate.
-        parts = [f"P{int(tool_idx)}"]
-        if x is not None:
-            parts.append(f"X{float(x):.4f}")
-        if y is not None:
-            parts.append(f"Y{float(y):.4f}")
-        if z is not None:
-            parts.append(f"Z{float(z):.4f}")
-        self._log("G10 " + " ".join(parts))
-        return self._inner.set_tool_offset(tool_idx, x=x, y=y, z=z)
+    def get_tool_offsets(self) -> Dict[int, list[float]]:
+        return self._inner.get_tool_offsets()
 
     def home_all(self) -> None:
         self.send_gcode('M98 P"homeall.g"', wait=True)

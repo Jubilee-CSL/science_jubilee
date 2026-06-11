@@ -160,21 +160,6 @@ def test_park_tool_method_logs_tfree_expansion(request):
     assert "G1 Z2" in content
 
 
-def test_set_tool_offset_logs_g10_command(request):
-    """set_tool_offset must log a G10 command."""
-    sys_dir, macro_dir = _firmware_dirs()
-    mock = MockTransport()
-    rec, log = _make_recording(request.node.name, mock, sys_dir, macro_dir)
-
-    rec.set_tool_offset(0, x=1.5, y=-0.5, z=2.0)
-
-    content = _log_content(log)
-    assert "G10 P0" in content
-    assert "X1.5000" in content
-    assert "Y-0.5000" in content
-    assert "Z2.0000" in content
-
-
 # ---------------------------------------------------------------------------
 # Tests: recursive M98 expansion
 # ---------------------------------------------------------------------------

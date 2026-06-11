@@ -254,20 +254,6 @@ class HTTPTransport(BaseTransport):
         return positions
 
     # ---- Tools API ------------------------------------------------------
-
-    #Pour l’instant on ne peut pas changer le dictionnaire présent dans config par sécurité 
-    #Il est possible que l’update se fasse d’une façon dérivé 
-    def load_tool(self,tool_idx: int,name: str,
-                    x: float,
-                    y: float,
-                    z: float,) -> bool:
-        return self.set_tool_offset(tool_idx, x=x, y=y ,z=z)
-        
-         
-    def unload_tool(self, tool_idx: int) -> bool:
-        return self.set_tool_offset(tool_idx, x=0.0, y=0.0 ,z=0.0)
-    
-    
     def get_active_tool_index(self) -> int:
         """Query current tool selection via "T" response; return -1 if none."""
         try:
@@ -304,7 +290,7 @@ class HTTPTransport(BaseTransport):
         except Exception:
             return False
 
-    def state_tools(self) -> dict:
+    def get_tools(self) -> dict:
         """Return configured tools: {number: {"name": str}}."""
         tools: dict[int, dict] = {}
         try:
@@ -322,7 +308,7 @@ class HTTPTransport(BaseTransport):
             pass
         return tools
 
-    def state_tool_offsets(self) -> dict:
+    def get_tool_offsets(self) -> dict:
         """Return tool offsets mapping number -> [X, Y, Z]."""
         offsets: dict[int, list[float]] = {}
         try:
@@ -343,20 +329,6 @@ class HTTPTransport(BaseTransport):
         except Exception:
             pass
         return offsets
-
-    def set_tool_offset(self, tool_idx: int, *, x: float | None = None, y: float | None = None, z: float | None = None) -> bool:
-        parts = [f"P{int(tool_idx)}"]
-        if z is not None:
-            parts.append(f"Z{float(z):.2f}")
-        if x is not None:
-            parts.append(f"X{float(x):.2f}")
-        if y is not None:
-            parts.append(f"Y{float(y):.2f}")
-        try:
-            _ = self.send_gcode("G10 " + " ".join(parts))
-            return True
-        except Exception:
-            return False
 
     # ---- File upload ----------------------------------------------------
 
