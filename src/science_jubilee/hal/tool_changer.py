@@ -45,16 +45,15 @@ class ToolChanger:
         tools_offsets = transport.get_tool_offsets()
         for i in range(4):
             tool_name = duet_tools[i]["name"]
+            """
             if tool_name == "Inoculator":
                 self.tools[i] = Inoculator(i,tool_name,
                                      (tools_offsets[i][0],
                                       tools_offsets[i][1],
                                       tools_offsets[i][2]))
+            """
             if tool_name != "None":
-                self.tools[i] = Tool(i,tool_name,
-                                     (tools_offsets[i][0],
-                                      tools_offsets[i][1],
-                                      tools_offsets[i][2]))
+                self.tools[i] = Tool(i,tool_name)
                 
         
 
@@ -86,9 +85,9 @@ class ToolChanger:
         if self.get_active_tool_index() == tool_idx:
             raise ToolStateError(f"Tool {tool_idx} already active")
 
-        if tool.offset == (0,0,-400):
+        if self.get_tool_offset(tool_idx) == [0,0,-400]:
             raise ToolStateError("Tool offset must be configured")
-        
+    
         self.park_tool()
         
         success = self.transport.select_tool(tool_idx)
@@ -148,3 +147,7 @@ class ToolChanger:
         Query transport tool offsets.
         """
         return self.transport.get_tool_offsets()
+
+    def get_tool_offset(self, tool_idx):
+        offsets = self.transport.get_tool_offsets()
+        return offsets[tool_idx]

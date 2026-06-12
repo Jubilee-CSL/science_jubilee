@@ -29,6 +29,7 @@ def test_pickup_tool(tool_changer):
     tool = tool_changer.get_tool(0)
     assert tool.is_active_tool is True
     assert (tool_changer.get_active_tool_index() == tool.index)
+    tool_changer.park_tool()
 
 
 @pytest.mark.secondary
@@ -90,6 +91,9 @@ def test_pickup_same_tool_twice(tool_changer):
 
     with pytest.raises(ToolStateError):
         tool_changer.pickup_tool(0)
+    
+    tool_changer.park_tool()
+
 
 
 @pytest.mark.secondary
@@ -100,9 +104,3 @@ def test_pickup_tool_without_offset(tool_changer):
     """
     with pytest.raises(ToolStateError):
         tool_changer.pickup_tool(2)
-    
-
-
-
-
-
