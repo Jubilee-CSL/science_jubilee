@@ -78,7 +78,6 @@ class Tool:
     index: int
     name: str
 
-    offset: tuple
     is_active_tool: bool = False
 
     def __post_init__(self):
