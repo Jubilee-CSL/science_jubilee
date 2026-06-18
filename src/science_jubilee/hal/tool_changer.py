@@ -42,15 +42,11 @@ class ToolChanger:
             3: None,
         }
         duet_tools = transport.get_tools()
-        tools_offsets = transport.get_tool_offsets()
         for i in range(4):
             tool_name = duet_tools[i]["name"]
             """
             if tool_name == "Inoculator":
-                self.tools[i] = Inoculator(i,tool_name,
-                                     (tools_offsets[i][0],
-                                      tools_offsets[i][1],
-                                      tools_offsets[i][2]))
+                self.tools[i] = Inoculator(i,tool_name)
             """
             if tool_name != "None":
                 self.tools[i] = Tool(i,tool_name)
