@@ -1,40 +1,27 @@
 import logging
 import os
 
+import torch
+
 import pytest
-
-from science_jubilee.decks.Deck import Deck
-from science_jubilee.hal.motion_driver import MotionDriver
-from science_jubilee.navigation.deck_navigation import (
-    DeckNavigator,
-)
-
-from science_jubilee.tools.Tool import (
-    ToolStateError,
-)
-
-from science_jubilee.tools.unique_tools.Inoculator import (
-    Inoculator,
-)
+from science_jubilee.tools.Observer import Camera
 
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.secondary
-def test_transfer(tool_changer):
-    """
-    Verify standard transfer.
-    """
+def test_cellpose():
+    camera = Camera()
 
-    initial_tools = tool_changer.get_tools()
-    initial_offsets = tool_changer.get_tool_offsets()
-    logger.info("tools: %s",tool_changer.tools)
-    logger.info("Initial tools: %s",initial_tools,)
-    logger.info("Initial offset: %s",initial_offsets)
+    # Check if CUDA is available
+    logger.info(f"Is CUDA supported by this system? {torch.cuda.is_available()}")
+    # Print CUDA version
+    logger.info(f"CUDA version: {torch.version.cuda}")
+    # Get current CUDA device ID
+    cuda_id = torch.cuda.current_device()
+    logger.info(f"ID of current CUDA device: {cuda_id}")
+    # Get name of the current CUDA device
+    logger.info(f"Name of current CUDA device: {torch.cuda.get_device_name(cuda_id)}")
 
-    tool_by_index = tool_changer.get_tool(0)
-    logger.info("tool: %s",tool_by_index)
-
-
-
-
+    img_seg = camera.segment_latest_image()
+    lentille_iso =camera.detect_isolated_duckweed(masks=img_seg,debug=True)
+    print(lentille_iso)

@@ -94,6 +94,9 @@ class Inoculator(Tool):
         labware_destination = nav.get_labware_in_slot(slot_destination)
         for well in labware_destination:
             self.transfer(nav,well_source, well,
-                          speed=speed,sweep_x=sweep_x,sweep_y=sweep_y,
-                          sweep_speed=sweep_speed,randomize_pickup=randomize_pickup)
+                          speed=speed,
+                          sweep_x=sweep_x,
+                          sweep_y=sweep_y,
+                          sweep_speed=sweep_speed,
+                          randomize_pickup=randomize_pickup)
 
