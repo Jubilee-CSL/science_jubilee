@@ -1,12 +1,12 @@
-import os, shutil
+import os
 import cv2
 import numpy as np
 import requests
+import time
 
 from datetime import datetime
 from pathlib import Path
 
-from cellpose import models, core
 
 # ==========================================================
 # CONFIGURATION
@@ -14,36 +14,47 @@ from cellpose import models, core
 
 OCTOPI_IP = "10.0.9.55"
 
+LED_SERVER = "http://10.0.9.55:5000"
+
 RAW_DATASET_DIR = Path("dataset_brut")
+RAW_LED_DIR = Path("dataset_brut_led")
+CLEAN_DATASET_DIR = Path("dataset_clean")
 SEG_DATASET_DIR = Path("dataset_seg")
 
 RAW_DATASET_DIR.mkdir(exist_ok=True)
+RAW_LED_DIR.mkdir(exist_ok=True)
+CLEAN_DATASET_DIR.mkdir(exist_ok=True)
 SEG_DATASET_DIR.mkdir(exist_ok=True)
 
+
 class Camera:
-    
-    use_GPU = core.use_gpu()
-    yn = ['NO','Yes']
-    print(f'>>>GPU activated?{yn[use_GPU]}')
+
+    offset_x = 4
+    offset_y = 4
+
+    # ======================================================
+    # Capture image
+    # ======================================================
 
     @staticmethod
-    def capture_octopi_image(url=f"http://{OCTOPI_IP}/webcam/?action=snapshot",):
+    def capture_octopi_image(save_dir=RAW_DATASET_DIR,
+                             url=f"http://{OCTOPI_IP}/webcam/?action=snapshot"):
         """
-        Capture une image et l'enregistre dans dataset_brut.
+        Capture une image depuis OctoPi.
         """
 
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_file = RAW_DATASET_DIR / f"{timestamp}.jpg"
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        output_file = save_dir / f"{timestamp}.jpg"
 
         try:
-            print("Connexion à OctoPi...")
-            response = requests.get(url, timeout=5)
+            response = requests.get(url, timeout=10)
 
             if response.status_code == 200:
                 with open(output_file, "wb") as f:
                     f.write(response.content)
+
                 print(f"Image enregistrée : {output_file}")
-                return str(output_file)
+                return output_file
 
             print(f"Erreur HTTP : {response.status_code}")
 
@@ -53,162 +64,204 @@ class Camera:
         return None
 
     # ======================================================
-    # RECHERCHE IMAGE LA PLUS RECENTE
+    # Acquisition multi-éclairage
+    # ======================================================
+
+    def image_sans_ombre(self):
+        # nettoyage du dossier temporaire
+        for file in RAW_LED_DIR.glob("*.jpg"):
+            file.unlink()
+
+        # acquisition des 8 images
+        for i in range(8):
+            print(f"LED {i}")
+            requests.get(f"{LED_SERVER}/pixel/{i}/255/255/255")
+            time.sleep(0.5)
+
+            self.capture_octopi_image(save_dir=RAW_LED_DIR)
+
+            requests.get(f"{LED_SERVER}/pixel/{i}/0/0/0")
+            time.sleep(0.2)
+
+        return self.generate_minimum_image()
+
+    # ======================================================
+    # Génération image minimum
+    # ======================================================
+
+    def generate_minimum_image(self):
+        image_files = sorted(RAW_LED_DIR.glob("*.jpg"))
+
+        if len(image_files) == 0:
+            raise ValueError("Aucune image dans dataset_brut_led")
+
+        images = []
+
+        for file in image_files:
+            img = cv2.imread(str(file))
+            if img is not None:
+                images.append(img)
+
+        result = images[0].copy()
+
+        for img in images[1:]:
+            result = np.minimum(result, img)
+
+        output_file = (CLEAN_DATASET_DIR /f"{datetime.now():%Y%m%d_%H%M%S}.jpg")
+        cv2.imwrite(str(output_file),result)
+
+        print(f"Image sans reflet enregistrée : {output_file}")
+
+        return output_file
+
+    # ======================================================
+    # Recherche image la plus récente
     # ======================================================
 
     @staticmethod
-    def get_latest_image():
-        files = list(RAW_DATASET_DIR.glob("*.jpg"))
-
+    def get_latest_image(folder=CLEAN_DATASET_DIR):
+        files = list(folder.glob("*.jpg"))
         if len(files) == 0:
-            raise FileNotFoundError("Aucune image dans dataset_brut")
-        
-        return max(files, key=os.path.getmtime)
+            raise FileNotFoundError(f"Aucune image dans {folder}")
+
+        return max(files,key=os.path.getmtime)
 
     # ======================================================
-    # SEGMENTATION CELLPOSE
+    # Segmentation ExG
     # ======================================================
 
-    @staticmethod
-    def segment_latest_image(model_type="cpsam",diameter=None,flow_threshold=0.4,cellprob_threshold=0.0):
-        """
-        Segmente l'image la plus récente avec Cellpose.
-        """
-        image_path = Camera.get_latest_image()
-        img = cv2.imread(str(image_path))
+    def get_img_contour(self,img,
+                        min_area_px=100,
+                        max_area_px=5000,
+                        min_circularity=0.4):
 
-        if img is None:
-            raise ValueError("Impossible de charger l'image")
+        b, g, r = cv2.split(img)
+        exg = (
+            2 * g.astype(np.int16)
+            - r.astype(np.int16)
+            - b.astype(np.int16))
 
-        print("Chargement du modèle Cellpose...")
-        model = models.CellposeModel(gpu= True,model_type=model_type)
+        exg = cv2.normalize(exg,None,0,255,cv2.NORM_MINMAX)
+        exg = exg.astype(np.uint8)
 
-        #Segmente la liste d'image ou l'image passé en paramètre
-        masks, flows, styles, diams = model.eval(
-            img,
-            diameter=diameter,
-            channels=[0, 0],
-            flow_threshold=flow_threshold,
-            cellprob_threshold=cellprob_threshold
-        ) 
+        _, mask = cv2.threshold(exg,0,255,cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-        mask_visu = (masks.astype(np.float32)/ masks.max()* 255).astype(np.uint8)
-        output_name = (image_path.stem + "_seg.png")
-        output_path = SEG_DATASET_DIR / output_name
+        kernel = np.ones((5, 5), np.uint8)
+        mask = cv2.morphologyEx(mask,cv2.MORPH_OPEN,kernel)
+        mask = cv2.morphologyEx(mask,cv2.MORPH_CLOSE,kernel)
 
-        cv2.imwrite(str(output_path),mask_visu)
-        print(f"Segmentation sauvegardée : {output_path}")
+        contours, _ = cv2.findContours(mask,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
 
-        return masks, output_path
+        valid_contours = []
 
-    # ======================================================
-    # DETECTION LENTILLES ISOLEES
-    # ======================================================
-
-    @staticmethod
-    def detect_isolated_duckweed(
-        masks,
-        min_area_px=100,
-        max_area_px=5000,
-        min_circularity=0.4,
-        isolation_distance_px=100,
-        debug=False
-    ):
-        """
-        Détection de lentilles isolées.
-
-        Paramètres :
-        ------------
-        min_area_px :       surface minimale d'une lentille
-        max_area_px :       surface maximale
-        min_circularity :   filtre forme
-
-        isolation_distance_px :     distance minimale avec le voisin le plus proche
-
-        Retour : list
-        """
-
-        isolated_duckweeds = []
-        labels = np.unique(masks)
-        labels = labels[labels > 0]
-
-        centroids = []
-        objects = []
-        
-        #Partie de la fonction a grandement retravaillé, utilisé pour compenser les potentiels erreurs du modèle 
-        #A terme le modèle devra être suffisament entrainé pour ne pas avoir besoin de ces corrections, min max min_circularity
-
-        for label in labels:
-            obj_mask = (masks == label).astype(np.uint8)
-
-            contours, _ = cv2.findContours(obj_mask,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
-
-            if len(contours) == 0:
-                continue
-
-            cnt = contours[0]
+        for cnt in contours:
             area = cv2.contourArea(cnt)
-
             if area < min_area_px:
                 continue
+
             if area > max_area_px:
                 continue
 
             perimeter = cv2.arcLength(cnt,True)
-
             if perimeter == 0:
                 continue
 
             circularity = (4* np.pi* area/ (perimeter ** 2))
-
             if circularity < min_circularity:
                 continue
+
+            valid_contours.append(cnt)
+
+        # sauvegarde debug segmentation
+        seg_img = np.zeros(img.shape[:2],dtype=np.uint8)
+
+        cv2.drawContours(seg_img,valid_contours,-1,255,-1)
+
+        seg_file = (SEG_DATASET_DIR /f"{datetime.now():%Y%m%d_%H%M%S}.png")
+        cv2.imwrite(str(seg_file),seg_img)
+
+        return valid_contours
+
+    # ======================================================
+    # Détection lentille isolée
+    # ======================================================
+    #si la distance minimale d'isolation ne fonctionne pour aucune lentille
+    #ajouter un cas ou l'on prend juste la plus éloignés
+    def detect_isolated_duckweed(self,
+                                 isolation_distance_px=100,
+                                 min_area_px=100,
+                                 max_area_px=5000,
+                                 min_circularity=0.4,
+                                 debug=False):
+        """
+        Retourne la première lentille isolée trouvée.
+        """
+
+        img_path = self.get_latest_image(CLEAN_DATASET_DIR)
+        img = cv2.imread(str(img_path))
+
+        if img is None:
+            raise ValueError("Impossible de charger l'image")
+
+        contours = self.get_img_contour(img,min_area_px,max_area_px,min_circularity)
+        if len(contours) < 2:
+            return None
+
+        centers = []
+        for cnt in contours:
 
             M = cv2.moments(cnt)
             if M["m00"] == 0:
                 continue
-            
-            #les valeurs récupérer sont en pixels 
-            #ils sera insdispensables de les transformé en coordonnées dans le réferentiel du plateau par un calcul
-            #qui prend en compte la hauteur a laquelle l'image est prise 
+
             cx = int(M["m10"] / M["m00"])
             cy = int(M["m01"] / M["m00"])
+            centers.append((cx, cy))
 
-            centroids.append((cx, cy))
-
-            objects.append(
-                {
-                    "label": label,
-                    "area": area,
-                    "circularity": circularity,
-                    "center": (cx, cy)
-                }
-            )
-
-        # =====================================
-        # Calcul isolement
-        # =====================================
-        # A terme il sera préferable de rechercher la duckweed la plus éloignés 
-        # ou pour gagner du temps la première duckweed suffisament éloignés
-        #plutot que toutes les duckweeds éloignés d'une distance paramétrisée
-        for i, obj in enumerate(objects):
-            current_center = np.array(obj["center"])
+        for i, center in enumerate(centers):
             min_dist = np.inf
 
-            for j, other in enumerate(objects):
+            for j, other in enumerate(centers):
                 if i == j:
                     continue
-                d = np.linalg.norm(current_center - np.array(other["center"]))
 
-                min_dist = min(min_dist, d)
+                dist = np.linalg.norm(np.array(center)- np.array(other))
+
+                min_dist = min(min_dist,dist)
 
             if min_dist > isolation_distance_px:
-                obj["nearest_distance"] = min_dist
-                isolated_duckweeds.append(obj)
+                if debug:
+                    print(f"Lentille isolée trouvée : "f"{center}")
 
-        if debug:
-            print(f"Lentilles isolées : "f"{len(isolated_duckweeds)}")
+                return self.get_coordinate_from_pixel(center)
 
-        return isolated_duckweeds
+        return None
 
+    # ======================================================
+    # Conversion pixel -> repère plateau
+    # ======================================================
 
+    def get_coordinate_from_pixel(self,pos_px) -> tuple:
+
+        """
+        Fonction à calibrer expérimentalement.
+
+        Retour :
+        (x_mm, y_mm)
+        """
+
+        # --------------------------------------------------
+        # Exemple :
+        # diamètre réel du puits = 35 mm
+        # diamètre observé = 600 px
+        # --------------------------------------------------
+        mm_per_pixel = 35 / 600
+        center_well_px = (640,480)
+
+        x_mm = (pos_px[0] - center_well_px[0]) * mm_per_pixel
+        y_mm = (pos_px[1] - center_well_px[1]) * mm_per_pixel
+
+        x_mm += self.offset_x
+        y_mm += self.offset_y
+
+        return (round(x_mm, 3),round(y_mm, 3))
