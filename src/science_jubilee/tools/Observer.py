@@ -14,7 +14,7 @@ from pathlib import Path
 
 OCTOPI_IP = "10.0.9.55"
 
-LED_SERVER = "http://10.0.9.55:5000"
+LED_SERVER = "http://10.0.9.55:5001"
 
 RAW_DATASET_DIR = Path("dataset_brut")
 RAW_LED_DIR = Path("dataset_brut_led")
@@ -31,20 +31,49 @@ class Camera:
 
     offset_x = 4
     offset_y = 4
+    url = f"http://{OCTOPI_IP}/webcam/?action=snapshot"
 
     # ======================================================
     # Capture image
     # ======================================================
 
-    @staticmethod
-    def capture_octopi_image(save_dir=RAW_DATASET_DIR,
-                             url=f"http://{OCTOPI_IP}/webcam/?action=snapshot"):
+    def get_image(self):
         """
         Capture une image depuis OctoPi.
         """
 
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        output_file = save_dir / f"{timestamp}.jpg"
+        try:
+            response = requests.get(self.url, timeout=10)
+            image = response.content
+
+            print(f"Erreur HTTP : {response.status_code}")
+
+        except requests.exceptions.RequestException as e:
+            print(f"Erreur connexion : {e}")
+
+        return image
+
+    def save_image(self, img = None,save_dir = RAW_DATASET_DIR, save_name = None):
+        if img == None:
+            img = self.get_image()
+
+        if save_name == None:
+            save_name = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        
+        output_file = save_dir / f"{save_name}.jpg"
+
+        with open(output_file, "wb") as f:
+            f.write(img)
+        print(f"Image enregistrée : {output_file}")
+
+
+
+    """@staticmethod 
+    def capture_octopi_image_old(save_dir=RAW_DATASET_DIR,
+                             url=f"http://{OCTOPI_IP}/webcam/?action=snapshot"):
+        
+        #Capture une image depuis OctoPi.
+        
 
         try:
             response = requests.get(url, timeout=10)
@@ -61,58 +90,60 @@ class Camera:
         except requests.exceptions.RequestException as e:
             print(f"Erreur connexion : {e}")
 
-        return None
+        return None"""
 
     # ======================================================
     # Acquisition multi-éclairage
     # ======================================================
 
-    def image_sans_ombre(self):
+    def get_diff_shadow_img(self, nb_img = 8, temp_dir = RAW_LED_DIR):
+        #on s'assure que tout soit éteint
+        requests.get(f"{LED_SERVER}/off")
+
         # nettoyage du dossier temporaire
-        for file in RAW_LED_DIR.glob("*.jpg"):
+        for file in temp_dir.glob("*.jpg"):
             file.unlink()
 
-        # acquisition des 8 images
-        for i in range(8):
-            print(f"LED {i}")
-            requests.get(f"{LED_SERVER}/pixel/{i}/255/255/255")
+        images = None
+        # acquisition des images
+        for i in range(nb_img):
+            print(f"LED {i%nb_img}")
+            requests.get(f"{LED_SERVER}/pixel/{i%nb_img}/255/255/255")
+            time.sleep(0.2)
+
+            images.append(self.get_image())
+            self.save_image(img = images[i], save_dir=temp_dir)
             time.sleep(0.5)
-
-            self.capture_octopi_image(save_dir=RAW_LED_DIR)
-
+            
             requests.get(f"{LED_SERVER}/pixel/{i}/0/0/0")
             time.sleep(0.2)
 
-        return self.generate_minimum_image()
+        return images
 
     # ======================================================
     # Génération image minimum
     # ======================================================
 
-    def generate_minimum_image(self):
-        image_files = sorted(RAW_LED_DIR.glob("*.jpg"))
+    def get_clean_image(self,images = None, save_dir = None, save_name= None, nb_image_used = 8):
 
-        if len(image_files) == 0:
-            raise ValueError("Aucune image dans dataset_brut_led")
+        if images == None:
+            images = self.get_diff_shadow_img(nb_img=nb_image_used)
 
-        images = []
-
-        for file in image_files:
-            img = cv2.imread(str(file))
-            if img is not None:
-                images.append(img)
+        if len(images) == 0:
+            raise ValueError("Aucune image")
 
         result = images[0].copy()
 
         for img in images[1:]:
             result = np.minimum(result, img)
 
-        output_file = (CLEAN_DATASET_DIR /f"{datetime.now():%Y%m%d_%H%M%S}.jpg")
-        cv2.imwrite(str(output_file),result)
+        if save_dir != None:
+            if save_name == None:
+                self.save_image(img = result, save_dir=save_dir,)
+            else:
+                self.save_image(img = result, save_dir=save_dir, save_name=save_name)
 
-        print(f"Image sans reflet enregistrée : {output_file}")
-
-        return output_file
+        return result
 
     # ======================================================
     # Recherche image la plus récente
@@ -129,7 +160,7 @@ class Camera:
     # ======================================================
     # Segmentation ExG
     # ======================================================
-
+    #TODO : Revoir la fonction et ces cas d'utilisation, que doit elle retourner ?
     def get_img_contour(self,img,
                         min_area_px=100,
                         max_area_px=5000,
@@ -265,3 +296,4 @@ class Camera:
         y_mm += self.offset_y
 
         return (round(x_mm, 3),round(y_mm, 3))
+    
