@@ -1,25 +1,49 @@
 """
 Une expérience a pour but de construire un ensemble de données ou d'observation
-les données seront pris par des outils ou des obersvateurs
-Ajouter des template pour les outils, suffisament de paramètres ?
+Chaque expérience aura un accès spécifique aux classes
+Par défault Deck navigation et Tool_changer
+possibilité d'ajouter des outils et des observers/capteurs
+les données seront récupérer par des taches des outils ou des obersvateurs
+Ajouter des taches avec suffisament de paramètres pour les outils
+
+Lors d'une expérience on réalise un enchainement de taches distinctes
+Les taches sont des fonctions uniques des outils, même si certaines fonctions se ressemble.
+
+Ou alors les taches utilisent les fonctions des outils, 
+peut être plus intéressant pour facilité et la comprehension du code ???
+Pour un utilisateur, il choisit ou construit son expérience avec des taches.
+
+Class mère Task(ABC):
+    Class fille Place(Task):
+            import Inoculator
+                fonction de tranfer des objets de l'expérience
+
+Le développeur créera son outils, puis la tache associé, pour l'instant tout est dans la classe de l'outil.
 
 Utilisation de MongoDB et Altar
-Le nom des fichier et des dossiers a une importance, 
+Le nom des fichier et des dossiers a une importance,
+Les variantes de config peuvent être ajouté dans la commande
 une exp pouvant être réaliser sous diff param
 
 structure des expériences
 Experiments
+    Launch_exp      récupère les param et le deck choisie depuis l'interface 
+                    charge le deck et lance la commande pour l'exp associé en mock puis en hardware
     Exp1
-        set_de_param1
-        ...
     ...
 
-Pour une utiisation avec l'interface graphique
-les param seront envoyé en format json par l'interface
-Lancement automatique depuis l'interface
+Pour une utilisation avec l'interface graphique.
+les param seront envoyé en format json par l'interface 
+Dans ce fichier l'expérience choisie sera lue par Launch_exp
+Remplacer deck_config par exp_config 
 
-Chaque expéricnece devrait être validé par le jumeau
-les paramètres d'expérience feront varié les mvt ? je pense pas
+l'expirence en mock doit skip la prise de données, 1 expérience 2 fichiers: mock et hardware
+ou alors les fonctions de prise de données doivent être classé pour ne s'activer que aux moment du hardware
+Les mouvements qui dépendent de mesure sont imprévisible avant l'exp donc le jumeau ne peux pas les valider
+Si on utilise des tasks ou pourrait plus facilement isolé le hardware du mock.
+
+Le deck et les labwares représentes des paramètres
+récupérer leurs infos via leur fichiers deck_config
 
 Format 
 IMPORTS
