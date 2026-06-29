@@ -98,5 +98,5 @@ class Inoculator(Tool):
                           sweep_x=sweep_x,
                           sweep_y=sweep_y,
                           sweep_speed=sweep_speed,
-                          randomize_pickup=randomize_pickup)
+                          randomize_pickup=randomize_pickup)    
 

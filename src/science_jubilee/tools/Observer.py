@@ -66,32 +66,6 @@ class Camera:
             f.write(img)
         print(f"Image enregistrée : {output_file}")
 
-
-
-    """@staticmethod 
-    def capture_octopi_image_old(save_dir=RAW_DATASET_DIR,
-                             url=f"http://{OCTOPI_IP}/webcam/?action=snapshot"):
-        
-        #Capture une image depuis OctoPi.
-        
-
-        try:
-            response = requests.get(url, timeout=10)
-
-            if response.status_code == 200:
-                with open(output_file, "wb") as f:
-                    f.write(response.content)
-
-                print(f"Image enregistrée : {output_file}")
-                return output_file
-
-            print(f"Erreur HTTP : {response.status_code}")
-
-        except requests.exceptions.RequestException as e:
-            print(f"Erreur connexion : {e}")
-
-        return None"""
-
     # ======================================================
     # Acquisition multi-éclairage
     # ======================================================
@@ -154,8 +128,8 @@ class Camera:
         files = list(folder.glob("*.jpg"))
         if len(files) == 0:
             raise FileNotFoundError(f"Aucune image dans {folder}")
-
-        return max(files,key=os.path.getmtime)
+        
+        return cv2.imread(max(files,key=os.path.getmtime))
 
     # ======================================================
     # Segmentation ExG
@@ -164,7 +138,7 @@ class Camera:
     def get_img_contour(self,img,
                         min_area_px=100,
                         max_area_px=5000,
-                        min_circularity=0.4):
+                        min_circularity=0.4,debug = True):
 
         b, g, r = cv2.split(img)
         exg = (
@@ -210,6 +184,18 @@ class Camera:
 
         seg_file = (SEG_DATASET_DIR /f"{datetime.now():%Y%m%d_%H%M%S}.png")
         cv2.imwrite(str(seg_file),seg_img)
+
+        if debug == True:
+            cv2.imshow("Image", img)
+            cv2.imshow("ExG", exg)
+            cv2.imshow("Mask", mask)
+
+            img_contours = img.copy()
+            cv2.drawContours(img_contours, contours, -1, (0,255,0), 2)
+            cv2.imshow("Contours", img_contours)
+
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
 
         return valid_contours
 
@@ -297,3 +283,5 @@ class Camera:
 
         return (round(x_mm, 3),round(y_mm, 3))
     
+
+
