@@ -37,40 +37,43 @@ class Camera:
     # Capture image
     # ======================================================
 
-    def get_image(self):
-        """
-        Capture une image depuis OctoPi.
-        """
+    def get_image(self) -> np.ndarray:
+        """Capture une image depuis OctoPi."""
 
         try:
             response = requests.get(self.url, timeout=10)
-            image = response.content
+            response.raise_for_status()
 
-            print(f"Erreur HTTP : {response.status_code}")
+            img = cv2.imdecode(
+                np.frombuffer(response.content, np.uint8),
+                cv2.IMREAD_COLOR,
+            )
+
+            if img is None:
+                raise RuntimeError("Impossible de décoder l'image.")
+
+            return img
 
         except requests.exceptions.RequestException as e:
-            print(f"Erreur connexion : {e}")
+            raise RuntimeError(f"Erreur connexion caméra : {e}")
 
-        return image
+    def save_image(self, img=None, save_dir=RAW_DATASET_DIR, save_name=None):
 
-    def save_image(self, img = None,save_dir = RAW_DATASET_DIR, save_name = None):
-        if img == None:
+        if img is None:
             img = self.get_image()
 
-        if save_name == None:
+        if save_name is None:
             save_name = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        
+
         output_file = save_dir / f"{save_name}.jpg"
 
-        with open(output_file, "wb") as f:
-            f.write(img)
-        print(f"Image enregistrée : {output_file}")
+        cv2.imwrite(str(output_file), img)
 
     # ======================================================
     # Acquisition multi-éclairage
     # ======================================================
 
-    def get_diff_shadow_img(self, nb_img = 8, temp_dir = RAW_LED_DIR):
+    def get_multi_lighting_img(self, nb_img = 8, temp_dir = RAW_LED_DIR,):
         #on s'assure que tout soit éteint
         requests.get(f"{LED_SERVER}/off")
 
@@ -78,16 +81,15 @@ class Camera:
         for file in temp_dir.glob("*.jpg"):
             file.unlink()
 
-        images = None
+        images = []
         # acquisition des images
         for i in range(nb_img):
             print(f"LED {i%nb_img}")
-            requests.get(f"{LED_SERVER}/pixel/{i%nb_img}/255/255/255")
-            time.sleep(0.2)
+            requests.get(f"{LED_SERVER}/pixel/{i%nb_img}/255/255/50")
+            time.sleep(3)
 
             images.append(self.get_image())
             self.save_image(img = images[i], save_dir=temp_dir)
-            time.sleep(0.5)
             
             requests.get(f"{LED_SERVER}/pixel/{i}/0/0/0")
             time.sleep(0.2)
@@ -100,8 +102,8 @@ class Camera:
 
     def get_clean_image(self,images = None, save_dir = None, save_name= None, nb_image_used = 8):
 
-        if images == None:
-            images = self.get_diff_shadow_img(nb_img=nb_image_used)
+        if images is None:
+            images = self.get_multi_lighting_img(nb_img=nb_image_used)
 
         if len(images) == 0:
             raise ValueError("Aucune image")
@@ -126,19 +128,19 @@ class Camera:
     @staticmethod
     def get_latest_image(folder=CLEAN_DATASET_DIR):
         files = list(folder.glob("*.jpg"))
-        if len(files) == 0:
-            raise FileNotFoundError(f"Aucune image dans {folder}")
-        
-        return cv2.imread(max(files,key=os.path.getmtime))
+        if not files:
+            raise FileNotFoundError(folder)
+
+        latest = max(files, key=os.path.getmtime)
+        return cv2.imread(str(latest))
 
     # ======================================================
     # Segmentation ExG
     # ======================================================
-    #TODO : Revoir la fonction et ces cas d'utilisation, que doit elle retourner ?
     def get_img_contour(self,img,
-                        min_area_px=100,
-                        max_area_px=5000,
-                        min_circularity=0.4,debug = True):
+                        min_area_px=20,
+                        max_area_px=200,
+                        min_circularity=0.8,debug = False):
 
         b, g, r = cv2.split(img)
         exg = (
@@ -149,9 +151,10 @@ class Camera:
         exg = cv2.normalize(exg,None,0,255,cv2.NORM_MINMAX)
         exg = exg.astype(np.uint8)
 
-        _, mask = cv2.threshold(exg,0,255,cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        _, mask = cv2.threshold(exg,140,255,cv2.THRESH_BINARY)
 
-        kernel = np.ones((5, 5), np.uint8)
+
+        kernel = np.ones((3, 3), np.uint8)
         mask = cv2.morphologyEx(mask,cv2.MORPH_OPEN,kernel)
         mask = cv2.morphologyEx(mask,cv2.MORPH_CLOSE,kernel)
 
@@ -177,13 +180,12 @@ class Camera:
 
             valid_contours.append(cnt)
 
-        # sauvegarde debug segmentation
-        seg_img = np.zeros(img.shape[:2],dtype=np.uint8)
+        # sauvegarde debug contour
+        img_contours = cv2.drawContours(img, valid_contours, -1, (0,255,0), 2)
 
-        cv2.drawContours(seg_img,valid_contours,-1,255,-1)
 
-        seg_file = (SEG_DATASET_DIR /f"{datetime.now():%Y%m%d_%H%M%S}.png")
-        cv2.imwrite(str(seg_file),seg_img)
+        contour_file = (SEG_DATASET_DIR /f"{datetime.now():%Y%m%d_%H%M%S}.png")
+        cv2.imwrite(str(contour_file),img_contours)
 
         if debug == True:
             cv2.imshow("Image", img)
@@ -204,28 +206,20 @@ class Camera:
     # ======================================================
     #si la distance minimale d'isolation ne fonctionne pour aucune lentille
     #ajouter un cas ou l'on prend juste la plus éloignés
-    def detect_isolated_duckweed(self,
-                                 isolation_distance_px=100,
-                                 min_area_px=100,
-                                 max_area_px=5000,
-                                 min_circularity=0.4,
-                                 debug=False):
+    def detect_isolated_duckweed(self,valid_contours = None,debug=False):
         """
         Retourne la première lentille isolée trouvée.
         """
+        if valid_contours is None:
+            img_contours = self.get_latest_image(SEG_DATASET_DIR)
+            valid_contours = self.get_img_contour(img = img_contours,debug = debug)
 
-        img_path = self.get_latest_image(CLEAN_DATASET_DIR)
-        img = cv2.imread(str(img_path))
-
-        if img is None:
-            raise ValueError("Impossible de charger l'image")
-
-        contours = self.get_img_contour(img,min_area_px,max_area_px,min_circularity)
-        if len(contours) < 2:
+        if valid_contours == []:
+            print("No lenses detected")
             return None
 
         centers = []
-        for cnt in contours:
+        for cnt in valid_contours:
 
             M = cv2.moments(cnt)
             if M["m00"] == 0:
@@ -243,45 +237,51 @@ class Camera:
                     continue
 
                 dist = np.linalg.norm(np.array(center)- np.array(other))
-
-                min_dist = min(min_dist,dist)
-
-            if min_dist > isolation_distance_px:
-                if debug:
-                    print(f"Lentille isolée trouvée : "f"{center}")
-
-                return self.get_coordinate_from_pixel(center)
-
-        return None
+                
+                if min_dist > dist:
+                    min_dist = min
+                    isolated_lens = cnt
+                
+        return isolated_lens
 
     # ======================================================
     # Conversion pixel -> repère plateau
     # ======================================================
 
-    def get_coordinate_from_pixel(self,pos_px) -> tuple:
+    def get_coordinate_from_pixel(
+            self,
+            px_low,
+            px_high,
+            camera_z_low,
+            camera_z_high):
 
-        """
-        Fonction à calibrer expérimentalement.
+        center = np.array((640, 480), dtype=float)
 
-        Retour :
-        (x_mm, y_mm)
-        """
-
-        # --------------------------------------------------
-        # Exemple :
-        # diamètre réel du puits = 35 mm
-        # diamètre observé = 600 px
-        # --------------------------------------------------
         mm_per_pixel = 35 / 600
-        center_well_px = (640,480)
 
-        x_mm = (pos_px[0] - center_well_px[0]) * mm_per_pixel
-        y_mm = (pos_px[1] - center_well_px[1]) * mm_per_pixel
+        p1 = np.array(px_low, dtype=float)
+        p2 = np.array(px_high, dtype=float)
 
-        x_mm += self.offset_x
-        y_mm += self.offset_y
+        # moyenne des positions pour x/y
+        p = (p1 + p2) / 2
 
-        return (round(x_mm, 3),round(y_mm, 3))
-    
+        x = (p[0] - center[0]) * mm_per_pixel + self.offset_x
+        y = (p[1] - center[1]) * mm_per_pixel + self.offset_y
+
+        # déplacement entre les deux images
+        disparity = np.linalg.norm(p2 - p1)
+
+        # Calibration expérimentale
+        # h = a * disparity + b
+        a = -0.12      # exemple
+        b = 18.5
+
+        height = a * disparity + b
+
+        return (
+            round(x, 3),
+            round(y, 3),
+            round(height, 3),
+        )
 
 
