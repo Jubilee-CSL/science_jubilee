@@ -204,8 +204,6 @@ class Camera:
     # ======================================================
     # Détection lentille isolée
     # ======================================================
-    #si la distance minimale d'isolation ne fonctionne pour aucune lentille
-    #ajouter un cas ou l'on prend juste la plus éloignés
     def detect_isolated_duckweed(self,valid_contours = None,debug=False):
         """
         Retourne la première lentille isolée trouvée.
@@ -248,7 +246,7 @@ class Camera:
     # Conversion pixel -> repère plateau
     # ======================================================
 
-    def get_coordinate_from_pixel(
+    def get_lens_height(
             self,
             px_low,
             px_high,
@@ -283,5 +281,28 @@ class Camera:
             round(y, 3),
             round(height, 3),
         )
+    
+    #fonction a placer dans une classe plus adapté
+    def get_lens_coordinate(self, lens_pos_px, well, taille_img ) -> tuple:
+        #l'objet well contient ses propriétés géométriques notamment le diamètre
+        diameter = well.diameter
+        #et la postion centrale du puit dans le réferentiel du plateau
+        center_x = well.x
+        center_y = well.y
+        #on considère que le puit est centré sur l'image
+        center_x_px = taille_img[0]
+        center_y_px = taille_img[1]
+        #On détecte l'équivalent en pixel avec du traitement d'image pour ce construire une échelle, 1 point du périmètre suffit
+        diameter_px = self.get_well_px()
+
+        scale = diameter/diameter_px
+
+        delta_x = (lens_pos_px[0] - center_x_px)*scale
+        delta_y = (lens_pos_px[1] - center_y_px)*scale
+
+        lens_pos_x = center_x + delta_x
+        lens_pos_y = center_y + delta_y
+
+        return (lens_pos_x, lens_pos_y)
 
 
