@@ -184,8 +184,8 @@ class Camera:
         img_contours = cv2.drawContours(img, valid_contours, -1, (0,255,0), 2)
 
 
-        contour_file = (SEG_DATASET_DIR /f"{datetime.now():%Y%m%d_%H%M%S}.png")
-        cv2.imwrite(str(contour_file),img_contours)
+        mask_file = (SEG_DATASET_DIR /f"{datetime.now():%Y%m%d_%H%M%S}.png")
+        cv2.imwrite(str(mask_file),mask)
 
         if debug == True:
             cv2.imshow("Image", img)
