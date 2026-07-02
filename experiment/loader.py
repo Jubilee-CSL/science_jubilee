@@ -55,6 +55,7 @@ class ExperimentLoader:
 
         # Le chargement du Deck sera ajouté plus tard
         # lorsque DeckConfig sera stabilisé.
+        # s'assurer que lorsque l'on charge deck, cela charge automatique les labwares avec
         """with deck_file.open("r",encoding="utf-8") as file:
             config = json.load(file)
             deck = Deck(deck_def)"""
