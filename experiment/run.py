@@ -130,3 +130,5 @@ class ExperimentRun:
     results: dict = field(default_factory=dict)
 
     state: str = "CREATED"
+
+    metadata: dict = field(default_factory=dict)

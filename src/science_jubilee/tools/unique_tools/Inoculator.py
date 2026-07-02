@@ -12,6 +12,18 @@ class Inoculator(Tool):
     :param Tool: The base tool class
     :type Tool: :class:`Tool`
     """
+    @requires_active_tool
+    def sweep(self,nav: DeckNavigator, source: Well, 
+              sweep_x: float = 5.0,
+              sweep_y: float = 5.0, 
+              sweep_speed: float = 500.0)-> Location:
+        
+        sweep_position = source.safe_sweep(start= source, 
+                sweep_x=sweep_x, sweep_y=sweep_y)
+        
+        nav.move_to_target(target=sweep_position,speed_xy=sweep_speed,speed_z=sweep_speed,safe_movement=False)
+
+
 
     @requires_active_tool
     def transfer(self,nav: DeckNavigator, source: Well, destination: Well,

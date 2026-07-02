@@ -9,7 +9,7 @@ from science_jubilee.hal.motion_driver import MotionDriver
 from science_jubilee.decks.Deck import Deck
 from science_jubilee.labware.Labware import (
     Labware,
-    Location,
+    Location,Point,
     Well,
 )
 
@@ -41,35 +41,18 @@ class DeckNavigator:
     # Safe Z movement
     # ------------------------------------------------------------------
 
-    def move_to_safe_z(
-        self,
-        margin: float | None = None,
-        speed: float | None = None,
-    ) -> None:
+    def move_to_safe_z(self,margin: float | None = None,speed: float | None = None,) -> None:
         """
         Raise the machine to a safe travel height.
         """
-
-        margin = (
-            self.travel_margin
-            if margin is None
-            else margin
-        )
-
-        speed = (
-            self.default_speed_z
-            if speed is None
-            else speed
-        )
+        margin = (self.travel_margin if margin is None else margin)
+        speed = (self.default_speed_z if speed is None else speed)
 
         current_position = self.driver.get_positions()
-
         current_z = float(current_position.get("Z", 0.0))
-
         target_z = (float(self.deck.safe_z)+ float(margin))
 
         if current_z < target_z:
-
             self.driver.move_to(
                 {"Z": target_z},
                 s=speed,
@@ -79,156 +62,75 @@ class DeckNavigator:
     # ------------------------------------------------------------------
     # Well movement
     # ------------------------------------------------------------------
-
-    #move safely to well only, ajouter une option not safe ?
-    def move_to_target(
-        self,
-        target: Well | Location,
-        *,
-        z_from_bottom: float | None = None,
-        z_from_top: float | None = None,
+    def move_to_well(self,
+        well: Well,
         speed_xy: float | None = None,
         speed_z: float | None = None,
-        travel_margin: float | None = None,
-        safe_movement: bool = True
-    ) -> None:
+        margin: float = None) -> None:
         """
         Collision-safe movement toward a Well or Location.
         """
 
-        speed_xy = (
-            self.default_speed_xy
-            if speed_xy is None
-            else speed_xy
-        )
+        speed_xy = (self.default_speed_xy if speed_xy is None else speed_xy)
+        speed_z = (self.default_speed_z if speed_z is None else speed_z)
+        margin = (self.travel_margin if margin is None else margin)
 
-        speed_z = (
-            self.default_speed_z
-            if speed_z is None
-            else speed_z
-        )
-
-        x, y, z = self._resolve_target_position(
-            target=target,
-            z_from_bottom=z_from_bottom,
-            z_from_top=z_from_top,
-        )
 
         # 1) Move to safe travel Z, if safe_movement is true
-        if safe_movement == True:
-            self.move_to_safe_z(margin=travel_margin,speed=speed_z,)
+        self.move_to_safe_z(margin=margin,speed=speed_z,)
 
-        # 2) XY travel
-
-        self.driver.move_to(
-            {
-                "X": float(x),
-                "Y": float(y),
-            },
-            s=speed_xy,
-            wait=True,
-        )
-
-        # 3) Descend in Z
-
-        self.driver.move_to(
-            {
-                "Z": float(z),
-            },
-            s=speed_z,
-            wait=True,
-        )
-
-    # ------------------------------------------------------------------
-    # Target resolution
-    # ------------------------------------------------------------------
-
-    def _resolve_target_position(
-        self,
-        *,
-        target: Well | Location,
-        z_from_bottom: float | None,
-        z_from_top: float | None,
-    ) -> tuple[float, float, float]:
-        """
-        Resolve runtime coordinates from Well or Location.
-        """
-
-        if (
-            z_from_bottom is not None
-            and z_from_top is not None
-        ):
-            raise ValueError(
-                "Specify only one of "
-                "z_from_bottom or z_from_top."
-            )
-
-        # --------------------------------------------------------------
-        # Direct location
-        # --------------------------------------------------------------
-
-        if isinstance(target, Location):
-
-            return (target.point.x,target.point.y,target.point.z,)
-
-        # --------------------------------------------------------------
-        # Well target
-        # --------------------------------------------------------------
-
-        if isinstance(target, Well):
-
-            if z_from_bottom is not None:
-
-                location = target.get_bottom_location(
-                    z_from_bottom
-                )
-
-                return (location.point.x,location.point.y,location.point.z)
-
-            if z_from_top is not None:
-
-                location = target.get_top_location(z_from_top)
-
-                return (location.point.x,location.point.y,location.point.z)
+        # 2) XY trave
+        self.driver.move_to({"X": float(well.x),"Y": float(well.y),"Z": float(well.top)},s=speed_xy,wait=True)
 
 
-            return (target.x,target.y,target.z)
+    def move_to_water_level(self, well: Well,surface: bool = False,speed_z: float | None = None,):
 
-        raise TypeError(
-            f"Unsupported target type: "
-            f"{type(target).__name__}"
-        )
+        speed_z = (self.default_speed_z if speed_z is None else speed_z)
 
+        position = self.driver.get_positions
+        if not well.in_usable_space(Location
+                                    (point = Point(position["X"],
+                                                   position["Y"],
+                                                   position["Z"]))):
+            
+            raise ValueError("Need to be inside a well to use this fonctions")
+        
+        #A modifié si une méthode efficace existe pour ce déplacer vers la surface de l'eau d'un puit
+        if surface == True:
+            self.driver.move_to({"Z":float(well.depth)},s=speed_z,wait=True)
+        else:
+            self.driver.move_to({"Z":float(well.bottom)},s=speed_z,wait=True)
+
+
+
+    def xy_move_inside_well(self, well:Well, x:float, y:float,speed_xy:float |None = None,random:bool = False):
+        
+        speed_xy = (self.default_speed_xy if speed_xy is None else speed_xy)
+
+        if random:
+            destination : Location = well.random_point()
+        else:
+            destination : Location = well.safe_move(well,x,y)
+        self.driver.move_to({"X":float(destination.point.x),
+                             "Y":float(destination.point.y)},
+                             s=speed_xy,wait=True)
+    
     # ------------------------------------------------------------------
     # Deck helpers
     # ------------------------------------------------------------------
-
-    def get_labware_in_slot(
-        self,
-        slot_id: str | int,
-    ) -> Labware:
+    def get_labware_in_slot(self,slot_id: str | int) -> Labware:
         """
         Retrieve loaded labware from deck.
         """
-
-        slot = self.deck.get_slot(
-            str(slot_id)
-        )
+        slot = self.deck.get_slot(str(slot_id))
 
         return slot.get_labware()
 
-    def get_well(
-        self,
-        slot_id: str | int,
-        well_id: str,
-    ) -> Well:
+    def get_well(self,slot_id: str | int,well_id: str,) -> Well:
         """
         Retrieve a well directly from deck state.
         """
 
-        return self.deck.get_well(
-            str(slot_id),
-            well_id,
-        )
+        return self.deck.get_well(str(slot_id),well_id)
     
     

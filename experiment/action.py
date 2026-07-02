@@ -5,6 +5,10 @@ from dataclasses import dataclass, field
 from uuid import UUID, uuid4
 
 from science_jubilee.navigation.deck_navigation import DeckNavigator
+from science_jubilee.hal.tool_changer import ToolChanger
+from science_jubilee.labware.Labware import Well
+
+
 from experiment.registry import Registry
 
 
@@ -22,7 +26,6 @@ class ExperimentNode(ABC):
 
     enabled: bool = True
 
-    metadata: dict
 # ======================================================
 # Action
 # ======================================================
@@ -41,10 +44,7 @@ class Action(ExperimentNode):
 
     id: UUID = field(default_factory=uuid4)
 
-    enabled: bool = True
-
-    metadata: dict = field(default_factory=dict)
-    
+    enabled: bool = True    
 
 # ======================================================
 # Type of action
@@ -54,9 +54,11 @@ class Action(ExperimentNode):
 class MotionAction(Action):
     """Classe mère des actions de déplacement."""
     simulate = True
+    nav: DeckNavigator
 
 @dataclass(frozen=True)
 class ToolAction(Action):
+
     """Toutes les actions liées au ToolChanger."""
     simulate = True
 
@@ -82,56 +84,91 @@ class FlowAction(Action):
 # ======================================================
 # Motion action
 # ======================================================
-@Registry.register
-@dataclass(frozen=True)
-class MoveToTarget(MotionAction):
 
-    target: nav.deck.
-
-    speed_xy: float = 6000
-
-    speed_z: float = 4000
-
-    travel_margin: float = 5
-
-    safe_motion: bool = True
-    
-    def compile(self,nav: DeckNavigator):
-        nav.move_to_target(x,x)
-
+@Registry.register("home")
 @Registry.register
 @dataclass(frozen=True)
 class Home(MotionAction):
-
+    from science_jubilee.hal.motion_driver import MotionDriver
     axes: tuple[str, ...] = ("X", "Y", "Z")
+    MotionDriver.home_all()
 
-@Registry.register
+@Registry.register("move_to_well")
 @dataclass(frozen=True)
-class SafeZ(MotionAction):
+class MoveToWell(MotionAction):
+    
+    well_name: str 
+    slot_id: str
+    speed_xy: float = None
+    speed_z: float = None
 
-    z: float
+    margin: float = None
+    random: bool = False
+    
+    def compile(self):
+        well = self.nav.get_well(slot_id=self.slot_id,well_id=self.well_name)
+        self.nav.move_to_target( well=well,
+                            speed_xy= self.speed_xy,
+                            speed_z= self.speed_z,
+                            margin= self.margin,
+                            random= self.random)
 
-#Ajouter d'autre classe de mouvement exemple Sweep
+
+@Registry.register("move_to_safe_z")
+@dataclass(frozen=True)
+class MoveToSafeZ(MotionAction):
+    margin: float | None = None
+    speed: float | None = None
+
+    def compile(self):
+        self.nav.move_to_safe_z(margin= self.margin, speed= self.speed)
+
+@Registry.register("move_to_water_level")
+@dataclass(frozen=True)
+class MoveToWaterLevel():
+
+    well_name: str 
+    slot_id: str
+
+    surface: bool = False
+    speed_z: float = None
+
+    def compile(self):
+        well = self.nav.get_well(slot_id=self.slot_id,well_id=self.well_name)
+        self.nav.move_to_water_level(well=well,surface=self.surface,speed_z=self.speed_z)
+
+@Registry.register("move_inside_well")
+@dataclass(frozen=True)
+class MoveInsideWell():
+
+    well_name: str 
+    slot_id: str
+
+    x:float
+    y:float
+    speed_xy:float | None = None
+
+    def compile(self):
+        well = self.nav.get_well(slot_id=self.slot_id,well_id=self.well_name)
+        self.nav.xy_move_inside_well(well=well, x=self.x, y=self.y, speed_xy=self.speed_xy)
+
 
 # ======================================================
 # Tool action
 # ======================================================
-@Registry.register
+@Registry.register("pickup_tool")
 @dataclass(frozen=True)
 class PickupTool(ToolAction):
-
     tool_name: str
 
 @Registry.register
 @dataclass(frozen=True)
 class ParkTool(ToolAction):
-
     tool_name: str
 
 @Registry.register
 @dataclass(frozen=True)
 class ActivateTool(ToolAction):
-
     tool_name: str
 
 #Attention ce ne sont que les action liées aux tool changer qui sont placé ici

@@ -4,7 +4,7 @@ from abc import ABC
 from dataclasses import dataclass, field
 
 from experiment.plan import ExecutionPlan
-from experiment.runner import ExperimentCompiler
+from experiment.run import ExperimentCompiler
 from experiment.action import ExperimentNode
 
 
@@ -32,8 +32,6 @@ class Experiment:
     version: str = "1.0"
 
     parameters: dict = field(default_factory=dict)
-
-    metadata: dict = field(default_factory=dict)
 
     sequence: list[ExperimentNode] = field(default_factory=list)
 

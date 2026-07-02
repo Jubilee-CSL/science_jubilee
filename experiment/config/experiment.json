@@ -1,0 +1,32 @@
+{
+    "name": "Transfer lens",
+
+    "description": "Simple demonstration",
+
+    "author": "no",
+
+    "version": "1.0",
+
+    "sequence": [
+
+        {
+
+            "id": "home"
+
+        },
+
+        {
+
+            "id": "transfer_lens",
+
+            "parameters": {
+
+                "source": "Plate1:A1",
+
+                "destination": "Plate2:A1"
+
+            }
+
+        }
+    ]
+}

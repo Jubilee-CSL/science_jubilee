@@ -32,39 +32,22 @@ class ExperimentLoader:
     # ---------------------------------------------------------
 
     @classmethod
-    def load(
-        cls,
-        experiment_file: str | Path,
-        deck_file: str | Path | None = None,
-    ) -> Experiment:
+    def load(cls,experiment_file: str | Path,deck_file: str | Path | None = None) -> Experiment:
 
         experiment_file = Path(experiment_file)
 
-        with experiment_file.open(
-            "r",
-            encoding="utf-8"
-        ) as file:
-
+        with experiment_file.open("r",encoding="utf-8") as file:
             config = json.load(file)
 
         experiment = Experiment(
-
             name=config["name"],
-
             description=config.get("description", ""),
-
             author=config.get("author", ""),
-
             version=config.get("version", "1.0"),
-
             parameters=config.get("parameters", {}),
-
-            metadata=config.get("metadata", {}),
-
         )
 
         for node in config.get("sequence", []):
-
             cls._add_node(
                 experiment,
                 node,
@@ -72,6 +55,9 @@ class ExperimentLoader:
 
         # Le chargement du Deck sera ajouté plus tard
         # lorsque DeckConfig sera stabilisé.
+        """with deck_file.open("r",encoding="utf-8") as file:
+            config = json.load(file)
+            deck = Deck(deck_def)"""
 
         return experiment
 
@@ -121,14 +107,6 @@ class ExperimentLoader:
     "author": "Pierre",
 
     "version": "1.0",
-
-    "parameters": {
-
-        "operator": "Pierre",
-
-        "temperature": 25
-
-    },
 
     "sequence": [
 
