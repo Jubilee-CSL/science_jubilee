@@ -16,6 +16,7 @@ from pathlib import Path
 
 from experiment.experiment import Experiment
 from experiment.registry import Registry
+from science_jubilee.decks import Deck
 
 class ExperimentLoader:
     """
@@ -53,14 +54,9 @@ class ExperimentLoader:
                 node,
             )
 
-        # Le chargement du Deck sera ajouté plus tard
-        # lorsque DeckConfig sera stabilisé.
-        # s'assurer que lorsque l'on charge deck, cela charge automatique les labwares avec
-        """with deck_file.open("r",encoding="utf-8") as file:
-            config = json.load(file)
-            deck = Deck(deck_def)"""
+        deck = Deck(deck_file)
 
-        return experiment
+        return experiment, deck
 
     # ---------------------------------------------------------
 

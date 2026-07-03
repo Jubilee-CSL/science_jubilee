@@ -172,6 +172,10 @@ class Deck(SlotSet):
 
         self.slots = self._create_slots()
 
+        labware = self.deck_config.get("")
+    
+    
+
     def __repr__(self):
         return (
             f"Deck("
@@ -213,10 +217,7 @@ class Deck(SlotSet):
             self.safe_z = z_height
 
 
-    def load_labware(
-        self,
-        labware_filename: str,
-        slot_id: int,
+    def load_labware(self,labware_filename: str,slot_id: int,
         path=os.path.join(os.path.dirname(__file__),
             "..",
             "labware",
@@ -264,5 +265,7 @@ class Deck(SlotSet):
                     False,
                 ),
             )
+            if slots[slot_id].has_labware == True :
+                self.load_labware(labware_filename=slot_data.get("labware"),slot_id=slot_id)
 
         return slots

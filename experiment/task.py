@@ -161,3 +161,37 @@ class TransferLens(Task):
                 speed=self.parameters["speed_z"],
             )
         )
+
+@dataclass
+@Registry.register("transfer_lens_to_all_well")
+class TransferLensToAllWell(Task):
+    """
+    Pour les taches composé de taches:
+        - Créé des taches complexes qui varie les paramètres d'autres taches et qui les compiles
+        - Point négatif le json d'expérience ne connaitra que la tache complexe
+        - Point positif simplifie la vie du dev
+
+        - Conserve les taches comme des combinaisons d'Action 
+        - Point négatif les taches dont la taille s'adapte dinamiquement sont impossibles
+        - Point positif le json d'expérience connaitra toujours tous ce qui ce passe
+        - Solution proposé, dans l'interface qui génère le json d'expérience
+                créé des options qui réalise les taches complexes
+                Ainsi les taches complexes existe pour l'utilisateur 
+                pour le software on connait toute les étapes
+                Mais cela oblige le développeur a tester ces taches complexes avec l'interface
+
+        - On autorise la création de taches complexes dans le codes software profonds
+                exemple: Transfer dans Inoculator et on créé une action transfer
+        - Point positif: simple pour le dev limite le nombre de taches/action a écrire
+        - Point négatif: le json d'expérience n'a pas le détail des actions
+
+        - Remarque: Est ce intéressant d'avoir le détail de toutes les actions ? 
+    """
+    ...
+
+
+@dataclass
+@Registry.register("Image_")
+class Image_sans_ombre(Task):
+    def compile(self):
+        ...

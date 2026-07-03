@@ -5,7 +5,6 @@ from dataclasses import dataclass, field
 from uuid import UUID, uuid4
 
 from science_jubilee.navigation.deck_navigation import DeckNavigator
-from science_jubilee.hal.tool_changer import ToolChanger
 from science_jubilee.labware.Labware import Well
 
 
@@ -58,10 +57,11 @@ class MotionAction(Action):
 
 @dataclass(frozen=True)
 class ToolAction(Action):
+    from science_jubilee.hal.tool_changer import ToolChanger
 
     """Toutes les actions liées au ToolChanger."""
     simulate = True
-
+    tool_changer = ToolChanger
 
 @dataclass(frozen=True)
 class AcquisitionAction(Action):
@@ -78,6 +78,11 @@ class FlowAction(Action):
     """Actions de contrôle du déroulement."""
     simulate = False
 
+@dataclass(frozen=True)
+class EnvAction(Action):
+    """Variation de l'environnement de la Jubilee."""
+    simulate = False
+
 #Ajouter EnvAction
 #Ajouter ExternalAction
 
@@ -85,13 +90,14 @@ class FlowAction(Action):
 # Motion action
 # ======================================================
 
-@Registry.register("home")
+@Registry.register("home_all")
 @Registry.register
 @dataclass(frozen=True)
-class Home(MotionAction):
-    from science_jubilee.hal.motion_driver import MotionDriver
-    axes: tuple[str, ...] = ("X", "Y", "Z")
-    MotionDriver.home_all()
+class HomeAll(MotionAction):
+
+    def compile(self):
+        from science_jubilee.hal.motion_driver import MotionDriver
+        MotionDriver.home_all()
 
 @Registry.register("move_to_well")
 @dataclass(frozen=True)
@@ -159,31 +165,30 @@ class MoveInsideWell():
 @Registry.register("pickup_tool")
 @dataclass(frozen=True)
 class PickupTool(ToolAction):
-    tool_name: str
+    tool_index: str
+    def compile(self):
+        self.tool_changer.pickup_tool(int(self.tool_index))
 
-@Registry.register
+@Registry.register("park_tool")
 @dataclass(frozen=True)
 class ParkTool(ToolAction):
-    tool_name: str
-
-@Registry.register
-@dataclass(frozen=True)
-class ActivateTool(ToolAction):
-    tool_name: str
-
+    def compile(self):
+        self.tool_changer.park_tool()
 #Attention ce ne sont que les action liées aux tool changer qui sont placé ici
 #Pour les acitons des modules externes utilisé la classe ExternalAction
 
 # ======================================================
 # Acquisition action
 # ======================================================
-@Registry.register
+@Registry.register("Capture_image")
 @dataclass(frozen=True)
 class CaptureImage(AcquisitionAction):
-
-    camera: str
-
-    filename: str | None = None
+    from science_jubilee.tools.Observer import Camera
+    cam: Camera
+    
+    def compile(self):
+        self.cam.save_image()
+    
 
 @Registry.register
 @dataclass(frozen=True)
@@ -219,3 +224,50 @@ class UserConfirmation(FlowAction):
 
 #ajouter d'autre classe pour la gestion d'une expérience
 
+# ======================================================
+# Environnemental action
+# ======================================================
+
+@Registry.register("pixel_on")
+@dataclass(frozen=True)
+class PixelOn(EnvAction):
+    from science_jubilee.tools.Observer import Neopixel
+    led_ring : Neopixel
+    led_index : str
+    r : float
+    g : float
+    b : float
+    def compile(self):
+        self.led_ring.pixel_on(led_index=self.led_index,r=self.r,g=self.g,b=self.b)
+
+@Registry.register("pixel_off")
+@dataclass(frozen=True)
+class PixelOff(EnvAction):
+    from science_jubilee.tools.Observer import Neopixel
+    led_ring : Neopixel
+    led_index : str
+
+    def compile(self):
+        self.led_ring.pixel_off(led_index=self.led_index)
+
+@Registry.register("all_pixel_on")
+@dataclass(frozen=True)
+class AllPixelOn(EnvAction):
+    from science_jubilee.tools.Observer import Neopixel
+    led_ring : Neopixel
+    r : float
+    g : float
+    b : float
+
+    def compile(self):
+        self.led_ring.all_pixel_on(r=self.r,g=self.g,b=self.b)
+
+        
+@Registry.register("all_pixel_off")
+@dataclass(frozen=True)
+class AllPixelOff(EnvAction):
+    from science_jubilee.tools.Observer import Neopixel
+    led_ring : Neopixel
+
+    def compile(self):
+        self.led_ring.all_pixel_off()

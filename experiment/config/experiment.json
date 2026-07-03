@@ -20,11 +20,17 @@
             "id": "transfer_lens",
 
             "parameters": {
-
-                "source": "Plate1:A1",
-
-                "destination": "Plate2:A1"
-
+                "well_source": "A1",
+                "slot_source":  "0",
+                "well_destination": "A2",
+                "slot_destination": "0",
+                "speed_xy": "",
+                "speed_z": "",
+                "margin": 4,
+                "random": false,
+                "sweep_x": 5,
+                "sweep_y": 5,
+                "sweep_speed": ""
             }
 
         }

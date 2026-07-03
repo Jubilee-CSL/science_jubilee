@@ -27,11 +27,12 @@ def config():
 
 def run(_run,experiment_file,deck_file):
 
-    experiment = ExperimentLoader.load(experiment_file,deck_file,)
+    experiment,deck = ExperimentLoader.load(experiment_file,deck_file,)
 
     run = ExperimentRun(
         experiment=experiment,
-        config={"experiment": experiment_file,"deck": deck_file,})
+        config={"experiment": experiment_file,"deck": deck_file,},
+        deck_config=deck)
 
     compiler = ExperimentCompiler()
     run.execution = compiler.compile(run.experiment)
