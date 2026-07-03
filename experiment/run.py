@@ -7,7 +7,7 @@ from typing import Any
 from experiment.plan import ExecutionPlan, ExecutionBundle
 from experiment.action import Action
 from experiment.task import Task
-from experiment.experiment import Experiment
+from experiment.experience import Experience
 
 class ExperimentCompiler:
     """
@@ -113,7 +113,7 @@ class ExperimentRun:
     Représente une exécution complète d'une expérience.
     """
 
-    experiment: Experiment
+    experiment: Experience
 
     config: dict = field(default_factory=dict)
 

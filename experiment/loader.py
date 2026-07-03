@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from experiment.experiment import Experiment
+from experiment.experience import Experience
 from experiment.registry import Registry
 from science_jubilee.decks import Deck
 
@@ -33,14 +33,14 @@ class ExperimentLoader:
     # ---------------------------------------------------------
 
     @classmethod
-    def load(cls,experiment_file: str | Path,deck_file: str | Path | None = None) -> Experiment:
+    def load(cls,experience_file: str | Path,deck_file: str | Path | None = None) -> Experience:
 
-        experiment_file = Path(experiment_file)
+        experience_file = Path(experience_file)
 
-        with experiment_file.open("r",encoding="utf-8") as file:
+        with experience_file.open("r",encoding="utf-8") as file:
             config = json.load(file)
 
-        experiment = Experiment(
+        experience = Experience(
             name=config["name"],
             description=config.get("description", ""),
             author=config.get("author", ""),
@@ -50,20 +50,20 @@ class ExperimentLoader:
 
         for node in config.get("sequence", []):
             cls._add_node(
-                experiment,
+                experience,
                 node,
             )
 
         deck = Deck(deck_file)
 
-        return experiment, deck
+        return experience, deck
 
     # ---------------------------------------------------------
 
     @classmethod
     def _add_node(
         cls,
-        experiment: Experiment,
+        experience: Experience,
         node: dict,
     ):
 
@@ -82,7 +82,7 @@ class ExperimentLoader:
 
             )
 
-        experiment.add(
+        experience.add(
 
             Registry.create(
 

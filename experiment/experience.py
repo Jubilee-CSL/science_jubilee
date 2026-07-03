@@ -13,7 +13,7 @@ from experiment.action import ExperimentNode
 # Experiment
 # ======================================================
 @dataclass
-class Experiment:
+class Experience:
     """
     Décrit une expérience.
 

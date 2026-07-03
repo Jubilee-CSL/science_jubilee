@@ -5,7 +5,6 @@ from dataclasses import dataclass, field
 from uuid import UUID, uuid4
 
 from science_jubilee.navigation.deck_navigation import DeckNavigator
-from science_jubilee.labware.Labware import Well
 
 
 from experiment.registry import Registry
@@ -129,20 +128,6 @@ class MoveToSafeZ(MotionAction):
     def compile(self):
         self.nav.move_to_safe_z(margin= self.margin, speed= self.speed)
 
-@Registry.register("move_to_water_level")
-@dataclass(frozen=True)
-class MoveToWaterLevel():
-
-    well_name: str 
-    slot_id: str
-
-    surface: bool = False
-    speed_z: float = None
-
-    def compile(self):
-        well = self.nav.get_well(slot_id=self.slot_id,well_id=self.well_name)
-        self.nav.move_to_water_level(well=well,surface=self.surface,speed_z=self.speed_z)
-
 @Registry.register("move_inside_well")
 @dataclass(frozen=True)
 class MoveInsideWell():
@@ -150,13 +135,21 @@ class MoveInsideWell():
     well_name: str 
     slot_id: str
 
-    x:float
-    y:float
-    speed_xy:float | None = None
+    x: float = None
+    y: float = None
+    z: float = None
+    
+    speed_xy:float = None
+    speed_z: float = None
 
     def compile(self):
         well = self.nav.get_well(slot_id=self.slot_id,well_id=self.well_name)
-        self.nav.xy_move_inside_well(well=well, x=self.x, y=self.y, speed_xy=self.speed_xy)
+        self.nav.move_inside_well(well=well,
+                                  x= self.x,
+                                  y= self.y, 
+                                  z = self.z, 
+                                  speed_xy =self.speed_xy,
+                                  speed_z=self.speed_z)
 
 
 # ======================================================

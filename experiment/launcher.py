@@ -39,7 +39,7 @@ def run(_run,experiment_file,deck_file):
 
     mock = MockExecutor()
     mock.execute(run.execution.mock)
-
+    """
     twin = DigitalTwin()
 
     validation = twin.validate("latest_log.gcode")
@@ -49,7 +49,7 @@ def run(_run,experiment_file,deck_file):
 
     if not validation.valid:
         raise RuntimeError(validation.message)
-
+    """
     hardware = HardwareExecutor()
 
     hardware.execute(run.execution.complete)

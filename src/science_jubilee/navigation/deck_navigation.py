@@ -83,8 +83,15 @@ class DeckNavigator:
         self.driver.move_to({"X": float(well.x),"Y": float(well.y),"Z": float(well.top)},s=speed_xy,wait=True)
 
 
-    def move_to_water_level(self, well: Well,surface: bool = False,speed_z: float | None = None,):
+    def move_inside_well(self, well: Well,
+                         x: float | None = None, 
+                         y: float | None = None,
+                         z: float | None = None, 
+                         speed_xy:float | None = None, 
+                         speed_z: float | None = None,
+                         ):
 
+        speed_xy = (self.default_speed_xy if speed_xy is None else speed_xy)
         speed_z = (self.default_speed_z if speed_z is None else speed_z)
 
         position = self.driver.get_positions
@@ -92,28 +99,23 @@ class DeckNavigator:
                                     (point = Point(position["X"],
                                                    position["Y"],
                                                    position["Z"]))):
-            
             raise ValueError("Need to be inside a well to use this fonctions")
         
-        #A modifié si une méthode efficace existe pour ce déplacer vers la surface de l'eau d'un puit
-        if surface == True:
-            self.driver.move_to({"Z":float(well.depth)},s=speed_z,wait=True)
-        else:
-            self.driver.move_to({"Z":float(well.bottom)},s=speed_z,wait=True)
-
-
-
-    def xy_move_inside_well(self, well:Well, x:float, y:float,speed_xy:float |None = None,random:bool = False):
-        
-        speed_xy = (self.default_speed_xy if speed_xy is None else speed_xy)
-
-        if random:
-            destination : Location = well.random_point()
-        else:
+        if (x and y)!=None:
             destination : Location = well.safe_move(well,x,y)
-        self.driver.move_to({"X":float(destination.point.x),
-                             "Y":float(destination.point.y)},
-                             s=speed_xy,wait=True)
+            self.driver.move_to({"X":float(destination.point.x),
+                                "Y":float(destination.point.y)},
+                                s=speed_xy,wait=True)
+        if z !=None: 
+            self.driver.move_to({"Z":float(z),},
+                             s=speed_z,wait=True)
+
+
+    def random_move_inside_well(self, well:Well ,speed_xy:float | None = None):
+        
+        destination = well.random_point()
+        self.move_inside_well(well,destination.point.x,destination.point.y,speed_xy=speed_xy)
+
     
     # ------------------------------------------------------------------
     # Deck helpers
