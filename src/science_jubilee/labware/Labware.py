@@ -144,7 +144,7 @@ class Well:
             self,
         )
     
-    def random_point(self,z: float | None = None,safety_margin: float = 0.8) -> Location:
+    def random_point(self,safety_margin: float = 0.8) -> Location:
         """
         Generate a random safe point inside the well.
         """
@@ -173,10 +173,8 @@ class Well:
             dx = random.uniform(-half_x,half_x)
             dy = random.uniform(-half_y,half_y)
 
-        point_z = self.z if z is None else z
-
         return Location(
-        point=Point(self.x + dx, self.y + dy, point_z),
+        point=Point(self.x + dx, self.y + dy, 0),
         resource=self,
     )
 
@@ -211,57 +209,107 @@ class Well:
                 and -half_y <= dy <= half_y)
 
 
-    def safe_sweep(self,start: Location,sweep_x: float = 2,sweep_y: float = 2 ,safety_margin: float = 0.9,) -> Location:
+    def safe_move(self,start: Location,
+                  x: float,
+                  y: float,
+                  safety_margin: float = 0.9,) -> Location:
         """
-        Return a safe sweep destination inside the well.
+        Return a safe move destination inside the well.
 
-        If the requested movement exceeds the usable
-        space, the sweep vector is automatically reduced
-        to fit inside the well geometry.
+        Circular and rectangular wells are corrected analytically.
+        Any other geometry falls back to the iterative correction.
         """
 
         if not self.in_usable_space(start, safety_margin=safety_margin):
             raise ValueError("Start point is outside usable space.")
 
-        target_x = start.point.x + sweep_x
-        target_y = start.point.y + sweep_y
+        finish = Location(
+            Point(
+                start.point.x + x,
+                start.point.y + y,
+                start.point.z,
+            ),self,)
 
-        finish = Location(Point(target_x,target_y,start.point.z),self)
-
-        # --------------------------------------------------------------
-        # Valid direct movement
-        # --------------------------------------------------------------
-
-        if self.in_usable_space(finish,safety_margin=safety_margin,):
+        if self.in_usable_space(finish, safety_margin=safety_margin):
             return finish
 
-        # --------------------------------------------------------------
-        # Auto correction
-        # --------------------------------------------------------------
-        # Reduce movement magnitude until the point fits
-        # inside the usable geometry.
-        # --------------------------------------------------------------
+        if self.shape == "rectangular":
 
-        corrected_x = sweep_x
-        corrected_y = sweep_y
+            xmin = self.left + safety_margin
+            xmax = self.right - safety_margin
+            ymin = self.bottom + safety_margin
+            ymax = self.top - safety_margin
 
-        # sécurité anti boucle infinie
-        max_iterations = 100
-        for _ in range(max_iterations):
+            scale = 1.0
+            if x > 0:
+                scale = min(scale, (xmax - start.point.x) / x)
+            elif x < 0:
+                scale = min(scale, (xmin - start.point.x) / x)
+            if y > 0:
+                scale = min(scale, (ymax - start.point.y) / y)
+            elif y < 0:
+                scale = min(scale, (ymin - start.point.y) / y)
 
-            corrected_x *= 0.95
-            corrected_y *= 0.95
+            scale = max(0.0, scale)
 
-            corrected_finish = Location(Point(
+            return Location(
+                Point(
+                    start.point.x + x * scale,
+                    start.point.y + y * scale,
+                    start.point.z,
+                ),self,)
+
+        if self.shape == "circular":
+
+            cx = self.center.x
+            cy = self.center.y
+            r = self.radius - safety_margin
+
+            sx = start.point.x - cx
+            sy = start.point.y - cy
+
+            dx = x
+            dy = y
+
+            a = dx * dx + dy * dy
+            b = 2 * (sx * dx + sy * dy)
+            c = sx * sx + sy * sy - r * r
+
+            disc = b * b - 4 * a * c
+
+            if disc >= 0:
+                t = (-b + disc ** 0.5) / (2 * a)
+                t = max(0.0, min(1.0, t))
+
+                return Location(
+                    Point(
+                        start.point.x + dx * t,
+                        start.point.y + dy * t,
+                        start.point.z,
+                    ),self,)
+
+        # ------------------------------------------------------------------
+        # Fallback for arbitrary geometries
+        # ------------------------------------------------------------------
+        corrected_x = x
+        corrected_y = y
+
+        for _ in range(100):
+            corrected_x *= 0.90
+            corrected_y *= 0.90
+
+            corrected_finish = Location(
+                Point(
                     start.point.x + corrected_x,
                     start.point.y + corrected_y,
-                    start.point.z),self)
+                    start.point.z,
+                ),self,)
 
             if self.in_usable_space(corrected_finish,safety_margin=safety_margin):
                 return corrected_finish
 
-        raise ValueError("Unable to compute a valid safe sweep.")
-    
+        raise ValueError("Unable to compute a valid safe move.")
+        
 
     # ------------------------------------------------------------------
     # Tip state
