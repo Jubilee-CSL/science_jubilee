@@ -135,4 +135,12 @@ class DeckNavigator:
 
         return self.deck.get_well(str(slot_id),well_id)
     
+
+    def get_wells_in_slot(self,slot_id: str | int) -> list[Well]:
+        """
+        Retrieve loaded labware from deck.
+        """
+        labware = self.get_labware_in_slot(slot_id)
+
+        return labware.get_wells()
     
