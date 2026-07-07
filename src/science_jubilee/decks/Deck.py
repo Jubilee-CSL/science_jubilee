@@ -264,5 +264,7 @@ class Deck(SlotSet):
                     False,
                 ),
             )
+            if slots[slot_id].has_labware == True :
+                self.load_labware(labware_filename=slot_data.get("labware"),slot_id=slot_id)
 
         return slots
