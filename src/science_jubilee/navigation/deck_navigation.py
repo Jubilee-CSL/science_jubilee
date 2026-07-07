@@ -97,11 +97,9 @@ class DeckNavigator:
                                           y=position["Y"],
                                           z=position["Z"]),
                                           resource=well)
-        if not well.in_usable_space(location):
-            raise ValueError("Need to be inside a well to use this fonctions")
         
         if (x and y)!=None:
-            destination : Location = well.safe_move(well,x,y)
+            destination : Location = well.safe_move(location,x,y)
             self.driver.move_to({"X":float(destination.point.x),
                                 "Y":float(destination.point.y)},
                                 s=speed_xy,wait=True)
