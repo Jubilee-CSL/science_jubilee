@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Iterable
-
 from dataclasses import dataclass
 
 
@@ -94,11 +92,12 @@ class DeckNavigator:
         speed_xy = (self.default_speed_xy if speed_xy is None else speed_xy)
         speed_z = (self.default_speed_z if speed_z is None else speed_z)
 
-        position = self.driver.get_positions
-        if not well.in_usable_space(Location
-                                    (point = Point(position["X"],
-                                                   position["Y"],
-                                                   position["Z"]))):
+        position = self.driver.get_positions()
+        location = Location(point = Point(x=position["X"],
+                                          y=position["Y"],
+                                          z=position["Z"]),
+                                          resource=well)
+        if not well.in_usable_space(location):
             raise ValueError("Need to be inside a well to use this fonctions")
         
         if (x and y)!=None:
@@ -135,4 +134,10 @@ class DeckNavigator:
 
         return self.deck.get_well(str(slot_id),well_id)
     
-    
+    def get_wells_in_slot(self,slot_id: str | int) -> list[Well]:
+        """
+        Retrieve loaded labware from deck.
+        """
+        labware = self.get_labware_in_slot(slot_id)
+
+        return labware.get_wells()

@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from typing import Dict, Optional
-from science_jubilee.tools.Tool import Tool
-from science_jubilee.tools.unique_tools.Inoculator import Inoculator
+from science_jubilee.tools.tool import Tool
 
 # ------------------------------------------------------------------
 # Exceptions
@@ -79,7 +78,7 @@ class ToolChanger:
             raise ToolSlotError(f"No tool loaded in slot {tool_idx}")
 
         if self.get_active_tool_index() == tool_idx:
-            raise ToolStateError(f"Tool {tool_idx} already active")
+            return True
 
         if self.get_tool_offset(tool_idx) == [0,0,-400]:
             raise ToolStateError("Tool offset must be configured")
@@ -121,7 +120,7 @@ class ToolChanger:
     # ------------------------------------------------------------------
     # Tool state inspection
     # ------------------------------------------------------------------
-    def get_tool(self,tool_idx) -> Dict[int, Optional[Tool]]:
+    def get_tool(self,tool_idx) -> Tool:
         if tool_idx not in self.tools:
             raise ToolSlotError(f"Invalid tool slot {tool_idx}")
         

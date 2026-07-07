@@ -2,7 +2,7 @@ from science_jubilee.labware.Labware import (Location,Point,Well)
 from dataclasses import dataclass
 
 from science_jubilee.navigation.deck_navigation import DeckNavigator
-from science_jubilee.tools.Tool import Tool, requires_active_tool
+from science_jubilee.tools.tool import Tool, requires_active_tool
 
 
 @dataclass(slots=True, repr=False)

@@ -3,7 +3,7 @@ import os
 
 import pytest
 
-from science_jubilee.tools.Tool import ToolStateError
+from science_jubilee.tools.tool import ToolStateError
 from science_jubilee.tools.unique_tools.Inoculator import Inoculator
 
 
@@ -24,8 +24,8 @@ def test_transfer_requires_active_tool(tool_changer,navigator):
     is not active.
     """
     make_inoculator(tool_changer)
-    source = navigator.deck.get_well("0","A1")
-    destination = navigator.deck.get_well("0","A2")
+    source = navigator.get_well("0","A1")
+    destination = [navigator.get_well("0","A2")]
 
     inoculator = tool_changer.get_tool(0)
 
@@ -42,8 +42,8 @@ def test_transfer(tool_changer,navigator):
     Verify standard transfer.
     """
     make_inoculator(tool_changer)
-    source = navigator.deck.get_well("0","A1")
-    destination = navigator.deck.get_well("0","A2")
+    source = navigator.get_well("0","A1")
+    destination = navigator.get_wells_in_slot(0)
     inoculator = tool_changer.get_tool(0)
 
     tool_changer.pickup_tool(0)
@@ -63,37 +63,13 @@ def test_transfer_randomized_pickup(tool_changer,navigator):
     Verify randomized pickup transfer.
     """
     make_inoculator(tool_changer)
-    source = navigator.deck.get_well("0","A1")
-    destination = navigator.deck.get_well("0","A2")
+    source = navigator.get_well("0","A1")
+    destination = [navigator.get_well("0","A2")]
     inoculator = tool_changer.get_tool(0)
 
     tool_changer.pickup_tool(0)
 
     inoculator.transfer(navigator,source,destination,randomize_pickup=True)
-    tool_changer.park_tool()
-
-
-# ------------------------------------------------------------------
-# Transfer to all wells
-# ------------------------------------------------------------------
-
-@pytest.mark.invasive
-def test_transfer_to_all_wells(tool_changer,navigator):
-    """
-    Verify broadcast transfer
-    over full destination plate.
-    """
-    make_inoculator(tool_changer)
-    inoculator = tool_changer.get_tool(0)
-
-    tool_changer.pickup_tool(0)
-
-    inoculator.transfert_to_all_well(
-        navigator,
-        slot_source="0",
-        slot_destination="0"
-    )
-
     tool_changer.park_tool()
 
 # ------------------------------------------------------------------
