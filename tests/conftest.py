@@ -109,10 +109,9 @@ def navigator(motion):
     from science_jubilee.decks.Deck import Deck
     from science_jubilee.navigation.deck_navigation import (DeckNavigator)
 
-    deck_def, labware_def = (_get_defs_from_env())
+    deck_def = (_get_defs_from_env())
     deck = Deck(deck_def)
 
-    deck.load_labware(labware_def,slot_id=0)
     nav = DeckNavigator(driver=motion,deck=deck)
 
     return nav
@@ -133,6 +132,5 @@ def _get_defs_from_env() -> tuple[str, str]:
     """
 
     deck_def = os.getenv("JUBILEE_DECK_DEF","lab_automation_deck_AFL_bolton.json")
-    labware_def = os.getenv("JUBILEE_LABWARE_DEF","20mlscintillation_12_wellplate_18000ul.json")
 
-    return (deck_def,labware_def)
+    return deck_def

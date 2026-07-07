@@ -6,35 +6,8 @@ from science_jubilee.decks.Deck import Deck
 from science_jubilee.navigation import DeckNavigator
 
 
-def _get_defs_from_env() -> tuple[str, str]:
-    """Return (deck_definition, labware_definition) from environment.
-
-    Defaults are set in tests/conftest.py but can be overridden via
-    JUBILEE_DECK_DEF and JUBILEE_LABWARE_DEF.
-    """
-
-    deck_def = os.getenv("JUBILEE_DECK_DEF", "lab_automation_deck_AFL_bolton.json")
-    labware_def = os.getenv(
-        "JUBILEE_LABWARE_DEF", "20mlscintillation_12_wellplate_18000ul.json"
-    )
-    return deck_def, labware_def
-
-
-def _make_navigator_for_driver(driver: MotionDriver):
-    """Construct a DeckNavigator for a given MotionDriver (mock or hardware)."""
-
-    deck_def, labware_def = _get_defs_from_env()
-
-    # Load a deck and labware into slot 0.
-    deck = Deck(deck_def)
-    deck.load_labware(labware_def, slot_id=0)
-
-    nav = DeckNavigator(driver=driver, deck=deck)
-    return nav
-
-
 @pytest.mark.invasive
-def test_navigation_with_motion_fixture_moves_control_point(motion):
+def test_navigation_with_motion_fixture_moves_control_point(navigator):
     """Navigation should work with the shared MotionDriver fixture (mock or hardware).
 
     This test is transport-agnostic: when run with --jubilee-env mock it uses
@@ -42,15 +15,12 @@ def test_navigation_with_motion_fixture_moves_control_point(motion):
     machine, so keep it under the 'invasive' marker.
     """
 
-    driver = motion
-    nav = _make_navigator_for_driver(driver)
-
-    well = nav.deck.get_well("0","A1")
+    well = navigator.get_well("0","A1")
     offset = 2.0
     loc = well.get_bottom_location(z_offset=offset)
     x_exp, y_exp, z_exp = loc.point
 
-    nav.move_to_target(
+    navigator.move_to_target(
         well,
         z_from_bottom=offset,
         travel_margin=10.0,

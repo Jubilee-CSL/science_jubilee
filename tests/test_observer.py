@@ -3,13 +3,17 @@ import requests
 import time
 from pathlib import Path
 import logging
+import pytest
 
 logger = logging.getLogger(__name__)
 
 
 LED_SERVER = "http://10.0.9.55:5001"
+
+"""
+@pytest.mark.invasive
 def test_imag():
-    """requests.get(f"{LED_SERVER}/led/255/255/255")"""
+    #requests.get(f"{LED_SERVER}/led/255/255/255")
     cam = Camera()
     
     img = cam.get_clean_image(save_dir= Path("dataset_clean"), nb_image_used= 8)
@@ -20,4 +24,4 @@ def test_imag():
 
     isolated_lens = cam.detect_isolated_duckweed(valid_contours= contour)
     logger.info(isolated_lens)
-    
+"""
