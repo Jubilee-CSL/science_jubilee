@@ -11,6 +11,9 @@ from science_jubilee.labware.Labware import (
     Well,
 )
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 @dataclass(slots=True)
 class DeckNavigator:
@@ -108,9 +111,9 @@ class DeckNavigator:
                              s=speed_z,wait=True)
 
 
-    def random_move_inside_well(self, well:Well ,speed_xy:float | None = None):
+    def random_move_inside_well(self, well:Well ,margin : float = 0.7 , speed_xy:float | None = None):
         
-        destination = well.random_point()
+        destination = well.random_point(safety_margin=margin)
         self.move_inside_well(well,destination.point.x,destination.point.y,speed_xy=speed_xy)
 
     

@@ -5,7 +5,7 @@ from enum import Enum
 
 from science_jubilee.hal.motion_driver import MotionDriver
 from science_jubilee.hal.tool_changer import ToolChanger
-from science_jubilee.tools.tool import Tool
+from science_jubilee.tools.Tool import Tool
 
 
 class FreeNavigator:

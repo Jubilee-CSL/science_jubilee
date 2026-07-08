@@ -189,12 +189,10 @@ class Well:
 
         dx = location.point.x - self.x
         dy = location.point.y - self.y
-
         if self.shape == "circular":
 
             usable_radius = (self.diameter / 2) * safety_margin
             distance = math.sqrt(dx**2 + dy**2)
-
             return distance <= usable_radius
         
         
@@ -230,7 +228,7 @@ class Well:
                 start.point.z,
             ),self,)
 
-        if self.in_usable_space(finish,safety_margin):
+        if self.in_usable_space(finish,safety_margin=safety_margin):
             return finish
 
         if self.shape == "rectangular":
@@ -263,7 +261,7 @@ class Well:
 
             cx = self.x
             cy = self.y
-            r = (self.diameter / 2 )- safety_margin
+            r = (self.diameter / 2 ) * safety_margin
 
             sx = start.point.x - cx
             sy = start.point.y - cy

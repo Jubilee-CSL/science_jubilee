@@ -3,7 +3,7 @@ import os
 
 import pytest
 
-from science_jubilee.tools.tool import ToolStateError
+from science_jubilee.tools.Tool import ToolStateError
 from science_jubilee.tools.unique_tools.Inoculator import Inoculator
 
 
