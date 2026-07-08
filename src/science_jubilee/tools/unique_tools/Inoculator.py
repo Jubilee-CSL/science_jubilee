@@ -28,13 +28,7 @@ class Inoculator(Tool):
             nav.move_to_well(source,speed_xy,margin=10)
 
             if randomize_pickup:
-                pickup_position = source.random_point(safety_margin= 0.8)
-                nav.move_inside_well(source,
-                                    pickup_position.point.x,
-                                    pickup_position.point.y,
-                                    source.depth,
-                                    speed_xy= speed_xy, 
-                                    speed_z=sweep_speed)
+                nav.random_move_inside_well(well= source, speed_xy=speed_xy)
             else:
                 nav.move_inside_well(source,z=source.depth,speed_z=sweep_speed),
     
