@@ -2,7 +2,7 @@ from science_jubilee.labware.Labware import (Location,Point,Well)
 from dataclasses import dataclass
 
 from science_jubilee.navigation.deck_navigation import DeckNavigator
-from science_jubilee.tools.tool import Tool, requires_active_tool
+from science_jubilee.tools.Tool import Tool, requires_active_tool
 
 
 @dataclass(slots=True, repr=False)
@@ -28,7 +28,8 @@ class Inoculator(Tool):
             nav.move_to_well(source,speed_xy,margin=10)
 
             if randomize_pickup:
-                nav.random_move_inside_well(well= source, speed_xy=speed_xy)
+                nav.random_move_inside_well(well= source,speed_xy=speed_xy)
+
             else:
                 nav.move_inside_well(source,z=source.depth,speed_z=sweep_speed),
     
