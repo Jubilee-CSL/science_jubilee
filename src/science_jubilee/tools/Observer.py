@@ -1,15 +1,14 @@
+import logging
 import os
-import cv2
-import numpy as np
-import requests
 import time
-
 from datetime import datetime
 from pathlib import Path
 
-import logging
-logger = logging.getLogger(__name__)
+import cv2
+import numpy as np
+import requests
 
+logger = logging.getLogger(__name__)
 
 
 # ==========================================================
@@ -30,13 +29,14 @@ RAW_LED_DIR.mkdir(exist_ok=True)
 CLEAN_DATASET_DIR.mkdir(exist_ok=True)
 SEG_DATASET_DIR.mkdir(exist_ok=True)
 
+
 class Neopixel:
-    url :str = "http://10.0.9.55:5001"
+    url: str = "http://10.0.9.55:5001"
 
     def pixel_on(self, led_index, r, g, b):
         requests.get(f"{self.url}/pixel/{led_index}/{r}/{g}/{b}")
 
-    def pixel_off(self,led_index):
+    def pixel_off(self, led_index):
         requests.get(f"{self.url}/pixel/{led_index}/0/0/0")
 
     def all_pixel_on(self, r, g, b):
@@ -44,7 +44,6 @@ class Neopixel:
 
     def all_pixel_off(self):
         requests.get(f"{self.url}/off")
-
 
 
 class Camera:
@@ -93,8 +92,12 @@ class Camera:
     # Acquisition multi-éclairage
     # ======================================================
 
-    def get_multi_lighting_img(self, nb_img = 8, temp_dir = RAW_LED_DIR,):
-        #on s'assure que tout soit éteint
+    def get_multi_lighting_img(
+        self,
+        nb_img=8,
+        temp_dir=RAW_LED_DIR,
+    ):
+        # on s'assure que tout soit éteint
         requests.get(f"{LED_SERVER}/off")
 
         # nettoyage du dossier temporaire
@@ -109,8 +112,8 @@ class Camera:
             time.sleep(3)
 
             images.append(self.get_image())
-            self.save_image(img = images[i], save_dir=temp_dir)
-            
+            self.save_image(img=images[i], save_dir=temp_dir)
+
             requests.get(f"{LED_SERVER}/pixel/{i}/0/0/0")
             time.sleep(0.2)
 
@@ -120,7 +123,9 @@ class Camera:
     # Génération image minimum
     # ======================================================
 
-    def get_clean_image(self,images = None, save_dir = None, save_name= None, nb_image_used = 8):
+    def get_clean_image(
+        self, images=None, save_dir=None, save_name=None, nb_image_used=8
+    ):
 
         if images is None:
             images = self.get_multi_lighting_img(nb_img=nb_image_used)
@@ -135,9 +140,12 @@ class Camera:
 
         if save_dir != None:
             if save_name == None:
-                self.save_image(img = result, save_dir=save_dir,)
+                self.save_image(
+                    img=result,
+                    save_dir=save_dir,
+                )
             else:
-                self.save_image(img = result, save_dir=save_dir, save_name=save_name)
+                self.save_image(img=result, save_dir=save_dir, save_name=save_name)
 
         return result
 
@@ -157,27 +165,23 @@ class Camera:
     # ======================================================
     # Segmentation ExG
     # ======================================================
-    def get_img_contour(self,img,
-                        min_area_px=5,
-                        max_area_px=300,
-                        min_circularity=0.5,debug = False):
+    def get_img_contour(
+        self, img, min_area_px=5, max_area_px=300, min_circularity=0.5, debug=False
+    ):
 
         b, g, r = cv2.split(img)
-        exg = (
-            2 * g.astype(np.int16)
-            - r.astype(np.int16)
-            - b.astype(np.int16))
+        exg = 2 * g.astype(np.int16) - r.astype(np.int16) - b.astype(np.int16)
 
-        exg = cv2.normalize(exg,None,0,255,cv2.NORM_MINMAX)
+        exg = cv2.normalize(exg, None, 0, 255, cv2.NORM_MINMAX)
         exg = exg.astype(np.uint8)
 
-        _, mask = cv2.threshold(exg,180,255,cv2.THRESH_BINARY)
+        _, mask = cv2.threshold(exg, 180, 255, cv2.THRESH_BINARY)
 
         kernel = np.ones((3, 3), np.uint8)
-        mask = cv2.morphologyEx(mask,cv2.MORPH_OPEN,kernel)
-        mask = cv2.morphologyEx(mask,cv2.MORPH_CLOSE,kernel)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
 
-        contours, _ = cv2.findContours(mask,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         valid_contours = []
 
@@ -189,22 +193,21 @@ class Camera:
             if area > max_area_px:
                 continue
 
-            perimeter = cv2.arcLength(cnt,True)
+            perimeter = cv2.arcLength(cnt, True)
             if perimeter == 0:
                 continue
 
-            circularity = (4* np.pi* area/ (perimeter ** 2))
+            circularity = 4 * np.pi * area / (perimeter**2)
             if circularity < min_circularity:
                 continue
 
             valid_contours.append(cnt)
 
         # sauvegarde debug contour
-        img_contours = cv2.drawContours(img, valid_contours, -1, (0,255,0), 2)
+        img_contours = cv2.drawContours(img, valid_contours, -1, (0, 255, 0), 2)
 
-
-        mask_file = (SEG_DATASET_DIR /f"{datetime.now():%Y%m%d_%H%M%S}.png")
-        cv2.imwrite(str(mask_file),mask)
+        mask_file = SEG_DATASET_DIR / f"{datetime.now():%Y%m%d_%H%M%S}.png"
+        cv2.imwrite(str(mask_file), mask)
 
         if debug == True:
             cv2.imshow("Image", img)
@@ -212,25 +215,24 @@ class Camera:
             cv2.imshow("Mask", mask)
 
             img_contours = img.copy()
-            cv2.drawContours(img_contours, valid_contours, -1, (0,255,0), 2)
+            cv2.drawContours(img_contours, valid_contours, -1, (0, 255, 0), 2)
             cv2.imshow("Contours", img_contours)
 
             cv2.waitKey(0)
             cv2.destroyAllWindows()
 
         return valid_contours
-    
-    
+
     # ======================================================
     # Détection lentille isolée
     # ======================================================
-    def detect_isolated_duckweed(self,valid_contours = None,debug=False):
+    def detect_isolated_duckweed(self, valid_contours=None, debug=False):
         """
         Retourne la première lentille isolée trouvée.
         """
         if valid_contours is None:
             img_contours = self.get_latest_image(CLEAN_DATASET_DIR)
-            valid_contours = self.get_img_contour(img = img_contours,debug = debug)
+            valid_contours = self.get_img_contour(img=img_contours, debug=debug)
 
         if valid_contours == []:
             print("No lenses detected")
@@ -247,7 +249,6 @@ class Camera:
             cy = int(M["m01"] / M["m00"])
             centers.append((cx, cy))
 
-
         for i, center in enumerate(centers):
             mini_dist = 90000000
 
@@ -255,16 +256,14 @@ class Camera:
                 if i == j:
                     continue
 
-                dist = np.linalg.norm(np.array(center)- np.array(other))
-                
+                dist = np.linalg.norm(np.array(center) - np.array(other))
+
                 if mini_dist > float(dist):
                     mini_dist = dist
                     isolated_lens = center
-                
+
         self.save_image()
         return isolated_lens
-
-
 
     # ======================================================
     # Détection du puits
@@ -274,7 +273,7 @@ class Camera:
                         min_area_px=600,
                         max_area_px=1000,
                         min_circularity=0.9,debug = False):
-        
+
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
 
         _, mask = cv2.threshold(gray,140,255,cv2.THRESH_BINARY)
@@ -326,18 +325,13 @@ class Camera:
 
         return valid_contours
 
-        return 
+        return
     """
     # ======================================================
     # Conversion pixel -> repère plateau
     # ======================================================
 
-    def get_lens_height(
-            self,
-            px_low,
-            px_high,
-            camera_z_low,
-            camera_z_high):
+    def get_lens_height(self, px_low, px_high, camera_z_low, camera_z_high):
 
         center = np.array((640, 480), dtype=float)
 
@@ -357,7 +351,7 @@ class Camera:
 
         # Calibration expérimentale
         # h = a * disparity + b
-        a = -0.12      # exemple
+        a = -0.12  # exemple
         b = 18.5
 
         height = a * disparity + b
@@ -367,37 +361,36 @@ class Camera:
             round(y, 3),
             round(height, 3),
         )
-    
-    #fonction a placer dans une classe plus adapté
-    def get_lens_coordinate(self, lens_pos_px, well,img) -> tuple:
-        #matrice de transformation référentiel caméra / plateau 
+
+    # fonction a placer dans une classe plus adapté
+    def get_lens_coordinate(self, lens_pos_px, well, img) -> tuple:
+        # matrice de transformation référentiel caméra / plateau
         """
         X_cam = X_jubilee
         Y_cam = -Y_cam
         Pour les images opencv le 0 0 est en haut a gauche
         """
-        
+
         taille_img = img.shape
-        #l'objet well contient ses propriétés géométriques notamment le diamètre
+        # l'objet well contient ses propriétés géométriques notamment le diamètre
         diameter = well.diameter
-        #et la postion centrale du puit dans le réferentiel du plateau
+        # et la postion centrale du puit dans le réferentiel du plateau
         center_x = well.x
         center_y = well.y
-        #on considère que le puit est centré sur l'image
-        center_x_px = taille_img[1]/2
-        center_y_px = taille_img[0]/2
+        # on considère que le puit est centré sur l'image
+        center_x_px = taille_img[1] / 2
+        center_y_px = taille_img[0] / 2
         logger.info(taille_img)
 
-        #On détecte l'équivalent en pixel avec du traitement d'image pour ce construire une échelle, 1 point du périmètre suffit
+        # On détecte l'équivalent en pixel avec du traitement d'image pour ce construire une échelle, 1 point du périmètre suffit
         diameter_px = taille_img[0]
         logger.info("diamètre = %f", diameter_px)
 
+        scale = diameter / diameter_px
+        logger.info("scale  = %f", scale)
 
-        scale = diameter/diameter_px
-        logger.info("scale  = %f",scale)
-
-        delta_x =  (lens_pos_px[0] - center_x_px)*scale
-        delta_y = - (lens_pos_px[1] - center_y_px)*scale
+        delta_x = (lens_pos_px[0] - center_x_px) * scale
+        delta_y = -(lens_pos_px[1] - center_y_px) * scale
 
         logger.info("delta x  = %f", delta_x)
         logger.info("delta y  = %f", delta_y)
@@ -406,5 +399,3 @@ class Camera:
         lens_pos_y = center_y + delta_y
 
         return (lens_pos_x, lens_pos_y)
-
-

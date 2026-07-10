@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from typing import Optional, Union
 from enum import Enum
+from typing import Optional, Union
 
 from science_jubilee.hal.motion_driver import MotionDriver
 from science_jubilee.hal.tool_changer import ToolChanger

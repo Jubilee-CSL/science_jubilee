@@ -5,7 +5,6 @@ from functools import wraps
 
 from science_jubilee.navigation.deck_navigation import DeckNavigator
 
-
 # ======================================================================
 # Exceptions
 # ======================================================================
@@ -41,9 +40,7 @@ def requires_active_tool(func):
     def wrapper(self, *args, **kwargs):
 
         if not self.is_active_tool:
-            raise ToolStateError(
-                f"Tool {self.name} is not the active tool."
-            )
+            raise ToolStateError(f"Tool {self.name} is not the active tool.")
 
         return func(self, *args, **kwargs)
 
@@ -67,6 +64,7 @@ def requires_active_tool(func):
 
 """
 
+
 @dataclass(slots=True, repr=False)
 class Tool:
     """
@@ -75,6 +73,7 @@ class Tool:
     This class is intended to be inherited by all
     runtime tools.
     """
+
     index: int
     name: str
 
@@ -83,14 +82,10 @@ class Tool:
     def __post_init__(self):
 
         if not isinstance(self.index, int):
-            raise ToolConfigurationError(
-                "Tool index must be an integer."
-            )
+            raise ToolConfigurationError("Tool index must be an integer.")
 
         if not isinstance(self.name, str):
-            raise ToolConfigurationError(
-                "Tool name must be a string."
-            )
+            raise ToolConfigurationError("Tool name must be a string.")
 
     def __repr__(self):
 
