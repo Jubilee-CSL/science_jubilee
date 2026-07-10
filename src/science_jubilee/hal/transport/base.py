@@ -1,6 +1,6 @@
 import json
 from abc import ABC, abstractmethod
-from typing import Optional, Any
+from typing import Any, Optional
 
 
 class BaseTransport(ABC):
@@ -11,7 +11,13 @@ class BaseTransport(ABC):
     """
 
     @abstractmethod
-    def send_gcode(self, cmd: str = "", timeout: Optional[float] = None, response_wait: float = 60, wait: bool = False) -> Optional[str]:
+    def send_gcode(
+        self,
+        cmd: str = "",
+        timeout: Optional[float] = None,
+        response_wait: float = 60,
+        wait: bool = False,
+    ) -> Optional[str]:
         """Send a G-code command; return response string or None."""
 
     @abstractmethod
@@ -49,9 +55,17 @@ class BaseTransport(ABC):
             parts.append(f"F{float(feedrate):.2f}")
         self.send_gcode("G0 " + " ".join(parts), wait=wait)
 
-    def send_gcode_json(self, cmd: str = "", timeout: Optional[float] = None, response_wait: float = 60, wait: bool = False) -> Optional[Any]:
+    def send_gcode_json(
+        self,
+        cmd: str = "",
+        timeout: Optional[float] = None,
+        response_wait: float = 60,
+        wait: bool = False,
+    ) -> Optional[Any]:
         """Send a G-code command and return the parsed JSON response, or None."""
-        resp = self.send_gcode(cmd=cmd, timeout=timeout, response_wait=response_wait, wait=wait)
+        resp = self.send_gcode(
+            cmd=cmd, timeout=timeout, response_wait=response_wait, wait=wait
+        )
         if resp is None:
             return None
         try:
@@ -129,7 +143,11 @@ class BaseTransport(ABC):
         except Exception:
             homed = []
         summary["homed"] = homed
-        summary["homed_map"] = {l: bool(h) for l, h in zip(letters, homed)} if len(letters) == len(homed) else {}
+        summary["homed_map"] = (
+            {l: bool(h) for l, h in zip(letters, homed)}
+            if len(letters) == len(homed)
+            else {}
+        )
         try:
             summary["limits"] = self.get_axis_limits() or {}
         except Exception:
@@ -161,7 +179,11 @@ class BaseTransport(ABC):
         if addr:
             lines.append(f"Address: {addr}")
         fw = s.get("firmware")
-        lines.append(f"Firmware: {fw[:120]}" if isinstance(fw, str) and fw else "Firmware: (unavailable)")
+        lines.append(
+            f"Firmware: {fw[:120]}"
+            if isinstance(fw, str) and fw
+            else "Firmware: (unavailable)"
+        )
         dc = s.get("deck_clear")
         if dc is not None:
             lines.append(f"Deck clear: {bool(dc)}")

@@ -1,7 +1,9 @@
-import pytest
 import logging
 
+import pytest
+
 logger = logging.getLogger(__name__)
+
 
 @pytest.mark.invasive
 def test_home_all(motion, tool_changer):

@@ -1,7 +1,7 @@
 import pytest
+
+
 @pytest.mark.primary
-
-
 def test_import():
     import science_jubilee
 
