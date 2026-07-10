@@ -44,7 +44,7 @@ _TEMPLATES_DIR = Path(__file__).parent / "templates"
 
 # Files to render: (template_name, output_filename_pattern)
 _TOOL_TEMPLATES: list[tuple[str, str]] = [
-    ("tpre.g",  "tpre{n}.g"),
+    ("tpre.g", "tpre{n}.g"),
     ("tpost.g", "tpost{n}.g"),
     ("tfree.g", "tfree{n}.g"),
 ]

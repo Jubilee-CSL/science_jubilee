@@ -22,12 +22,7 @@ class Slot:
         if self.labware is None:
             return f"Slot({self.slot_index}, empty)"
 
-        return (
-            f"Slot("
-            f"{self.slot_index}, "
-            f"labware={self.labware.load_name}"
-            f")"
-        )
+        return f"Slot(" f"{self.slot_index}, " f"labware={self.labware.load_name}" f")"
 
     # ------------------------------------------------------------------
     # State
@@ -55,15 +50,12 @@ class Slot:
 
     def get_labware(self) -> Labware:
         if self.labware is None:
-            raise ValueError(
-                f"No labware loaded in slot {self.slot_index}"
-            )
+            raise ValueError(f"No labware loaded in slot {self.slot_index}")
 
         return self.labware
 
     def get_well(self, well_id: str) -> Well:
         return self.get_labware().get_well(well_id)
-
 
 
 @dataclass(slots=True, repr=False)
@@ -75,23 +67,16 @@ class SlotSet:
     slots: Dict[str, Slot] = field(default_factory=dict, kw_only=True)
 
     def __repr__(self):
-        return (
-            f"{self.__class__.__name__}"
-            f"({list(self.slots.keys())})"
-        )
-
+        return f"{self.__class__.__name__}" f"({list(self.slots.keys())})"
 
     def __iter__(self) -> Iterator[Slot]:
         return iter(self.slots.values())
 
-
     def __len__(self) -> int:
         return len(self.slots)
 
-
     def __contains__(self, slot_id: str) -> bool:
         return slot_id in self.slots
-
 
     def __getitem__(self, identifier):
         if isinstance(identifier, str):
@@ -100,9 +85,7 @@ class SlotSet:
         if isinstance(identifier, int):
             return list(self.slots.values())[identifier]
 
-        raise TypeError(
-            f"Unsupported identifier type: {type(identifier)}"
-        )
+        raise TypeError(f"Unsupported identifier type: {type(identifier)}")
 
     # ------------------------------------------------------------------
     # Accessors
@@ -111,22 +94,17 @@ class SlotSet:
     def get_slot(self, slot_id: str) -> Slot:
         return self.slots[slot_id]
 
-
     def get_slots(self) -> list[Slot]:
         return list(self.slots.values())
-
 
     def get_labware(self, slot_id: str) -> Labware:
         return self.get_slot(slot_id).get_labware()
 
-
     def get_well(self, slot_id: str, well_id: str) -> Well:
         return self.get_slot(slot_id).get_well(well_id)
 
-
     def has_labware_loaded(self, slot_id: str) -> bool:
         return not self.get_slot(slot_id).is_empty
-
 
 
 @dataclass(slots=True, repr=False)
@@ -134,9 +112,12 @@ class Deck(SlotSet):
     """
     Runtime representation of a deck.
     """
-    
+
     deck_filename: str
-    path: str = os.path.join(os.path.dirname(__file__),"deck_definition",)
+    path: str = os.path.join(
+        os.path.dirname(__file__),
+        "deck_definition",
+    )
 
     safe_z: float = 10.0
 
@@ -152,16 +133,14 @@ class Deck(SlotSet):
 
     def __post_init__(self):
         if self.safe_z < 0:
-            raise ValueError(
-                "safe_z must be positive"
-            )
+            raise ValueError("safe_z must be positive")
 
         filename = self.deck_filename
 
         if not filename.endswith(".json"):
             filename += ".json"
 
-        self.config_path = os.path.join(self.path,filename)
+        self.config_path = os.path.join(self.path, filename)
 
         with open(self.config_path, "r") as file:
             self.deck_config = json.load(file)
@@ -181,12 +160,7 @@ class Deck(SlotSet):
 
 
     def __repr__(self):
-        return (
-            f"Deck("
-            f"bed_type={self.bed_type}, "
-            f"slots={len(self.slots)}"
-            f")"
-        )
+        return f"Deck(" f"bed_type={self.bed_type}, " f"slots={len(self.slots)}" f")"
 
     # ------------------------------------------------------------------
     # Metadata
@@ -194,23 +168,23 @@ class Deck(SlotSet):
 
     @property
     def bed_type(self) -> str:
-        return self.deck_config.get("bedType","")
+        return self.deck_config.get("bedType", "")
 
     @property
     def total_slots(self) -> int:
-        return self.deck_config.get("deckSlots",{}).get("total", 0)
+        return self.deck_config.get("deckSlots", {}).get("total", 0)
 
     @property
     def slot_type(self) -> str:
-        return self.deck_config.get("deckSlots",{}).get("type", "")
+        return self.deck_config.get("deckSlots", {}).get("type", "")
 
     @property
     def offset_from(self) -> str:
-        return self.deck_config.get("offsetFrom","")
+        return self.deck_config.get("offsetFrom", "")
 
     @property
     def deck_material(self) -> dict:
-        return self.deck_config.get("material",{})
+        return self.deck_config.get("material", {})
 
     # ------------------------------------------------------------------
     # Runtime
@@ -242,7 +216,6 @@ class Deck(SlotSet):
 
         slot.load_labware(labware)
         self.update_safe_z(labware.dimensions["zDimension"])
-        
 
     def unload_labware(self, slot_id: int) -> None:
         slot = self.get_slot(str(slot_id))

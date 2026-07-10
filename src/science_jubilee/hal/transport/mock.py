@@ -1,5 +1,8 @@
+import glob
 import json
-from typing import Optional, Dict, List
+import os
+import subprocess
+from typing import Dict, List, Optional
 
 from .base import BaseTransport
 
@@ -39,10 +42,9 @@ class MockTransport(BaseTransport):
             3: {
                 "name": "None",
                 "offsets": [0.0, 0.0, -400.0],
-            }
-            
+            },
         }
-        
+
     def _reply(self, text: Optional[str]) -> Optional[str]:
         # For mock we simply return the text
         return text
@@ -50,7 +52,13 @@ class MockTransport(BaseTransport):
     def _json(self, obj) -> str:
         return json.dumps({"result": obj})
 
-    def send_gcode(self, cmd: str = "", timeout: Optional[float] = None, response_wait: float = 60, wait: bool = False):
+    def send_gcode(
+        self,
+        cmd: str = "",
+        timeout: Optional[float] = None,
+        response_wait: float = 60,
+        wait: bool = False,
+    ):
         cmd = cmd.strip()
         # Positioning/extrusion modes
         if cmd == "G90":
@@ -124,7 +132,10 @@ class MockTransport(BaseTransport):
             else:
                 self.active_tool_index = tool_idx
                 if tool_idx not in self.tools:
-                    self.tools[tool_idx] = {"name": f"tool{tool_idx}", "offsets": [0.0, 0.0, 0.0]}
+                    self.tools[tool_idx] = {
+                        "name": f"tool{tool_idx}",
+                        "offsets": [0.0, 0.0, 0.0],
+                    }
                 return self._reply(f"Tool {tool_idx} is selected.")
 
         # Position query
@@ -141,18 +152,24 @@ class MockTransport(BaseTransport):
             # Extract key inside quotes e.g. M409 K"move.axes[].homed"
             key_start = cmd.find('K"')
             key_end = cmd.rfind('"')
-            obj_key = cmd[key_start + 2:key_end] if key_start != -1 and key_end != -1 else ""
+            obj_key = (
+                cmd[key_start + 2 : key_end]
+                if key_start != -1 and key_end != -1
+                else ""
+            )
 
             if obj_key == "move.axes[]" or obj_key == "move.axes":
                 # Return axis objects with letter/min/max/homed
                 axes = []
                 for i, letter in enumerate(self.axes_letters):
-                    axes.append({
-                        "letter": letter,
-                        "min": self.axis_limits[letter][0],
-                        "max": self.axis_limits[letter][1],
-                        "homed": self.axes_homed[i],
-                    })
+                    axes.append(
+                        {
+                            "letter": letter,
+                            "min": self.axis_limits[letter][0],
+                            "max": self.axis_limits[letter][1],
+                            "homed": self.axes_homed[i],
+                        }
+                    )
                 return self._json(axes)
             if obj_key == "move.axes[].homed":
                 return self._json(self.axes_homed)
@@ -204,7 +221,10 @@ class MockTransport(BaseTransport):
         return [str(x).upper() for x in self.axes_letters]
 
     def get_axis_limits(self) -> dict:
-        return {str(l).upper(): (float(lo), float(hi)) for l, (lo, hi) in self.axis_limits.items()}
+        return {
+            str(l).upper(): (float(lo), float(hi))
+            for l, (lo, hi) in self.axis_limits.items()
+        }
 
     def get_positions(self) -> dict:
         return {str(k).upper(): float(v) for k, v in self.position.items()}
@@ -219,18 +239,50 @@ class MockTransport(BaseTransport):
     def select_tool(self, tool_idx: int) -> bool:
         self.active_tool_index = tool_idx
         return True
-        
+
     def park_tool(self) -> bool:
         self.active_tool_index = -1
         return True
 
     def get_tools(self) -> dict:
-        return { idx: {"name": tool["name"],}
-                for idx, tool in self.tools.items()
-                }
-
-    def get_tool_offsets(self) -> dict:
         return {
-            idx: tuple(tool["offsets"])
+            idx: {
+                "name": tool["name"],
+            }
             for idx, tool in self.tools.items()
         }
+
+    def get_tool_offsets(self) -> dict:
+        return {idx: tuple(tool["offsets"]) for idx, tool in self.tools.items()}
+
+    # ---- Twin link -------------------------------------------------------
+
+    def launch_twin(self, script_name: str, search_dir: str):
+        matches = glob.glob(os.path.join(search_dir, "**", script_name), recursive=True)
+
+        if not matches:
+            raise FileNotFoundError(
+                f"No script matching '{script_name}' found under {search_dir}"
+            )
+
+        script_path = matches[0]
+        script_dir = os.path.dirname(os.path.abspath(script_path))
+        print(f"\n=== LAUNCH TWIN ===")
+        print(f"Script found  : {script_path}")
+        print(f"Running from  : {script_dir}")
+
+        process = subprocess.Popen(
+            [script_path],
+            cwd=script_dir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        stdout, stderr = process.communicate()
+
+        print(f"Return code   : {process.returncode}")
+        print(f"STDOUT:\n{stdout}")
+        if stderr:
+            print(f"STDERR:\n{stderr}")
+
+        return process.returncode

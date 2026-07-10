@@ -1,15 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Iterable
 
-
-from science_jubilee.hal.motion_driver import MotionDriver
 from science_jubilee.decks.Deck import Deck
-from science_jubilee.labware.Labware import (
-    Labware,
-    Location,Point,
-    Well,
-)
+from science_jubilee.hal.motion_driver import MotionDriver
+from science_jubilee.labware.Labware import Labware, Location, Point, Well
 
 import logging
 logger = logging.getLogger(__name__)
@@ -42,16 +38,20 @@ class DeckNavigator:
     # Safe Z movement
     # ------------------------------------------------------------------
 
-    def move_to_safe_z(self,margin: float | None = None,speed: float | None = None,) -> None:
+    def move_to_safe_z(
+        self,
+        margin: float | None = None,
+        speed: float | None = None,
+    ) -> None:
         """
         Raise the machine to a safe travel height.
         """
-        margin = (self.travel_margin if margin is None else margin)
-        speed = (self.default_speed_z if speed is None else speed)
+        margin = self.travel_margin if margin is None else margin
+        speed = self.default_speed_z if speed is None else speed
 
         current_position = self.driver.get_positions()
         current_z = float(current_position.get("Z", 0.0))
-        target_z = (float(self.deck.safe_z)+ float(margin))
+        target_z = float(self.deck.safe_z) + float(margin)
 
         if current_z < target_z:
             self.driver.move_to(
@@ -63,37 +63,46 @@ class DeckNavigator:
     # ------------------------------------------------------------------
     # Well movement
     # ------------------------------------------------------------------
-    def move_to_well(self,
+    def move_to_well(
+        self,
         well: Well,
         speed_xy: float | None = None,
         speed_z: float | None = None,
-        margin: float = None) -> None:
+        margin: float = None,
+    ) -> None:
         """
         Collision-safe movement toward a Well or Location.
         """
 
-        speed_xy = (self.default_speed_xy if speed_xy is None else speed_xy)
-        speed_z = (self.default_speed_z if speed_z is None else speed_z)
-        margin = (self.travel_margin if margin is None else margin)
-
+        speed_xy = self.default_speed_xy if speed_xy is None else speed_xy
+        speed_z = self.default_speed_z if speed_z is None else speed_z
+        margin = self.travel_margin if margin is None else margin
 
         # 1) Move to safe travel Z, if safe_movement is true
-        self.move_to_safe_z(margin=margin,speed=speed_z,)
+        self.move_to_safe_z(
+            margin=margin,
+            speed=speed_z,
+        )
 
         # 2) XY trave
-        self.driver.move_to({"X": float(well.x),"Y": float(well.y),"Z": float(well.top)},s=speed_xy,wait=True)
+        self.driver.move_to(
+            {"X": float(well.x), "Y": float(well.y), "Z": float(well.top)},
+            s=speed_xy,
+            wait=True,
+        )
 
+    def move_inside_well(
+        self,
+        well: Well,
+        x: float | None = None,
+        y: float | None = None,
+        z: float | None = None,
+        speed_xy: float | None = None,
+        speed_z: float | None = None,
+    ):
 
-    def move_inside_well(self, well: Well,
-                         x: float | None = None, 
-                         y: float | None = None,
-                         z: float | None = None, 
-                         speed_xy:float | None = None, 
-                         speed_z: float | None = None,
-                         ):
-
-        speed_xy = (self.default_speed_xy if speed_xy is None else speed_xy)
-        speed_z = (self.default_speed_z if speed_z is None else speed_z)
+        speed_xy = self.default_speed_xy if speed_xy is None else speed_xy
+        speed_z = self.default_speed_z if speed_z is None else speed_z
 
         position = self.driver.get_positions()
         location = Location(point = Point(x=position["X"],
@@ -116,11 +125,10 @@ class DeckNavigator:
         destination = well.random_point(safety_margin=margin)
         self.move_inside_well(well,destination.point.x,destination.point.y,speed_xy=speed_xy)
 
-    
     # ------------------------------------------------------------------
     # Deck helpers
     # ------------------------------------------------------------------
-    def get_labware_in_slot(self,slot_id: str | int) -> Labware:
+    def get_labware_in_slot(self, slot_id: str | int) -> Labware:
         """
         Retrieve loaded labware from deck.
         """
@@ -128,7 +136,11 @@ class DeckNavigator:
 
         return slot.get_labware()
 
-    def get_well(self,slot_id: str | int,well_id: str,) -> Well:
+    def get_well(
+        self,
+        slot_id: str | int,
+        well_id: str,
+    ) -> Well:
         """
         Retrieve a well directly from deck state.
         """
