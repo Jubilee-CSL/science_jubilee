@@ -123,10 +123,8 @@ class Deck(SlotSet):
 
     # Runtime state
 
-    deck_config: dict = field(init=False, default_factory=dict)
-
-    slots_data: dict = field(init=False, default_factory=dict)
-
+    deck_config: dict = field(init=False,default_factory=dict)
+    slots_data: dict = field(init=False,default_factory=dict)
     config_path: str = field(init=False)
 
     # ------------------------------------------------------------------
@@ -150,6 +148,16 @@ class Deck(SlotSet):
         self.slots_data = self.deck_config.get("slots", {})
 
         self.slots = self._create_slots()
+
+        for slot_id, slot_data in self.slots_data.items():
+            labware_filename = slot_data.get("labware")
+
+            if labware_filename is not None:
+                self.load_labware(
+                    labware_filename=labware_filename,
+                    slot_id=slot_id,
+                )
+
 
     def __repr__(self):
         return f"Deck(" f"bed_type={self.bed_type}, " f"slots={len(self.slots)}" f")"
@@ -186,12 +194,9 @@ class Deck(SlotSet):
         if z_height > self.safe_z:
             self.safe_z = z_height
 
-    def load_labware(
-        self,
-        labware_filename: str,
-        slot_id: int,
-        path=os.path.join(
-            os.path.dirname(__file__),
+
+    def load_labware(self,labware_filename: str,slot_id: int,
+        path=os.path.join(os.path.dirname(__file__),
             "..",
             "labware",
             "labware_definition",
@@ -199,16 +204,17 @@ class Deck(SlotSet):
         order: str = "rows",
     ) -> None:
 
-        slot = self.get_slot(str(slot_id))
+        slot_id = str(slot_id)
+        slot = self.get_slot(slot_id)
 
-        labware = Labware(labware_filename, order=order, path=path)
+        if not slot.is_empty:
+            raise ValueError(f"Slot {slot_id} already contains a labware.")
 
+        labware = Labware(labware_filename,order=order,path=path)
         labware.add_slot(slot_id)
-
         labware.apply_offset(slot.offset)
 
         slot.load_labware(labware)
-
         self.update_safe_z(labware.dimensions["zDimension"])
 
     def unload_labware(self, slot_id: int) -> None:
@@ -231,15 +237,7 @@ class Deck(SlotSet):
 
             slots[slot_id] = Slot(
                 slot_index=slot_id,
-                offset=offset,
-                has_labware=slot_data.get(
-                    "has_labware",
-                    False,
-                ),
-            )
-            if slots[slot_id].has_labware == True:
-                self.load_labware(
-                    labware_filename=slot_data.get("labware"), slot_id=slot_id
+                offset=offset
                 )
-
+            
         return slots

@@ -3,8 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from functools import wraps
 
-from science_jubilee.navigation.deck_navigation import DeckNavigator
-
 # ======================================================================
 # Exceptions
 # ======================================================================
