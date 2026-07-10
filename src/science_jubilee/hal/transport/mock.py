@@ -1,4 +1,7 @@
 import json
+import os
+import glob
+import subprocess
 from typing import Optional, Dict, List
 
 from .base import BaseTransport
@@ -234,3 +237,37 @@ class MockTransport(BaseTransport):
             idx: tuple(tool["offsets"])
             for idx, tool in self.tools.items()
         }
+    
+       # ---- Twin link -------------------------------------------------------
+
+
+    def launch_twin(self, script_name: str, search_dir: str):
+        matches = glob.glob(
+            os.path.join(search_dir, "**", script_name),
+            recursive=True
+        )
+
+        if not matches:
+            raise FileNotFoundError(f"No script matching '{script_name}' found under {search_dir}")
+
+        script_path = matches[0]
+        script_dir = os.path.dirname(os.path.abspath(script_path))
+        print(f"\n=== LAUNCH TWIN ===")
+        print(f"Script found  : {script_path}")
+        print(f"Running from  : {script_dir}")
+
+        process = subprocess.Popen(
+            [script_path],
+            cwd=script_dir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        stdout, stderr = process.communicate()
+        
+        print(f"Return code   : {process.returncode}")
+        print(f"STDOUT:\n{stdout}")
+        if stderr:
+            print(f"STDERR:\n{stderr}")
+        
+        return process.returncode
