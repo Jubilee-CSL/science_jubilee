@@ -1,6 +1,6 @@
 import logging
-import pytest
 
+import pytest
 
 logger = logging.getLogger(__name__)
 
@@ -70,13 +70,17 @@ def test_eight_corners_xy_at_two_z(motion, tool_changer):
     feed = 4000.0
 
     print("Corners at Z≈0:")
-    for (x, y) in corners:
-        driver.move_to({"x": float(x), "y": float(y), "z": float(z0)}, s=feed, wait=True)
+    for x, y in corners:
+        driver.move_to(
+            {"x": float(x), "y": float(y), "z": float(z0)}, s=feed, wait=True
+        )
         print(f"  X:{x:.2f} Y:{y:.2f} Z:{z0:.2f}")
 
     print("Corners at Z=max:")
-    for (x, y) in corners:
-        driver.move_to({"x": float(x), "y": float(y), "z": float(z_hi)}, s=feed, wait=True)
+    for x, y in corners:
+        driver.move_to(
+            {"x": float(x), "y": float(y), "z": float(z_hi)}, s=feed, wait=True
+        )
         print(f"  X:{x:.2f} Y:{y:.2f} Z:{z_hi:.2f}")
 
     pos = driver.get_positions()

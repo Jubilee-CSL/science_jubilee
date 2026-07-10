@@ -8,6 +8,7 @@ user input should be skipped.
 import os
 import sys
 from pathlib import Path
+
 import pytest
 
 ## Ensure package import for tests without editable install
@@ -17,6 +18,7 @@ if str(_src_path) not in sys.path:
     sys.path.insert(0, str(_src_path))
 
 from science_jubilee.utils.env import load_env_file
+
 
 def pytest_addoption(parser):
     """Register command-line options for simulation vs hardware selection."""
@@ -54,7 +56,9 @@ def pytest_configure(config):
     # Default deck and labware definitions for navigation tests.
     # These can be overridden in .env.mock / .env.hardware if desired.
     os.environ.setdefault("JUBILEE_DECK_DEF", "lab_automation_deck_AFL_bolton.json")
-    os.environ.setdefault("JUBILEE_LABWARE_DEF", "20mlscintillation_12_wellplate_18000ul.json")
+    os.environ.setdefault(
+        "JUBILEE_LABWARE_DEF", "20mlscintillation_12_wellplate_18000ul.json"
+    )
 
 
 @pytest.fixture
@@ -70,8 +74,8 @@ def transport():
     - mock     -> MockTransport (wrapped in RecordingTransport)
     - hardware -> HTTPTransport (wrapped in RecordingTransport)
     """
-    from science_jubilee.hal.transport.mock import MockTransport
     from science_jubilee.hal.transport.http import HTTPTransport
+    from science_jubilee.hal.transport.mock import MockTransport
     from science_jubilee.hal.transport.recording import RecordingTransport
 
     address = os.getenv("JUBILEE_ADDRESS")
@@ -90,6 +94,7 @@ def transport():
 def motion(transport):
     """Provide a MotionDriver built on top of the transport fixture."""
     from science_jubilee.hal.motion_driver import MotionDriver
+
     return MotionDriver(transport)
 
 
@@ -97,6 +102,7 @@ def motion(transport):
 def tool_changer(transport):
     """Provide a ToolChanger built on top of the transport fixture."""
     from science_jubilee.hal.tool_changer import ToolChanger
+
     return ToolChanger(transport)
 
 
@@ -107,12 +113,12 @@ def navigator(motion):
     test environment.
     """
     from science_jubilee.decks.Deck import Deck
-    from science_jubilee.navigation.deck_navigation import (DeckNavigator)
+    from science_jubilee.navigation.deck_navigation import DeckNavigator
 
-    deck_def = (_get_defs_from_env())
+    deck_def = _get_defs_from_env()
     deck = Deck(deck_def)
 
-    nav = DeckNavigator(driver=motion,deck=deck)
+    nav = DeckNavigator(driver=motion, deck=deck)
 
     return nav
 
@@ -131,6 +137,6 @@ def _get_defs_from_env() -> tuple[str, str]:
     Environment variables can override defaults.
     """
 
-    deck_def = os.getenv("JUBILEE_DECK_DEF","lab_automation_deck_AFL_bolton.json")
+    deck_def = os.getenv("JUBILEE_DECK_DEF", "lab_automation_deck_AFL_bolton.json")
 
     return deck_def

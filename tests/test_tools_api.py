@@ -1,13 +1,13 @@
 import logging
-import pytest
 
-from science_jubilee.tools.Tool import Tool
+import pytest
 
 from science_jubilee.hal.tool_changer import (
     ToolSlotError,
+    ToolStateError,
     ToolSyncError,
-    ToolStateError
 )
+from science_jubilee.tools.Tool import Tool
 
 logger = logging.getLogger(__name__)
 
@@ -24,11 +24,11 @@ def test_pickup_tool(tool_changer):
     ok = tool_changer.pickup_tool(0)
 
     assert ok is True
-    assert (tool_changer.get_active_tool_index()== 0)
+    assert tool_changer.get_active_tool_index() == 0
 
     tool = tool_changer.get_tool(0)
     assert tool.is_active_tool is True
-    assert (tool_changer.get_active_tool_index() == tool.index)
+    assert tool_changer.get_active_tool_index() == tool.index
     tool_changer.park_tool()
 
 
@@ -41,11 +41,10 @@ def test_park_tool(tool_changer):
     ok = tool_changer.park_tool()
 
     assert ok is True
-    assert (tool_changer.get_active_tool_index()== -1)
+    assert tool_changer.get_active_tool_index() == -1
 
     tool = tool_changer.get_tool(0)
     assert tool.is_active_tool is False
-
 
 
 @pytest.mark.secondary
@@ -53,22 +52,23 @@ def test_exchange_tools(tool_changer):
     """
     Verify switching active tools.
     """
-    assert (tool_changer.pickup_tool(0) is True)
-    assert (tool_changer.get_active_tool_index()== 0)
+    assert tool_changer.pickup_tool(0) is True
+    assert tool_changer.get_active_tool_index() == 0
 
-    assert (tool_changer.pickup_tool(1)is True)
-    assert (tool_changer.get_active_tool_index()== 1)
+    assert tool_changer.pickup_tool(1) is True
+    assert tool_changer.get_active_tool_index() == 1
 
-    tool0 = (tool_changer.get_tool(0))
-    tool1 = (tool_changer.get_tool(1))
+    tool0 = tool_changer.get_tool(0)
+    tool1 = tool_changer.get_tool(1)
 
-    assert (tool0.is_active_tool is False)
-    assert (tool1.is_active_tool is True)
+    assert tool0.is_active_tool is False
+    assert tool1.is_active_tool is True
 
 
 # ------------------------------------------------------------------
 # Validation
 # ------------------------------------------------------------------
+
 
 @pytest.mark.secondary
 def test_pickup_empty_slot(tool_changer):
@@ -91,9 +91,8 @@ def test_pickup_same_tool_twice(tool_changer):
 
     with pytest.raises(ToolStateError):
         tool_changer.pickup_tool(0)
-    
-    tool_changer.park_tool()
 
+    tool_changer.park_tool()
 
 
 @pytest.mark.secondary

@@ -1,16 +1,17 @@
+import logging
 import os
 import time
 from pathlib import Path
-import logging
-from science_jubilee.utils.env import ensure_env_from_file
 
 import pytest
 import requests
+
+from science_jubilee.utils.env import ensure_env_from_file
+
 logger = logging.getLogger(__name__)
 
 
 @pytest.mark.primary
-
 def test_requests_send_gcode_m115():
     """Smoke test that raw HTTP requests can reach the printer and return a plausible reply.
     Uses /machine/code when available; falls back to rr_gcode/rr_reply.
@@ -53,7 +54,9 @@ def test_requests_send_gcode_m115():
     if not text:
         logger.info("Falling back to rr_gcode/rr_reply sequence")
         try:
-            model = requests.get(f"http://{address}/rr_model?key=seqs", timeout=5).json()
+            model = requests.get(
+                f"http://{address}/rr_model?key=seqs", timeout=5
+            ).json()
             prev_reply = model.get("result", {}).get("reply")
             # issue M115
             _ = requests.get(f"http://{address}/rr_gcode?gcode=M115", timeout=5)
@@ -61,13 +64,17 @@ def test_requests_send_gcode_m115():
             start = time.time()
             while time.time() - start < 5:
                 try:
-                    new_model = requests.get(f"http://{address}/rr_model?key=seqs", timeout=5).json()
+                    new_model = requests.get(
+                        f"http://{address}/rr_model?key=seqs", timeout=5
+                    ).json()
                     new_reply = new_model.get("result", {}).get("reply")
                     if new_reply != prev_reply:
                         rep = requests.get(f"http://{address}/rr_reply", timeout=5)
                         if rep.ok:
                             text = rep.text
-                            logger.info("rr_reply returned ok; length=%d", len(text or ""))
+                            logger.info(
+                                "rr_reply returned ok; length=%d", len(text or "")
+                            )
                         break
                 except Exception:
                     pass
@@ -76,6 +83,10 @@ def test_requests_send_gcode_m115():
             pass
 
     logger.info("M115 response (truncated 120 chars): %r", (text or "").strip()[:120])
-    assert text is not None and text.strip() != "", "No response text returned from M115"
+    assert (
+        text is not None and text.strip() != ""
+    ), "No response text returned from M115"
     upper = text.upper()
-    assert ("FIRMWARE" in upper) or ("REPRAPFIRMWARE" in upper), f"Unexpected M115 reply: {text!r}"
+    assert ("FIRMWARE" in upper) or (
+        "REPRAPFIRMWARE" in upper
+    ), f"Unexpected M115 reply: {text!r}"

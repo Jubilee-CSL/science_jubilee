@@ -21,7 +21,9 @@ def test_recording_transport_uses_pytest_current_test_env(tmp_path, monkeypatch)
     """Copy is named after the test file reported by pytest."""
     monkeypatch.delenv("JUBILEE_RUN_NAME", raising=False)
     monkeypatch.delenv("JUBILEE_GCODE_LOG_COPY", raising=False)
-    monkeypatch.setenv("PYTEST_CURRENT_TEST", "tests/test_navigation_deck.py::test_move_to_well (call)")
+    monkeypatch.setenv(
+        "PYTEST_CURRENT_TEST", "tests/test_navigation_deck.py::test_move_to_well (call)"
+    )
     latest = tmp_path / "gcode_logs" / "latest.gcode"
 
     rec = RecordingTransport(MockTransport(), log_path=str(latest))

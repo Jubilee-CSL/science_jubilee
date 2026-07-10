@@ -1,15 +1,14 @@
 import logging
 import os
-import time
 import re
+import time
 from pathlib import Path
-from typing import Optional, Callable, Union
+from typing import Callable, Optional, Union
 
 import requests
 from requests.adapters import HTTPAdapter, Retry
 
 from .base import BaseTransport
-
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +16,14 @@ logger = logging.getLogger(__name__)
 class HTTPTransport(BaseTransport):
     """HTTP transport for Duet/RepRapFirmware endpoints."""
 
-    def __init__(self, address: str, session: Optional[requests.Session] = None, crash_detection: bool = False, crash_handler=None, deck_clear_provider: Optional[Callable[[], bool]] = None):
+    def __init__(
+        self,
+        address: str,
+        session: Optional[requests.Session] = None,
+        crash_detection: bool = False,
+        crash_handler=None,
+        deck_clear_provider: Optional[Callable[[], bool]] = None,
+    ):
         self.address = address
         self.crash_detection = crash_detection
         self.crash_handler = crash_handler
@@ -25,7 +31,9 @@ class HTTPTransport(BaseTransport):
 
         if session is None:
             session = requests.Session()
-            retries = Retry(total=5, backoff_factor=0.1, status_forcelist=[500, 502, 503, 504])
+            retries = Retry(
+                total=5, backoff_factor=0.1, status_forcelist=[500, 502, 503, 504]
+            )
             session.mount("http://", HTTPAdapter(max_retries=retries))
             session.headers["Connection"] = "close"
         self.session = session
@@ -49,38 +57,62 @@ class HTTPTransport(BaseTransport):
         else:
             return 1
 
-    def send_gcode(self, cmd: str = "", timeout: Optional[float] = None, response_wait: float = 60, wait: bool = False):
+    def send_gcode(
+        self,
+        cmd: str = "",
+        timeout: Optional[float] = None,
+        response_wait: float = 60,
+        wait: bool = False,
+    ):
         """Send a G-Code command over HTTP and return the response or None.
         If wait is True and the command implies motion, ensure completion with M400.
         """
         try:
-            response = requests.post(f"http://{self.address}/machine/code", data=f"{cmd}", timeout=timeout).text
+            response = requests.post(
+                f"http://{self.address}/machine/code", data=f"{cmd}", timeout=timeout
+            ).text
             # On success via /machine/code, optionally block until motion completes
             if wait and not cmd.strip().upper().startswith("M400"):
-                _ = requests.post(f"http://{self.address}/machine/code", data="M400", timeout=timeout).text
+                _ = requests.post(
+                    f"http://{self.address}/machine/code", data="M400", timeout=timeout
+                ).text
             if "rejected" in response:
                 raise requests.RequestException
         except requests.RequestException:
             try:
                 # Query reply sequence
-                reply_response = self.session.get(f"http://{self.address}/rr_model?key=seqs")
-                logger.debug(f"MODEL response, status: {reply_response.status_code}, headers:{reply_response.headers}, content:{reply_response.content}")
+                reply_response = self.session.get(
+                    f"http://{self.address}/rr_model?key=seqs"
+                )
+                logger.debug(
+                    f"MODEL response, status: {reply_response.status_code}, headers:{reply_response.headers}, content:{reply_response.content}"
+                )
                 reply_count = reply_response.json()["result"]["reply"]
 
-                buffer_response = self.session.get(f"http://{self.address}/rr_gcode?gcode={cmd}", timeout=timeout)
-                logger.debug(f"GCODE response, status: {buffer_response.status_code}, headers:{buffer_response.headers}, content:{buffer_response.content}")
+                buffer_response = self.session.get(
+                    f"http://{self.address}/rr_gcode?gcode={cmd}", timeout=timeout
+                )
+                logger.debug(
+                    f"GCODE response, status: {buffer_response.status_code}, headers:{buffer_response.headers}, content:{buffer_response.content}"
+                )
 
                 tic = time.time()
                 try_count = 0
                 while True:
                     try:
-                        new_reply_response = self.session.get(f"http://{self.address}/rr_model?key=seqs")
-                        logger.debug(f"MODEL response, status: {new_reply_response.status_code}, headers:{new_reply_response.headers}, content:{new_reply_response.content}")
+                        new_reply_response = self.session.get(
+                            f"http://{self.address}/rr_model?key=seqs"
+                        )
+                        logger.debug(
+                            f"MODEL response, status: {new_reply_response.status_code}, headers:{new_reply_response.headers}, content:{new_reply_response.content}"
+                        )
                         new_reply_count = new_reply_response.json()["result"]["reply"]
 
                         if new_reply_count != reply_count:
                             reply = self.session.get(f"http://{self.address}/rr_reply")
-                            logger.debug(f"REPLY response, status: {reply.status_code}, headers:{reply.headers}, content:{reply.content}")
+                            logger.debug(
+                                f"REPLY response, status: {reply.status_code}, headers:{reply.headers}, content:{reply.content}"
+                            )
                             text = reply.text
 
                             responses = self._split_response_objects(text)
@@ -89,7 +121,11 @@ class HTTPTransport(BaseTransport):
                             else:
                                 text = None
 
-                            if self.crash_detection and text and ("crash detected" in text):
+                            if (
+                                self.crash_detection
+                                and text
+                                and ("crash detected" in text)
+                            ):
                                 logger.error("Jubilee crash detected")
                                 if self.crash_handler is not None:
                                     try:
@@ -99,18 +135,33 @@ class HTTPTransport(BaseTransport):
                             # If requested, wait for motion completion via M400
                             if wait and not (cmd.strip().upper().startswith("M400")):
                                 # Issue M400 and wait for its reply increment
-                                m400_reply_response = self.session.get(f"http://{self.address}/rr_model?key=seqs")
-                                m400_reply_count = m400_reply_response.json()["result"]["reply"]
-                                self.session.get(f"http://{self.address}/rr_gcode?gcode=M400", timeout=timeout)
+                                m400_reply_response = self.session.get(
+                                    f"http://{self.address}/rr_model?key=seqs"
+                                )
+                                m400_reply_count = m400_reply_response.json()["result"][
+                                    "reply"
+                                ]
+                                self.session.get(
+                                    f"http://{self.address}/rr_gcode?gcode=M400",
+                                    timeout=timeout,
+                                )
                                 tic2 = time.time()
                                 tries2 = 0
                                 while True:
                                     try:
-                                        new_m400_reply_response = self.session.get(f"http://{self.address}/rr_model?key=seqs")
-                                        new_m400_reply_count = new_m400_reply_response.json()["result"]["reply"]
+                                        new_m400_reply_response = self.session.get(
+                                            f"http://{self.address}/rr_model?key=seqs"
+                                        )
+                                        new_m400_reply_count = (
+                                            new_m400_reply_response.json()["result"][
+                                                "reply"
+                                            ]
+                                        )
                                         if new_m400_reply_count != m400_reply_count:
                                             # consume rr_reply for M400
-                                            _ = self.session.get(f"http://{self.address}/rr_reply")
+                                            _ = self.session.get(
+                                                f"http://{self.address}/rr_reply"
+                                            )
                                             break
                                         elif time.time() - tic2 > response_wait:
                                             break
@@ -129,7 +180,9 @@ class HTTPTransport(BaseTransport):
                         time.sleep(2)
                         continue
             except requests.RequestException as e:
-                logger.error(f"Both `requests.post` and `requests.get` requests failed: {e}")
+                logger.error(
+                    f"Both `requests.post` and `requests.get` requests failed: {e}"
+                )
                 return None
         return response
 
@@ -173,7 +226,11 @@ class HTTPTransport(BaseTransport):
                 # If provider fails, fall back to prompt
                 pass
         try:
-            answer = input("Confirm deck is clear and safe to home Z (y/N): ").strip().lower()
+            answer = (
+                input("Confirm deck is clear and safe to home Z (y/N): ")
+                .strip()
+                .lower()
+            )
             return answer in ("y", "yes")
         except Exception:
             return False
@@ -208,7 +265,10 @@ class HTTPTransport(BaseTransport):
         try:
             text = self.send_gcode("M114") or ""
             # Find tokens like 'X:12.34' and collect the leading letters
-            letters = [m.group(1).upper() for m in re.finditer(r"([A-Za-z]):\s*-?\d+(?:\.\d+)?", text)]
+            letters = [
+                m.group(1).upper()
+                for m in re.finditer(r"([A-Za-z]):\s*-?\d+(?:\.\d+)?", text)
+            ]
             # Preserve order and uniqueness
             seen = set()
             ordered = []
@@ -236,7 +296,11 @@ class HTTPTransport(BaseTransport):
                             letter = str(axis_obj.get("letter", "")).upper()
                             minv = axis_obj.get("min")
                             maxv = axis_obj.get("max")
-                            if letter and isinstance(minv, (int, float)) and isinstance(maxv, (int, float)):
+                            if (
+                                letter
+                                and isinstance(minv, (int, float))
+                                and isinstance(maxv, (int, float))
+                            ):
                                 limits[letter] = (float(minv), float(maxv))
             return limits
         except Exception:
@@ -320,9 +384,17 @@ class HTTPTransport(BaseTransport):
                         if isinstance(t, dict):
                             num = t.get("number")
                             offs = t.get("offsets")
-                            if isinstance(num, int) and isinstance(offs, list) and len(offs) >= 3:
+                            if (
+                                isinstance(num, int)
+                                and isinstance(offs, list)
+                                and len(offs) >= 3
+                            ):
                                 try:
-                                    x, y, z = float(offs[0]), float(offs[1]), float(offs[2])
+                                    x, y, z = (
+                                        float(offs[0]),
+                                        float(offs[1]),
+                                        float(offs[2]),
+                                    )
                                     offsets[num] = [x, y, z]
                                 except Exception:
                                     pass
@@ -386,7 +458,9 @@ class HTTPTransport(BaseTransport):
         if not local_path.exists():
             raise FileNotFoundError(f"Local file not found: {local_path}")
 
-        folder = self._UPLOAD_DESTINATIONS.get(destination.lower(), destination.rstrip("/"))
+        folder = self._UPLOAD_DESTINATIONS.get(
+            destination.lower(), destination.rstrip("/")
+        )
         filename = remote_name if remote_name else local_path.name
         remote_path = f"{folder}/{filename}"
         file_bytes = local_path.read_bytes()
@@ -405,7 +479,9 @@ class HTTPTransport(BaseTransport):
                 logger.info("Uploaded via DWC2: %s -> %s", local_path.name, remote_path)
                 print(f"Uploaded '{local_path.name}' -> {remote_path}  (DWC2)")
                 return remote_path
-            logger.debug("DWC2 upload returned %s: %s", resp.status_code, resp.text[:200])
+            logger.debug(
+                "DWC2 upload returned %s: %s", resp.status_code, resp.text[:200]
+            )
         except requests.RequestException as e:
             logger.debug("DWC2 upload failed: %s", e)
 
@@ -423,13 +499,21 @@ class HTTPTransport(BaseTransport):
                 try:
                     body = resp.json()
                     if body.get("err", 1) == 0:
-                        logger.info("Uploaded via rr_upload: %s -> %s", local_path.name, remote_path)
-                        print(f"Uploaded '{local_path.name}' -> {remote_path}  (rr_upload)")
+                        logger.info(
+                            "Uploaded via rr_upload: %s -> %s",
+                            local_path.name,
+                            remote_path,
+                        )
+                        print(
+                            f"Uploaded '{local_path.name}' -> {remote_path}  (rr_upload)"
+                        )
                         return remote_path
                     logger.debug("rr_upload returned err=%s", body.get("err"))
                 except Exception:
                     # Some firmware versions return plain 200 with no JSON
-                    logger.info("Uploaded via rr_upload: %s -> %s", local_path.name, remote_path)
+                    logger.info(
+                        "Uploaded via rr_upload: %s -> %s", local_path.name, remote_path
+                    )
                     print(f"Uploaded '{local_path.name}' -> {remote_path}  (rr_upload)")
                     return remote_path
             logger.debug("rr_upload returned %s: %s", resp.status_code, resp.text[:200])
@@ -523,11 +607,15 @@ class HTTPTransport(BaseTransport):
         # --- Attempt 2: Legacy rr_download --------------------------------
         rr_url = f"http://{self.address}/rr_download"
         try:
-            resp = self.session.get(rr_url, params={"name": remote_path}, timeout=timeout)
+            resp = self.session.get(
+                rr_url, params={"name": remote_path}, timeout=timeout
+            )
             if resp.status_code == 200:
                 logger.debug("Read via rr_download: %s", remote_path)
                 return resp.text
-            logger.debug("rr_download returned %s for %s", resp.status_code, remote_path)
+            logger.debug(
+                "rr_download returned %s for %s", resp.status_code, remote_path
+            )
         except requests.RequestException as e:
             logger.debug("rr_download failed: %s", e)
 
