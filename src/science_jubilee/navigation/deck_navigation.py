@@ -7,6 +7,9 @@ from science_jubilee.decks.Deck import Deck
 from science_jubilee.hal.motion_driver import MotionDriver
 from science_jubilee.labware.Labware import Labware, Location, Point, Well
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 @dataclass(slots=True)
 class DeckNavigator:
@@ -101,34 +104,26 @@ class DeckNavigator:
         speed_xy = self.default_speed_xy if speed_xy is None else speed_xy
         speed_z = self.default_speed_z if speed_z is None else speed_z
 
-        position = self.driver.get_positions
-        if not well.in_usable_space(
-            Location(point=Point(position["X"], position["Y"], position["Z"]))
-        ):
-            raise ValueError("Need to be inside a well to use this fonctions")
+        position = self.driver.get_positions()
+        location = Location(point = Point(x=position["X"],
+                                          y=position["Y"],
+                                          z=position["Z"]),
+                                          resource=well)
+        
+        if (x and y)!=None:
+            destination : Location = well.safe_move(location,x,y)
+            self.driver.move_to({"X":float(destination.point.x),
+                                "Y":float(destination.point.y)},
+                                s=speed_xy,wait=True)
+        if z !=None: 
+            self.driver.move_to({"Z":float(z),},
+                             s=speed_z,wait=True)
 
-        if (x and y) != None:
-            destination: Location = well.safe_move(well, x, y)
-            self.driver.move_to(
-                {"X": float(destination.point.x), "Y": float(destination.point.y)},
-                s=speed_xy,
-                wait=True,
-            )
-        if z != None:
-            self.driver.move_to(
-                {
-                    "Z": float(z),
-                },
-                s=speed_z,
-                wait=True,
-            )
 
-    def random_move_inside_well(self, well: Well, speed_xy: float | None = None):
-
-        destination = well.random_point()
-        self.move_inside_well(
-            well, destination.point.x, destination.point.y, speed_xy=speed_xy
-        )
+    def random_move_inside_well(self, well:Well ,margin : float = 0.7 , speed_xy:float | None = None):
+        
+        destination = well.random_point(safety_margin=margin)
+        self.move_inside_well(well,destination.point.x,destination.point.y,speed_xy=speed_xy)
 
     # ------------------------------------------------------------------
     # Deck helpers
@@ -150,4 +145,12 @@ class DeckNavigator:
         Retrieve a well directly from deck state.
         """
 
-        return self.deck.get_well(str(slot_id), well_id)
+        return self.deck.get_well(str(slot_id),well_id)
+    
+    def get_wells_in_slot(self,slot_id: str | int) -> list[Well]:
+        """
+        Retrieve loaded labware from deck.
+        """
+        labware = self.get_labware_in_slot(slot_id)
+
+        return labware.get_wells()

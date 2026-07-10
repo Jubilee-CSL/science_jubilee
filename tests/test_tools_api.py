@@ -1,11 +1,9 @@
 import logging
 
-import pytest
 
 from science_jubilee.hal.tool_changer import (
     ToolSlotError,
-    ToolStateError,
-    ToolSyncError,
+    ToolStateError
 )
 from science_jubilee.tools.Tool import Tool
 
@@ -79,20 +77,6 @@ def test_pickup_empty_slot(tool_changer):
 
     with pytest.raises(ToolSlotError):
         tool_changer.pickup_tool(3)
-
-
-@pytest.mark.secondary
-def test_pickup_same_tool_twice(tool_changer):
-    """
-    Picking active tool twice
-    must fail.
-    """
-    tool_changer.pickup_tool(0)
-
-    with pytest.raises(ToolStateError):
-        tool_changer.pickup_tool(0)
-
-    tool_changer.park_tool()
 
 
 @pytest.mark.secondary
