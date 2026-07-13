@@ -1,23 +1,29 @@
 from __future__ import annotations
 
 from typing import Dict, Optional
+
 from science_jubilee.tools.Tool import Tool
 
 # ------------------------------------------------------------------
 # Exceptions
 # ------------------------------------------------------------------
 
+
 class ToolError(Exception):
     """Base tool exception."""
+
 
 class ToolSlotError(ToolError):
     """Invalid or unavailable tool slot."""
 
+
 class ToolStateError(ToolError):
     """Invalid tool state transition."""
 
+
 class ToolSyncError(ToolError):
     """Transport and local cache are out of sync."""
+
 
 # ------------------------------------------------------------------
 # Tool changer
@@ -30,7 +36,7 @@ class ToolChanger:
     # Init
     # ------------------------------------------------------------------
 
-    def __init__(self,transport) -> None:
+    def __init__(self, transport) -> None:
 
         self.transport = transport
         # Instance runtime state
@@ -48,12 +54,8 @@ class ToolChanger:
                 self.tools[i] = Inoculator(i,tool_name)
             """
             if tool_name != "None":
-                self.tools[i] = Tool(i,tool_name)
-                
-        
+                self.tools[i] = Tool(i, tool_name)
 
-    
-   
     # ------------------------------------------------------------------
     # Tool actuation
     # ------------------------------------------------------------------
@@ -68,7 +70,7 @@ class ToolChanger:
     # Tool selection
     # ------------------------------------------------------------------
 
-    def pickup_tool(self,tool_idx: int) -> bool:
+    def pickup_tool(self, tool_idx: int) -> bool:
         if tool_idx not in self.tools:
             raise ToolSlotError(f"Invalid tool slot {tool_idx}")
 
@@ -82,9 +84,9 @@ class ToolChanger:
 
         if self.get_tool_offset(tool_idx) == (0.0,0.0,-400.0):
             raise ToolStateError("Tool offset must be configured")
-    
+
         self.park_tool()
-        
+
         success = self.transport.select_tool(tool_idx)
 
         if success:
@@ -123,7 +125,7 @@ class ToolChanger:
     def get_tool(self,tool_idx) -> Tool:
         if tool_idx not in self.tools:
             raise ToolSlotError(f"Invalid tool slot {tool_idx}")
-        
+
         tool = self.tools[tool_idx]
 
         if tool is None:

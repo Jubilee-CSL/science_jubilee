@@ -1,16 +1,15 @@
 from __future__ import annotations
 
 import json
-import os
-import string
 import math
+import os
 import random
+import string
 from dataclasses import dataclass, field
 from itertools import chain
 from typing import Dict, Iterator, NamedTuple
 
 import numpy as np
-
 
 
 class Point(NamedTuple):
@@ -40,12 +39,10 @@ class Point(NamedTuple):
         )
 
 
-
 @dataclass(slots=True)
 class Location:
     point: Point
     resource: "Well | Labware"
-
 
 
 @dataclass(slots=True, repr=False)
@@ -89,25 +86,24 @@ class Well:
     @property
     def bottom(self) -> float:
         return self.z
-    
-    def _validate_geometry(self)-> None:
 
-        if self.shape not in {"circular","rectangular",}:
-            raise ValueError(
-                f"Unsupported well shape: {self.shape}"
-            )
+    def _validate_geometry(self) -> None:
+
+        if self.shape not in {
+            "circular",
+            "rectangular",
+        }:
+            raise ValueError(f"Unsupported well shape: {self.shape}")
 
         if self.shape == "circular":
             if self.diameter is None:
                 raise ValueError("Circular wells require a diameter.")
 
         if self.shape == "rectangular":
-            if (self.xDimension is None or self.yDimension is None):
+            if self.xDimension is None or self.yDimension is None:
                 raise ValueError(
-                    "Rectangular wells require "
-                    "xDimension and yDimension."
+                    "Rectangular wells require " "xDimension and yDimension."
                 )
-
 
     # ------------------------------------------------------------------
     # Position helpers
@@ -143,24 +139,22 @@ class Well:
             Point(self.x, self.y, z),
             self,
         )
-    
-    def random_point(self,safety_margin: float = 0.8) -> Location:
+
+    def random_point(self, safety_margin: float = 0.8) -> Location:
         """
         Generate a random safe point inside the well.
         """
         self._validate_geometry()
 
         if not 0 < safety_margin <= 1:
-            raise ValueError(
-                "safety_margin must be between 0 and 1."
-            )
+            raise ValueError("safety_margin must be between 0 and 1.")
 
         if self.shape == "circular":
 
             usable_radius = (self.diameter / 2) * safety_margin
 
             angle = random.uniform(0, 2 * math.pi)
-            radius = random.uniform(0,usable_radius)
+            radius = random.uniform(0, usable_radius)
 
             dx = math.cos(angle) * radius
             dy = math.sin(angle) * radius
@@ -170,17 +164,15 @@ class Well:
             half_x = (self.xDimension / 2) * safety_margin
             half_y = (self.yDimension / 2) * safety_margin
 
-            dx = random.uniform(-half_x,half_x)
-            dy = random.uniform(-half_y,half_y)
+            dx = random.uniform(-half_x, half_x)
+            dy = random.uniform(-half_y, half_y)
 
         return Location(
-        point=Point(self.x + dx, self.y + dy, 0),
-        resource=self,
-    )
+            point=Point(self.x + dx, self.y + dy, 0),
+            resource=self,
+        )
 
-    
-    def in_usable_space(self, location: Location, safety_margin: float = 0.95)-> bool:
-
+    def in_usable_space(self, location: Location, safety_margin: float = 0.95) -> bool:
         """
         Check if a point is inside the safe usable area.
         """
@@ -194,18 +186,14 @@ class Well:
             usable_radius = (self.diameter / 2) * safety_margin
             distance = math.sqrt(dx**2 + dy**2)
             return distance <= usable_radius
-        
-        
 
         half_x = (self.xDimension / 2) * safety_margin
         half_y = (self.yDimension / 2) * safety_margin
 
-        dx = random.uniform(-half_x,half_x)
-        dy = random.uniform(-half_y,half_y)
-        
-        return (-half_x <= dx <= half_x
-                and -half_y <= dy <= half_y)
+        dx = random.uniform(-half_x, half_x)
+        dy = random.uniform(-half_y, half_y)
 
+        return -half_x <= dx <= half_x and -half_y <= dy <= half_y
 
     def safe_move(self,start: Location,
                   x: float = 0,
@@ -226,7 +214,9 @@ class Well:
                 start.point.x + x,
                 start.point.y + y,
                 start.point.z,
-            ),self,)
+            ),
+            self,
+        )
 
         if self.in_usable_space(finish,safety_margin=safety_margin):
             return finish
@@ -255,7 +245,9 @@ class Well:
                     start.point.x + x * scale,
                     start.point.y + y * scale,
                     start.point.z,
-                ),self,)
+                ),
+                self,
+            )
 
         if self.shape == "circular":
 
@@ -276,7 +268,7 @@ class Well:
             disc = b * b - 4 * a * c
 
             if disc >= 0:
-                t = (-b + disc ** 0.5) / (2 * a)
+                t = (-b + disc**0.5) / (2 * a)
                 t = max(0.0, min(1.0, t))
 
                 return Location(
@@ -284,7 +276,9 @@ class Well:
                         start.point.x + dx * t,
                         start.point.y + dy * t,
                         start.point.z,
-                    ),self,)
+                    ),
+                    self,
+                )
 
         # ------------------------------------------------------------------
         # Fallback for arbitrary geometries
@@ -301,13 +295,14 @@ class Well:
                     start.point.x + corrected_x,
                     start.point.y + corrected_y,
                     start.point.z,
-                ),self,)
+                ),
+                self,
+            )
 
-            if self.in_usable_space(corrected_finish,safety_margin=safety_margin):
+            if self.in_usable_space(corrected_finish, safety_margin=safety_margin):
                 return corrected_finish
 
         raise ValueError("Unable to compute a valid safe move.")
-        
 
     # ------------------------------------------------------------------
     # Tip state
@@ -324,7 +319,6 @@ class Well:
             self.clean_tip = clean_tip
 
 
-
 @dataclass(slots=True, repr=False)
 class WellSet:
     """
@@ -334,10 +328,7 @@ class WellSet:
     wells: Dict[str, Well] = field(default_factory=dict, kw_only=True)
 
     def __repr__(self):
-        return (
-            f"{self.__class__.__name__}"
-            f"({list(self.wells.keys())})"
-        )
+        return f"{self.__class__.__name__}" f"({list(self.wells.keys())})"
 
     def __iter__(self) -> Iterator[Well]:
         return iter(self.wells.values())
@@ -358,9 +349,7 @@ class WellSet:
         if isinstance(identifier, slice):
             return list(self.wells.values())[identifier]
 
-        raise TypeError(
-            f"Unsupported identifier: {type(identifier)}"
-        )
+        raise TypeError(f"Unsupported identifier: {type(identifier)}")
 
     # ------------------------------------------------------------------
     # Helpers
@@ -373,17 +362,14 @@ class WellSet:
         return list(self.wells.values())
 
 
-
 @dataclass(slots=True, repr=False)
 class Row(WellSet):
     identifier: str = ""
 
 
-
 @dataclass(slots=True, repr=False)
 class Column(WellSet):
     identifier: int = 0
-
 
 
 @dataclass(slots=True, repr=False)
@@ -446,9 +432,7 @@ class Labware(WellSet):
             "col",
             "c",
         }:
-            raise ValueError(
-                f"Invalid order: {self.order}"
-            )
+            raise ValueError(f"Invalid order: {self.order}")
 
         filename = self.labware_filename
 
@@ -533,7 +517,7 @@ class Labware(WellSet):
 
     @property
     def shape(self):
-        return (len(self.row_data),len(self.column_data))
+        return (len(self.row_data), len(self.column_data))
 
     # ------------------------------------------------------------------
     # Runtime helpers
@@ -623,14 +607,10 @@ class Labware(WellSet):
         for well in wells.values():
             well.labware_name = self.display_name
 
-        rows = {
-            key: Row(identifier=key, wells=value)
-            for key, value in rows.items()
-        }
+        rows = {key: Row(identifier=key, wells=value) for key, value in rows.items()}
 
         columns = {
-            key: Column(identifier=key, wells=value)
-            for key, value in columns.items()
+            key: Column(identifier=key, wells=value) for key, value in columns.items()
         }
 
         return rows, columns, wells
@@ -640,9 +620,14 @@ class Labware(WellSet):
     # ------------------------------------------------------------------
 
     @staticmethod
-    def nominal_coordinates(well: Well,x_spacing: float,y_spacing: float) -> tuple[float, float]:
+    def nominal_coordinates(
+        well: Well, x_spacing: float, y_spacing: float
+    ) -> tuple[float, float]:
 
         col_index = int(well.name[1:]) - 1
         row_index = list(string.ascii_uppercase).index(well.name[0])
 
-        return (col_index * x_spacing,row_index * y_spacing,)
+        return (
+            col_index * x_spacing,
+            row_index * y_spacing,
+        )

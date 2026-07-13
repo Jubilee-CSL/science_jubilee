@@ -118,7 +118,9 @@ def list_remote_dir(
     # Attempt 2: Legacy endpoint
     rr_url = f"http://{transport.address}/rr_filelist"
     try:
-        resp = transport.session.get(rr_url, params={"dir": remote_dir}, timeout=timeout)
+        resp = transport.session.get(
+            rr_url, params={"dir": remote_dir}, timeout=timeout
+        )
         if resp.status_code == 200:
             entries = _normalize_entries(resp.json())
             if entries:
@@ -187,14 +189,20 @@ def download_remote_tree(
 
     if clean:
         # Remove stale files first
-        for existing in sorted(local_root.rglob("*"), key=lambda p: len(p.parts), reverse=True):
+        for existing in sorted(
+            local_root.rglob("*"), key=lambda p: len(p.parts), reverse=True
+        ):
             if existing.is_file():
                 rel = existing.relative_to(local_root)
                 if rel not in expected_relative:
                     existing.unlink(missing_ok=True)
 
         # Remove now-empty directories (bottom-up), keep local_root
-        for d in sorted([p for p in local_root.rglob("*") if p.is_dir()], key=lambda p: len(p.parts), reverse=True):
+        for d in sorted(
+            [p for p in local_root.rglob("*") if p.is_dir()],
+            key=lambda p: len(p.parts),
+            reverse=True,
+        ):
             try:
                 d.rmdir()
             except OSError:
