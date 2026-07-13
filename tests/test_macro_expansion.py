@@ -7,8 +7,9 @@ Log files are written to <repo_root>/gcode_logs/ and named after the test
 function so they persist after the run and can be inspected.
 """
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from science_jubilee.hal.transport.mock import MockTransport
 from science_jubilee.hal.transport.recording import RecordingTransport
@@ -23,16 +24,21 @@ _LOG_DIR = _REPO_ROOT / "gcode_logs"
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _firmware_dirs() -> tuple[Path, Path]:
     """Return the real firmware sys and macro directories."""
     return _REPO_ROOT / "firmware" / "sys", _REPO_ROOT / "firmware" / "macro"
 
 
-def _make_recording(name: str, mock: MockTransport, sys_dir: Path, macro_dir: Path) -> tuple[RecordingTransport, Path]:
+def _make_recording(
+    name: str, mock: MockTransport, sys_dir: Path, macro_dir: Path
+) -> tuple[RecordingTransport, Path]:
     """Create a RecordingTransport that writes to gcode_logs/<name>.gcode."""
     _LOG_DIR.mkdir(parents=True, exist_ok=True)
     log = _LOG_DIR / f"{name}.gcode"
-    rec = RecordingTransport(mock, log_path=str(log), sys_dir=sys_dir, macro_dir=macro_dir)
+    rec = RecordingTransport(
+        mock, log_path=str(log), sys_dir=sys_dir, macro_dir=macro_dir
+    )
     return rec, log
 
 
@@ -43,6 +49,7 @@ def _log_content(log: Path) -> str:
 # ---------------------------------------------------------------------------
 # Tests: T{n} expansion via send_gcode
 # ---------------------------------------------------------------------------
+
 
 def test_tool_change_from_no_active_tool_expands_tpre_and_tpost(request):
     """T0 with no active tool: no tfree, tpre0 + tpost0 are expanded."""
@@ -123,17 +130,22 @@ def test_park_tool_with_no_active_tool_logs_header_only(request):
 # Tests: select_tool / park_tool bypass fix
 # ---------------------------------------------------------------------------
 
+
 def test_select_tool_produces_same_expansion_as_send_gcode(request):
     """select_tool(0) must log the same macro expansion as send_gcode('T0')."""
     sys_dir, macro_dir = _firmware_dirs()
 
     # Reference: expansion via send_gcode
-    rec_ref, log_ref = _make_recording(request.node.name + "_ref", MockTransport(), sys_dir, macro_dir)
+    rec_ref, log_ref = _make_recording(
+        request.node.name + "_ref", MockTransport(), sys_dir, macro_dir
+    )
     rec_ref.send_gcode("T0")
     ref_content = _log_content(log_ref)
 
     # Under test: expansion via select_tool
-    rec_sel, log_sel = _make_recording(request.node.name + "_sel", MockTransport(), sys_dir, macro_dir)
+    rec_sel, log_sel = _make_recording(
+        request.node.name + "_sel", MockTransport(), sys_dir, macro_dir
+    )
     rec_sel.select_tool(0)
     sel_content = _log_content(log_sel)
 
@@ -163,6 +175,7 @@ def test_park_tool_method_logs_tfree_expansion(request):
 # ---------------------------------------------------------------------------
 # Tests: recursive M98 expansion
 # ---------------------------------------------------------------------------
+
 
 def test_nested_m98_in_macro_is_expanded(request):
     """M98 calls inside an expanded tpost file are themselves expanded."""
@@ -197,6 +210,7 @@ def test_standalone_m98_send_gcode_expands_macro(request):
 # ---------------------------------------------------------------------------
 # Tests: missing macro file fallback
 # ---------------------------------------------------------------------------
+
 
 def test_missing_tpre_logs_not_found_comment(request):
     """T99 with no tpre99.g in sys_dir logs a '(macro not found:...)' comment."""
@@ -245,6 +259,7 @@ def test_no_macro_dirs_does_not_raise(request):
 # ---------------------------------------------------------------------------
 # Tests: regular G-code is unaffected
 # ---------------------------------------------------------------------------
+
 
 def test_regular_gcode_is_logged_unchanged(request):
     """Non-tool-change commands are logged verbatim."""

@@ -1,16 +1,15 @@
 
-import requests
 import time
 from pathlib import Path
-import logging
+
 import pytest
+import logging
+import requests
+
+from science_jubilee.tools.Observer import Camera
 
 from science_jubilee.tools.Observer import Camera
 from science_jubilee.labware.Labware import Well
-
-
-logger = logging.getLogger(__name__)
-
 
 LED_SERVER = "http://10.0.9.55:5001"
 

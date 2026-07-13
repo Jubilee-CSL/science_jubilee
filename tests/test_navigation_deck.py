@@ -1,4 +1,5 @@
 import os
+
 import pytest
 
 
@@ -11,7 +12,7 @@ def test_navigation_with_motion_fixture_moves_control_point(navigator):
     machine, so keep it under the 'invasive' marker.
     """
 
-    well = navigator.get_well("0","A1")
+    well = navigator.get_well("0", "A1")
     offset = 2.0
     loc = well.get_bottom_location(z_offset=offset)
     x_exp, y_exp, z_exp = loc.point

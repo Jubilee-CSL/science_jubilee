@@ -1,7 +1,8 @@
-
 from __future__ import annotations
+
 from enum import Enum
-from typing import Union, Optional
+from typing import Optional, Union
+
 
 class MotionDriver:
     """Axis validation, safety gates, and move dispatch. Protocol-agnostic."""
@@ -74,15 +75,32 @@ class MotionDriver:
                 raise ValueError(f"Unknown axis '{axis}'.") from None
         raise TypeError(f"Unsupported axis type: {type(axis).__name__}")
 
-    def move_to(self, axes: dict[Union[str, Enum], float], s: Optional[float] = 6000, wait: bool = True) -> None:
+    def move_to(
+        self,
+        axes: dict[Union[str, Enum], float],
+        s: Optional[float] = 6000,
+        wait: bool = True,
+    ) -> None:
         """Move to absolute positions. Example: move_to({'X': 120, 'Y': 25})"""
         self._move_compound(axes, absolute=True, s=s, wait=wait)
 
-    def move(self, axes: dict[Union[str, Enum], float], s: Optional[float] = 6000, wait: bool = True) -> None:
+    def move(
+        self,
+        axes: dict[Union[str, Enum], float],
+        s: Optional[float] = 6000,
+        wait: bool = True,
+    ) -> None:
         """Move by relative deltas."""
         self._move_compound(axes, absolute=False, s=s, wait=wait)
 
-    def _move_compound(self, axes: dict[Union[str, Enum], float], *, absolute: bool = True, s: Optional[float] = 6000, wait: bool = True) -> None:
+    def _move_compound(
+        self,
+        axes: dict[Union[str, Enum], float],
+        *,
+        absolute: bool = True,
+        s: Optional[float] = 6000,
+        wait: bool = True,
+    ) -> None:
         if not axes:
             return
         normalized = {self._normalize_axis(k): v for k, v in axes.items()}
@@ -95,7 +113,12 @@ class MotionDriver:
                 lo, hi = lim
                 if not (lo <= float(val) <= hi):
                     raise ValueError(f"{ax.value}={val} outside limits [{lo}, {hi}]")
-        self.transport.move_axes({ax.value: float(v) for ax, v in normalized.items()}, feedrate=s, absolute=absolute, wait=wait)
+        self.transport.move_axes(
+            {ax.value: float(v) for ax, v in normalized.items()},
+            feedrate=s,
+            absolute=absolute,
+            wait=wait,
+        )
         self.invalidate_deck_clearance()
 
     def home(self, axis: Union[str, Enum]) -> None:
@@ -131,4 +154,3 @@ class MotionDriver:
 
     def get_axes_homed(self) -> list:
         return self.transport.get_axes_homed()
-
