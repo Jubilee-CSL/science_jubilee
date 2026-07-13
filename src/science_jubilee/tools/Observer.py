@@ -4,8 +4,12 @@ import numpy as np
 import requests
 import time
 
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from science_jubilee.hal.motion_driver import MotionDriver
+from science_jubilee.hal.tool_changer import ToolChanger
+
 
 import logging
 logger = logging.getLogger(__name__)
@@ -29,7 +33,7 @@ RAW_DATASET_DIR.mkdir(exist_ok=True)
 RAW_LED_DIR.mkdir(exist_ok=True)
 CLEAN_DATASET_DIR.mkdir(exist_ok=True)
 SEG_DATASET_DIR.mkdir(exist_ok=True)
-
+@dataclass
 class Neopixel:
     url :str = "http://10.0.9.55:5001"
 
@@ -48,14 +52,60 @@ class Neopixel:
 
 
 class Camera:
+    
+    def __init__(self, motion,tool_changer):
+        self.driver : MotionDriver= motion
+        self.tool_changer : ToolChanger = tool_changer
+        #position du point du plateau normale a la caméra
 
-    offset_x = 4
-    offset_y = 4
-    url = f"http://{OCTOPI_IP}/webcam/?action=snapshot"
+        self.K = np.array([
+        [1223.5800404310712, 0, 1012.6265109062106],
+        [0, 1234.9709223262516, 652.0441120068181],
+        [0, 0, 1]], dtype=np.float64)
 
+        # Remplacer par les coefficients issus de la calibration
+        self.dist = np.array([0.003964559927730257,
+                     -0.07805139087827796,
+                     0.000522562108766698,
+                     -0.000680263815167156,
+                     0.26622436928189075])
+        
+        # Pose de la caméra dans le repère machine
+        self.R_machine_camera = np.array([[1, 0, 0],
+                                        [0, 1, 0],
+                                        [0, 0, 1]])
+        
+        self.url = f"http://{OCTOPI_IP}/webcam/?action=snapshot"
+
+        self.offset = ( 0, -25,11)
+
+        self.T_machine_camera = np.array([0,0,0], dtype=np.float64)
+        
     # ======================================================
     # Capture image
     # ======================================================
+    def move_to_get_image(self):
+
+        
+        active_tool = self.tool_changer.get_active_tool_index()
+
+        if active_tool == -1:
+           active_tool_offset = (0,0,0)
+
+        active_tool_offset = self.tool_changer.get_tool_offset(active_tool)
+
+        x = active_tool_offset[0] - self.offset[0]
+        y = active_tool_offset[1] - self.offset[1]
+        z = 40
+        self.driver.move({"Z":float(z)})
+        self.driver.move({"X":float(x),
+                          "Y":float(y),})
+        
+        position = self.driver.get_positions()
+
+        self.T_machine_camera = np.array([position["X"] - active_tool_offset[0] - self.offset[0],
+                                          position["Y"] - active_tool_offset[1] - self.offset[1],
+                                          -position["Z"] - active_tool_offset[2] - self.offset[2]], dtype=np.float64)
 
     def get_image(self) -> np.ndarray:
         """Capture une image depuis OctoPi."""
@@ -71,7 +121,7 @@ class Camera:
 
             if img is None:
                 raise RuntimeError("Impossible de décoder l'image.")
-
+            
             return img
 
         except requests.exceptions.RequestException as e:
@@ -158,8 +208,8 @@ class Camera:
     # Segmentation ExG
     # ======================================================
     def get_img_contour(self,img,
-                        min_area_px=5,
-                        max_area_px=300,
+                        min_area_px=10,
+                        max_area_px=400,
                         min_circularity=0.5,debug = False):
 
         b, g, r = cv2.split(img)
@@ -171,7 +221,7 @@ class Camera:
         exg = cv2.normalize(exg,None,0,255,cv2.NORM_MINMAX)
         exg = exg.astype(np.uint8)
 
-        _, mask = cv2.threshold(exg,180,255,cv2.THRESH_BINARY)
+        _, mask = cv2.threshold(exg,170,255,cv2.THRESH_BINARY)
 
         kernel = np.ones((3, 3), np.uint8)
         mask = cv2.morphologyEx(mask,cv2.MORPH_OPEN,kernel)
@@ -264,35 +314,80 @@ class Camera:
         self.save_image()
         return isolated_lens
 
+    # =======================================
+    # Détection du flotteur dans le puit
+    # =======================================
+    
+    def _estimate_float_pose(self,image_points,radius_mm):
 
+        object_points = np.array([[-radius_mm,0,0],
+                                  [0,-radius_mm,0],
+                                  [radius_mm,0,0],
+                                  [0,radius_mm,0]],dtype=np.float32)
 
-    # ======================================================
-    # Détection du puits
-    # ======================================================
-    """
-    def get_contour_well(self,img,
-                        min_area_px=600,
-                        max_area_px=1000,
-                        min_circularity=0.9,debug = False):
+        ok,rvecs,tvecs,errors = cv2.solvePnPGeneric(
+            object_points,image_points,
+            self.K,
+            self.dist,
+            flags=cv2.SOLVEPNP_IPPE
+        )
+
+        if not ok:
+            raise RuntimeError("solvePnPGeneric failed")
+
+        best=None
+        bestErr=np.inf
+
+        for rvec,tvec,err in zip(rvecs,tvecs,errors):
+            R,_=cv2.Rodrigues(rvec)
+
+            if tvec[2] <=0:
+                continue
+
+            if err<bestErr:
+                bestErr=err
+                best=(R,tvec.reshape(3))
+
+        if best is None:
+            raise RuntimeError("No valid PnP solution")
+
+        Rcf,Tcf=best
+        Rmf=self.R_machine_camera @ Rcf
+        Tmf=self.R_machine_camera @ Tcf + self.T_machine_camera
+
+        return Rmf,Tmf
+    
+    def _pixel_to_ray(self,pixel):
+
+        pts=np.array(pixel,dtype=np.float32).reshape(1,1,2)
+        pts=cv2.undistortPoints(pts,self.K,self.dist)
+
+        ray=np.array([pts[0,0,0],pts[0,0,1],1])
+        ray/=np.linalg.norm(ray)
+
+        return self.R_machine_camera @ ray
         
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+    def get_float_points(self,img,min_area_px=250,min_circularity=0.7,debug=False) -> np.array:
 
-        _, mask = cv2.threshold(gray,140,255,cv2.THRESH_BINARY)
+        b, g, r = cv2.split(img)
+        exg = (- g.astype(np.int16)- r.astype(np.int16) + 2 * b.astype(np.int16))
+
+        exg = cv2.normalize(exg,None,0,255,cv2.NORM_MINMAX)
+        exg = exg.astype(np.uint8)
+
+        _, mask = cv2.threshold(exg,170,255,cv2.THRESH_BINARY)
 
         kernel = np.ones((3, 3), np.uint8)
         mask = cv2.morphologyEx(mask,cv2.MORPH_OPEN,kernel)
         mask = cv2.morphologyEx(mask,cv2.MORPH_CLOSE,kernel)
 
         contours, _ = cv2.findContours(mask,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
-
+        
         valid_contours = []
 
         for cnt in contours:
             area = cv2.contourArea(cnt)
             if area < min_area_px:
-                continue
-
-            if area > max_area_px:
                 continue
 
             perimeter = cv2.arcLength(cnt,True)
@@ -306,69 +401,47 @@ class Camera:
             valid_contours.append(cnt)
 
         # sauvegarde debug contour
-        img_contours = cv2.drawContours(img, valid_contours, -1, (0,255,0), 2)
+        
+        if valid_contours is not None and len(valid_contours) == 1:
+            (x, y), r = cv2.minEnclosingCircle(valid_contours[0])  
+        else:
+            raise ValueError("Pas de flotteur détecter, changer les paramètres")
 
-        mask_file = (SEG_DATASET_DIR /f"{datetime.now():%Y%m%d_%H%M%S}.png")
-        cv2.imwrite(str(mask_file),mask)
-
+        image_points = np.array([[x - r, y],
+                                 [x, y - r],
+                                 [x + r, y],
+                                 [x, y + r]], dtype=np.float32)
+    
         if debug == True:
             cv2.imshow("Image", img)
-            cv2.imshow("BGR", gray)
-
+            cv2.imshow("ExG", exg)
             cv2.imshow("Mask", mask)
 
             img_contours = img.copy()
-            cv2.drawContours(img_contours, contours, -1, (0,255,0), 2)
+            cv2.drawContours(img_contours, valid_contours, -1, (0,255,0), 2)
             cv2.imshow("Contours", img_contours)
 
             cv2.waitKey(0)
             cv2.destroyAllWindows()
 
-        return valid_contours
-
-        return 
-    """
+        return image_points
+     
     # ======================================================
     # Conversion pixel -> repère plateau
-    # ======================================================
-
-    def get_lens_height(
-            self,
-            px_low,
-            px_high,
-            camera_z_low,
-            camera_z_high):
-
-        center = np.array((640, 480), dtype=float)
-
-        mm_per_pixel = 35 / 600
-
-        p1 = np.array(px_low, dtype=float)
-        p2 = np.array(px_high, dtype=float)
-
-        # moyenne des positions pour x/y
-        p = (p1 + p2) / 2
-
-        x = (p[0] - center[0]) * mm_per_pixel + self.offset_x
-        y = (p[1] - center[1]) * mm_per_pixel + self.offset_y
-
-        # déplacement entre les deux images
-        disparity = np.linalg.norm(p2 - p1)
-
-        # Calibration expérimentale
-        # h = a * disparity + b
-        a = -0.12      # exemple
-        b = 18.5
-
-        height = a * disparity + b
-
-        return (
-            round(x, 3),
-            round(y, 3),
-            round(height, 3),
-        )
-    
+    # ======================================================    
     #fonction a placer dans une classe plus adapté
+    def get_lens_position(self,lens_pixel,float_points,float_radius_mm):
+        
+        Rmf,Tmf = self._estimate_float_pose(float_points,float_radius_mm)
+        ray=self._pixel_to_ray(lens_pixel)
+        origin=self.T_machine_camera
+  
+        normal=Rmf[:,2]
+        alpha=np.dot(normal,Tmf-origin)/np.dot(normal,ray)
+        lens3D=origin+alpha*ray
+
+        return lens3D
+
     def get_lens_coordinate(self, lens_pos_px, well,img) -> tuple:
         #matrice de transformation référentiel caméra / plateau 
         """
