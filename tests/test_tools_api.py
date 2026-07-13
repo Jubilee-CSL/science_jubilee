@@ -1,5 +1,5 @@
 import logging
-
+import pytest
 
 from science_jubilee.hal.tool_changer import (
     ToolSlotError,

@@ -85,22 +85,12 @@ class DeckNavigator:
         )
 
         # 2) XY trave
-        self.driver.move_to({"X": float(well.x),"Y": float(well.y)},s=speed_xy,wait=True)
+        self.driver.move_to({"X": float(well.x)},s=speed_xy,wait=True)
         self.driver.move_to({"Y": float(well.y)},s=speed_xy,wait=True)
 
 
         # 2) Z travel
         self.driver.move_to({"Z": float(well.top)},s=speed_z,wait=True)
-
-    def move_inside_well(
-        self,
-        well: Well,
-        x: float | None = None,
-        y: float | None = None,
-        z: float | None = None,
-        speed_xy: float | None = None,
-        speed_z: float | None = None,
-    ):
 
     def move_inside_well(self, well: Well,
                          dx: float = 0, 
@@ -121,17 +111,18 @@ class DeckNavigator:
         
         if (dx or dy) != 0:
             destination : Location = well.safe_move(location,dx,dy)
-            self.driver.move_to({"X":float(destination.point.x),
-                                "Y":float(destination.point.y)},
-                                s=speed_xy,wait=True)
+            self.driver.move_to({"X":float(destination.point.x)},s=speed_xy,wait=True)
+            self.driver.move_to({"Y":float(destination.point.y)},s=speed_xy,wait=True)
+
         if z !=None: 
             self.driver.move_to({"Z":float(z),},
                              s=speed_z,wait=True)
 
 
-    def random_move_inside_well(self, well:Well ,margin : float = 0.7 , speed_xy:float | None = None):
+    def random_move_inside_well(self, well:Well ,margin : float = 0.6 , speed_xy:float | None = None):
         
         destination = well.random_point(safety_margin=margin)
+        logger.info(destination)
         self.move_inside_well(well,destination.point.x,destination.point.y,speed_xy=speed_xy)
 
     # ------------------------------------------------------------------

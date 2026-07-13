@@ -53,7 +53,6 @@ def test_transfer(tool_changer, navigator):
 
     inoculator.transfer(navigator, source, destination, randomize_pickup=False)
     tool_changer.park_tool()
-
     assert tool_changer.get_active_tool_index() == -1
 
 

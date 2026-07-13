@@ -140,7 +140,7 @@ class Well:
             self,
         )
 
-    def random_point(self, safety_margin: float = 0.8) -> Location:
+    def random_point(self, safety_margin: float = 0.6) -> Location:
         """
         Generate a random safe point inside the well.
         """
@@ -172,7 +172,7 @@ class Well:
             resource=self,
         )
 
-    def in_usable_space(self, location: Location, safety_margin: float = 0.95) -> bool:
+    def in_usable_space(self, location: Location, safety_margin: float = 0.90) -> bool:
         """
         Check if a point is inside the safe usable area.
         """

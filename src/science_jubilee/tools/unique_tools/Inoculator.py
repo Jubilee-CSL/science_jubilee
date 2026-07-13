@@ -53,10 +53,3 @@ class Inoculator(Tool):
             
         nav.move_to_safe_z()
 
-            nav.move_to_well(well_dest, speed_xy, margin=10)
-
-            nav.move_inside_well(
-                well=source, x=sweep_x, y=sweep_y, speed_xy=sweep_speed
-            )
-
-        nav.move_to_safe_z()
