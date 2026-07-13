@@ -26,7 +26,7 @@ class MockTransport(BaseTransport):
         self.tools: Dict[int, dict] = {
             0: {
                 "name": "Inoculator",
-                "offsets": [0.0, 16.0, -65.0],
+                "offsets": [0.0, 16.0, -78.0],
             },
             1: {
                 "name": "Syringe",

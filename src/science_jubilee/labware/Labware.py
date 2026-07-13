@@ -208,8 +208,8 @@ class Well:
 
 
     def safe_move(self,start: Location,
-                  x: float,
-                  y: float,
+                  x: float = 0,
+                  y: float = 0,
                   safety_margin: float = 0.9,) -> Location:
         """
         Return a safe move destination inside the well.

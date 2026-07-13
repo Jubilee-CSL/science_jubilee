@@ -81,12 +81,17 @@ class DeckNavigator:
         self.move_to_safe_z(margin=margin,speed=speed_z,)
 
         # 2) XY trave
-        self.driver.move_to({"X": float(well.x),"Y": float(well.y),"Z": float(well.top)},s=speed_xy,wait=True)
+        self.driver.move_to({"X": float(well.x),"Y": float(well.y)},s=speed_xy,wait=True)
+        self.driver.move_to({"Y": float(well.y)},s=speed_xy,wait=True)
+
+
+        # 2) Z travel
+        self.driver.move_to({"Z": float(well.top)},s=speed_z,wait=True)
 
 
     def move_inside_well(self, well: Well,
-                         x: float | None = None, 
-                         y: float | None = None,
+                         dx: float = 0, 
+                         dy: float = 0,
                          z: float | None = None, 
                          speed_xy:float | None = None, 
                          speed_z: float | None = None,
@@ -101,8 +106,8 @@ class DeckNavigator:
                                           z=position["Z"]),
                                           resource=well)
         
-        if (x and y)!=None:
-            destination : Location = well.safe_move(location,x,y)
+        if (dx or dy) != 0:
+            destination : Location = well.safe_move(location,dx,dy)
             self.driver.move_to({"X":float(destination.point.x),
                                 "Y":float(destination.point.y)},
                                 s=speed_xy,wait=True)
