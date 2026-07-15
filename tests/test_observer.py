@@ -13,7 +13,9 @@ from science_jubilee.labware.Labware import Well
 
 LED_SERVER = "http://10.0.9.55:5001"
 
-""" Test a utilisé uniquement en Hardware
+logger = logging.getLogger(__name__)
+ 
+#Test a utilisé uniquement en Hardware
 @pytest.mark.invasive
 def test_imag(motion, navigator, tool_changer):
     #requests.get(f"{LED_SERVER}/led/255/255/255")
@@ -51,4 +53,4 @@ def test_imag(motion, navigator, tool_changer):
 
     navigator.move_to_safe_z()
 
-"""
+
