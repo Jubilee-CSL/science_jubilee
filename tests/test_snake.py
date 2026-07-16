@@ -15,8 +15,8 @@ def test_capture_snake(motion,tool_changer):
     freenav = FreeNavigator(motion,tool_changer)
     cam = Camera()
     freenav.move_to(z = 200)
-    start_point = 60
-    jogging = 14
+    start_point = 100
+    jogging = 10
     #point de départ en 10 10 320
     #point d'arrivée visé 310 310 320
     freenav.move_to(x = start_point, y = start_point)
