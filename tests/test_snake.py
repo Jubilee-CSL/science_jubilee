@@ -10,11 +10,11 @@ import time
 logger = logging.getLogger(__name__)
 
 #Utiliser ce test pour réaliser des photos et dataset
-"""
+
 @pytest.mark.invasive
 def test_capture_snake(motion,tool_changer):
     freenav = FreeNavigator(motion,tool_changer)
-    cam = Camera()
+    cam = Camera(motion,tool_changer)
     freenav.move_to(z = 320)
     start_point = 60
     jogging = 20
@@ -28,6 +28,6 @@ def test_capture_snake(motion,tool_changer):
             freenav.jog(y = jogging)
         freenav.move_to(y = start_point)
         freenav.jog(x= jogging)
-      """  
+      
 
         

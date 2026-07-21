@@ -15,7 +15,7 @@ LED_SERVER = "http://10.0.9.55:5001"
 
 logger = logging.getLogger(__name__)
  
-#Test a utilisé uniquement en Hardware
+#Test à utiliser uniquement en Hardware
 @pytest.mark.invasive
 def test_imag(motion, navigator, tool_changer):
     #requests.get(f"{LED_SERVER}/led/255/255/255")
