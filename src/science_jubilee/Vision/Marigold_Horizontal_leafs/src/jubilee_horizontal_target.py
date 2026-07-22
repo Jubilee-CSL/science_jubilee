@@ -11,7 +11,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[4]
 SRC_ROOT = REPO_ROOT
 PACKAGE_ROOT = SRC_ROOT / "science_jubilee/Vision"
-DETECTOR_ROOT = PACKAGE_ROOT / "Marigold_Horizontal_detector"
+DETECTOR_ROOT = PACKAGE_ROOT / "Marigold_Horizontal_leafs"
 
 for path in (SRC_ROOT, REPO_ROOT):
     path_str = str(path)
@@ -19,7 +19,7 @@ for path in (SRC_ROOT, REPO_ROOT):
         sys.path.insert(0, path_str)
 
 from science_jubilee.tools.Observer import Camera
-from science_jubilee.Vision.Marigold_Horizontal_detector.src import segment_and_target
+from science_jubilee.Vision.Marigold_Horizontal_leafs.src import segment_and_target
 from science_jubilee.hal.transport.http import HTTPTransport
 from science_jubilee.hal.transport.mock import MockTransport
 from science_jubilee.hal.motion_driver import MotionDriver
