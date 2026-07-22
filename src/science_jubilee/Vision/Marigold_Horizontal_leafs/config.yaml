@@ -1,0 +1,22 @@
+camera:
+  fx: 1223.5800404310712      # Focal length in pixels along X
+  fy: 1234.9709223262516      # Focal length in pixels along Y
+  cx: 1012.6265109062106        # Principal point X in pixels
+  cy: 652.0441120068181       # Principal point Y in pixels
+
+
+physical:
+  tray_z_mm: 320.00 # Known tray height above the camera reference plane
+  plant_height_mm: 160.0
+  tray_reference_mm: 320.00
+  camera_z_offset_mm: 0.0
+
+filtering:
+  min_area_px: 10000
+  
+  max_extent_ratio: 8.0
+  min_border_margin_px: 8
+  min_normal_z: 0.85
+  min_normal_confidence: 0.90
+  depth_consistency_max_std_mm: 30.0
+  depth_consistency_radius_px: 3
