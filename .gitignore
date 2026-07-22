@@ -62,3 +62,7 @@ tool_library/OT2_pipette/designs/OT_post_base.3mf
 
 # Jupyter checkpoints (ensure not tracked)
 .ipynb_checkpoints/
+
+# temporary inputs and outputs 
+src\science_jubilee\Vision\Marigold_Horizontal_leafs\input\
+src\science_jubilee\Vision\Marigold_Horizontal_leafs\output\

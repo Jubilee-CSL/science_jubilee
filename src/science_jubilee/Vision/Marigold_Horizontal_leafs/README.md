@@ -1,6 +1,6 @@
 # Horizontal leafs detector
 
-This project estimates depth and surface normals from a camera image, isolates a printer tray, detects plant/leaf regions, and exports camera-relative XYZ positions for likely horizontal surfaces.
+This project estimates depth and surface normals from a camera image, isolates the printer tray, detects plant/leaf regions, and exports camera-relative XYZ positions for likely horizontal surfaces.
 
 ## Setup on Windows
 
