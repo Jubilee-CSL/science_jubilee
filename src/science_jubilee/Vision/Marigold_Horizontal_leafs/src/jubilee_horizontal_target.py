@@ -39,7 +39,16 @@ OCTOPI_IP = "10.0.9.55"
 target_auto=False  # True pour sélectionner automatiquement le target avec la plus grande surface et la plus proche distance de la caméra, False pour demander confirmation à l'utilisateur
 def main():
      # se mettre au millieu pour prendre la photo
-    nav.move_to(x=189, y=169, z=320, speed=6000.0, wait=True)  
+    tool_changer.pickup_tool(0) 
+    offset_x=0
+    offset_y=0
+    tool= ToolChanger(transport)
+     
+    if nav.get_active_tool() !=-1:
+              offset_x= -tool.get_tool_offset(nav.get_active_tool())[0]   # à changer: mettre l'offset du tool en focntion de l'offset
+              offset_y= -tool.get_tool_offset(nav.get_active_tool())[1]   # à changer: mettre l'offset du tool en focntion de l'offset 
+     
+    nav.move_to(x=189 -offset_x, y=169-offset_y, z=320, speed=6000.0, wait=True)
     camera = Camera(motion=driver,tool_changer=tool_changer)
     # ======================================================
     # RECHERCHE IMAGE LA PLUS RECENTE
@@ -86,23 +95,18 @@ def main():
     except KeyboardInterrupt:
         print("\nOpération annulée par l'utilisateur.")
         return
-
-    offset_x =  camera.offset[0]  # Offset en mm pour ajuster la position finale sur l'axe X
-    offset_y =  camera.offset[1] # Offset en mm pour ajuster la position finale sur l'axe Y
+  
+    offset_x =  camera.offset[0] + offset_x # Offset en mm pour ajuster la position finale sur l'axe X
+    offset_y =  camera.offset[1] + offset_y # Offset en mm pour ajuster la position finale sur l'axe Y
     offset_z =  camera.offset[2]  # Offset en mm pour ajuster la position finale sur l'axe Z
-    tool= ToolChanger(transport)
-
-
-    if nav.get_active_tool() !=-1:
-         offset_x= tool.get_tool_offset(nav.get_active_tool())[0] + offset_x  # à changer: mettre l'offset du tool en focntion de l'offset
-         offset_y= tool.get_tool_offset(nav.get_active_tool())[1] + offset_y  # à changer: mettre l'offset du tool en focntion de l'offset 
 
     # ======================================================
     # On bouge vers le target
     # ======================================================
+    # On se déplace vers le target en gardant la même hauteur
 
-    nav.move_to(x=189 + target['xyz_mm'][0] + offset_x, y= 169 -target['xyz_mm'][1] + offset_y, z=320 - offset_z -target['xyz_mm'][2] -5, speed=1000.0, wait=True)  # On se déplace vers le target en gardant la même hauteur
-        
+    nav.move_to(x=189 + target['xyz_mm'][0] + offset_x, y= 169 -target['xyz_mm'][1] + offset_y, speed=3000.0, wait=True)  
+    nav.move_to(z=320 - offset_z -target['xyz_mm'][2] -5, speed=1000.0, wait=True)  
 
 if __name__ == "__main__":
     main()
