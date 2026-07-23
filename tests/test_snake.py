@@ -15,19 +15,23 @@ logger = logging.getLogger(__name__)
 def test_capture_snake(motion,tool_changer):
     freenav = FreeNavigator(motion,tool_changer)
     cam = Camera(motion,tool_changer)
+    time.sleep(10)
+    cam.save_image()
+    """
     freenav.move_to(z = 320)
-    start_point = 60
-    jogging = 20
+    start_point_x = 144
+    start_point_y=125
+    jogging = 2
     #point de départ en 10 10 320
     #point d'arrivée visé 310 310 320
-    freenav.move_to(x = start_point, y = start_point)
-    for i in range(10):
+    freenav.move_to(x = start_point_x, y = start_point_y)
+    for i in range(20):
         for y in range(10):
             time.sleep(2)
             cam.save_image()
             freenav.jog(y = jogging)
-        freenav.move_to(y = start_point)
+        freenav.move_to(y = start_point_y)
         freenav.jog(x= jogging)
       
-
+    """
         

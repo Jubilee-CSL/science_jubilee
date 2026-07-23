@@ -6,8 +6,8 @@ import glob
 import yaml
 import os
 
-CHECKERBOARD = (6, 9) 
-input_calibration = r"C:\Users\Justin\Desktop\Jubilee\science_jubilee\src\science_jubilee\Horizontal_leafs_detector\input\calibration"
+CHECKERBOARD = (6, 8) 
+input_calibration = r"C:\Users\Justin\Desktop\Jubilee\science_jubilee\src\science_jubilee\Vision\Marigold_Horizontal_leafs\input\calibration"
 
 def calibrate(images_folder):
 
@@ -56,7 +56,27 @@ def calibrate(images_folder):
     
     # Calibration
     ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
-    
+    mean_error = 0
+    erreurs_par_image = []
+
+    for i in range(len(objpoints)):
+        # On reprojette les points 3D idéaux sur l'image 2D avec notre matrice calculée
+        imgpoints2, _ = cv2.projectPoints(objpoints[i], rvecs[i], tvecs[i], mtx, dist)
+        
+        # On compare la différence entre les points trouvés par OpenCV et notre modèle
+        # On s'assure que les deux tableaux ont exactement la même forme (N points, 2 coordonnées x/y)
+        pts_detectes = imgpoints[i].reshape(-1, 2)
+        pts_reprojetes = imgpoints2.reshape(-1, 2)
+
+        # On calcule la distance (norme L2) entre les points avec NumPy
+        error = np.linalg.norm(pts_detectes - pts_reprojetes) / len(pts_reprojetes)
+        erreurs_par_image.append(error)
+        print(f"Image {i} - Erreur : {error:.3f} pixels")
+        
+        mean_error += error
+
+    print(f"\nErreur totale moyenne : {mean_error/len(objpoints):.3f} pixels")
+
     return mtx, dist, ret
 
 if __name__ == "__main__":

@@ -34,8 +34,23 @@ def depth_to_camera_xyz(depth_map: np.ndarray, u: float, v: float, intrinsics: d
     v0 = int(np.clip(round(v), 0, h - 1))
     z_value = np.asarray(depth_map[v0, u0]).reshape(-1)[0]
     z = float(z_value)
-    x = (u - intrinsics["cx"]) * z / intrinsics["fx"]
-    y = (v - intrinsics["cy"]) * z / intrinsics["fy"]
+
+    K = np.array([
+        [intrinsics["fx"], 0, intrinsics["cx"]],
+        [0, intrinsics["fy"], intrinsics["cy"]],
+        [0, 0, 1]
+    ], dtype=np.float32)
+    #Improvement of the model by including the distortion parameters given py the opencv calibration
+
+    dist_np = np.array(intrinsics["dist"], dtype=np.float32)
+    point_2d = np.array([[[u, v]]], dtype=np.float32)
+
+    undistorted_pt = cv2.undistortPoints(point_2d, K, dist_np)
+    x_norm = undistorted_pt[0, 0, 0]
+    y_norm = undistorted_pt[0, 0, 1]
+
+    x = x_norm * z
+    y = y_norm * z
     return np.array([x, y, z], dtype=np.float32)
 
 
@@ -157,6 +172,7 @@ def estimate_horizontal_targets(image_path: str, depth_path: str, normals_path: 
         "fy": float(config["camera"]["fy"]),
         "cx": float(config["camera"]["cx"]),
         "cy": float(config["camera"]["cy"]),
+        "dist": config["camera"]["dist"]
     }
     #importing configuration from config.yaml
     filtering_cfg = config.get("filtering", {})

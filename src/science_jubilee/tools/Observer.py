@@ -77,8 +77,8 @@ class Camera:
         self.url = f"http://{OCTOPI_IP}/webcam/?action=snapshot"
 
         #self.offset = ( 0, -25,11)   ##offset utilisé par quentin
-        self.offset =(10,-13,16)
-
+        self.offset =(-5,-8,10)
+        #self.offset=(10,-13,16)
         self.T_machine_camera = np.array([0,0,0], dtype=np.float64)
         
     # ======================================================
