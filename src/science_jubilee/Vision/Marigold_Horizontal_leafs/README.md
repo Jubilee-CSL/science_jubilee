@@ -17,7 +17,7 @@ This project estimates depth and surface normals from a camera image, isolates t
    ```
 
 # Camera calibration 
-1. Print "calibration_sheet.pdf" and take different photos with ur camera and store them on input/calibration/
+1. Print "calibration_sheet.pdf" and take different photos with your camera and store them on input/calibration/
 
 2. Change the calibration folder path on calibration.py
 

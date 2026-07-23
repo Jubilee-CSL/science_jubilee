@@ -4,7 +4,7 @@ import sys
 import cv2
 import numpy as np
 import requests
-
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -37,18 +37,23 @@ tool_changer = ToolChanger(transport)
 nav = FreeNavigator(driver, tool_changer)
 OCTOPI_IP = "10.0.9.55"
 target_auto=False  # True pour sélectionner automatiquement le target avec la plus grande surface et la plus proche distance de la caméra, False pour demander confirmation à l'utilisateur
+#coordonées de départ(sans le offset de l'outil)
+x_depart=142.0
+y_depart=155.0
+z_depart=320
 def main():
      # se mettre au millieu pour prendre la photo
     tool_changer.pickup_tool(0) 
     offset_x=0
     offset_y=0
     tool= ToolChanger(transport)
-     
+    #on veut que la camera se place à cet emplacement donc on enleve l'offset de l'outil pour revenir à l'offset global
     if nav.get_active_tool() !=-1:
-              offset_x= -tool.get_tool_offset(nav.get_active_tool())[0]   # à changer: mettre l'offset du tool en focntion de l'offset
-              offset_y= -tool.get_tool_offset(nav.get_active_tool())[1]   # à changer: mettre l'offset du tool en focntion de l'offset 
+              offset_x= -tool.get_tool_offset(nav.get_active_tool())[0]   
+              offset_y= -tool.get_tool_offset(nav.get_active_tool())[1]   
      
-    nav.move_to(x=189 -offset_x, y=169-offset_y, z=320, speed=6000.0, wait=True)
+    nav.move_to(x=x_depart -offset_x, y=y_depart-offset_y, z=z_depart, speed=6000.0, wait=True)
+    time.sleep(2)
     camera = Camera(motion=driver,tool_changer=tool_changer)
     # ======================================================
     # RECHERCHE IMAGE LA PLUS RECENTE
@@ -66,6 +71,9 @@ def main():
     # Réaliser la detection des surfaces horizontales 
     # ====================================================== 
     targets = segment_and_target.run_pipeline(image_path=images_dir / "latest.jpg", output_dir=output_dir, config_path=DETECTOR_ROOT /"config.yaml", use_ai=True)
+    while len(targets)==0:
+        print("Aucune surface detectée, relance du modèle, appuyez Ctrl+c pour quitter")
+        targets = segment_and_target.run_pipeline(image_path=images_dir / "latest.jpg", output_dir=output_dir, config_path=DETECTOR_ROOT /"config.yaml", use_ai=True)
     print(f"Targets detected: {len(targets)}, veuillez vérifier le fichier output/targets.json pour plus de détails.")
     if target_auto == False:
         print("Veuillez sélectionner un target parmi les suivants:")
@@ -105,8 +113,8 @@ def main():
     # ======================================================
     # On se déplace vers le target en gardant la même hauteur
 
-    nav.move_to(x=189 + target['xyz_mm'][0] + offset_x, y= 169 -target['xyz_mm'][1] + offset_y, speed=3000.0, wait=True)  
-    nav.move_to(z=320 - offset_z -target['xyz_mm'][2] -5, speed=1000.0, wait=True)  
+    nav.move_to(x=x_depart + target['xyz_mm'][0] + offset_x, y= y_depart -target['xyz_mm'][1] + offset_y, speed=3000.0, wait=True)  
+    nav.move_to(z=z_depart - offset_z -target['xyz_mm'][2] -5, speed=1000.0, wait=True)  
 
 if __name__ == "__main__":
     main()
