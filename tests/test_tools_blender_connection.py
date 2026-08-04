@@ -13,4 +13,4 @@ def test_blender(transport):
     )
 
     return_code = transport._inner.launch_twin(script_name, search_dir)
-    return return_code == 0, f"Blender script failed with return code {return_code}"
+    assert return_code == 0, f"Blender script failed with return code {return_code}"

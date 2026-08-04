@@ -68,12 +68,12 @@ class HTTPTransport(BaseTransport):
         If wait is True and the command implies motion, ensure completion with M400.
         """
         try:
-            response = requests.post(
+            response = self.session.post(
                 f"http://{self.address}/machine/code", data=f"{cmd}", timeout=timeout
             ).text
             # On success via /machine/code, optionally block until motion completes
             if wait and not cmd.strip().upper().startswith("M400"):
-                _ = requests.post(
+                _ = self.session.post(
                     f"http://{self.address}/machine/code", data="M400", timeout=timeout
                 ).text
             if "rejected" in response:
