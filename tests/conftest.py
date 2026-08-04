@@ -84,3 +84,10 @@ def camera(session):
     if session.camera is None:
         pytest.skip("No camera configured; set JUBILEE_CAMERA_ADDRESS.")
     return session.camera
+
+
+@pytest.fixture
+def neopixel(session):
+    if session.neopixel is None:
+        pytest.skip("No Neopixel configured; set JUBILEE_NEOPIXEL_ADDRESS.")
+    return session.neopixel

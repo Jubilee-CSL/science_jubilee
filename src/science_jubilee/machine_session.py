@@ -55,10 +55,17 @@ class MachineSession:
 
             self.camera: Optional[object] = Camera(
                 motion=self.motion, tool_changer=self.tool_changer,
-                address=camera_address, led_address=led_address,
+                address=camera_address,
             )
         else:
             self.camera = None
+
+        if led_address is not None:
+            from science_jubilee.tools.Neopixel import Neopixel
+
+            self.neopixel: Optional[object] = Neopixel(url=f"http://{led_address}:5001")
+        else:
+            self.neopixel = None
 
     # ------------------------------------------------------------------
     # Factory classmethods
@@ -155,4 +162,5 @@ class MachineSession:
     def __repr__(self) -> str:
         nav = f", navigator={self.navigator!r}" if self.navigator else ""
         cam = f", camera={self.camera!r}" if self.camera else ""
-        return f"MachineSession(transport={self.transport!r}{nav}{cam})"
+        neo = f", neopixel={self.neopixel!r}" if self.neopixel else ""
+        return f"MachineSession(transport={self.transport!r}{nav}{cam}{neo})"
