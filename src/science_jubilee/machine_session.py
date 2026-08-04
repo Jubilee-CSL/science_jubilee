@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import logging
 import os
+from pathlib import Path
 from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
@@ -51,18 +52,19 @@ class MachineSession:
             self.navigator = None
 
         if camera_address is not None:
-            from science_jubilee.tools.Observer import Camera
-
-            self.camera: Optional[object] = Camera(
+            from science_jubilee.tools.camera.hardware import Camera
+            self.camera = Camera(
                 motion=self.motion, tool_changer=self.tool_changer,
                 address=camera_address,
             )
         else:
-            self.camera = None
+            from science_jubilee.tools.camera.mock import MockCamera
+            self.camera = MockCamera(
+                motion=self.motion, tool_changer=self.tool_changer,
+            )
 
         if led_address is not None:
             from science_jubilee.tools.Neopixel import Neopixel
-
             self.neopixel: Optional[object] = Neopixel(url=f"http://{led_address}:5001")
         else:
             self.neopixel = None
@@ -123,6 +125,8 @@ class MachineSession:
           JUBILEE_GCODE_LOG      — G-code log path (default: gcode_logs/latest.gcode)
           JUBILEE_CAMERA_ADDRESS — OctoPi/camera IP; omit to skip camera wiring
           JUBILEE_NEOPIXEL_ADDRESS — LED server IP; omit to skip Neopixel wiring
+          JUBILEE_RAW_DIR          — directory for raw images (default: dataset_brut)
+          JUBILEE_LED_DIR          — directory for multi-lighting images (default: dataset_brut_led)
         """
         if env_file is not None:
             from science_jubilee.utils.env import load_env_file

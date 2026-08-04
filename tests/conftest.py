@@ -81,8 +81,6 @@ def navigator(session):
 
 @pytest.fixture
 def camera(session):
-    if session.camera is None:
-        pytest.skip("No camera configured; set JUBILEE_CAMERA_ADDRESS.")
     return session.camera
 
 
