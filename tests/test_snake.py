@@ -4,7 +4,6 @@ import logging
 import pytest
 
 from science_jubilee.navigation.free_navigation import FreeNavigator
-from science_jubilee.tools.Observer import Camera
 import time
 
 logger = logging.getLogger(__name__)
@@ -12,9 +11,9 @@ logger = logging.getLogger(__name__)
 #Utiliser ce test pour réaliser des photos et dataset
 
 @pytest.mark.invasive
-def test_capture_snake(motion,tool_changer):
-    freenav = FreeNavigator(motion,tool_changer)
-    cam = Camera(motion,tool_changer)
+def test_capture_snake(motion, tool_changer, camera):
+    freenav = FreeNavigator(motion, tool_changer)
+    cam = camera
     time.sleep(10)
     cam.save_image()
     """

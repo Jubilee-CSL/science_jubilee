@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 class MachineSession:
     """Wires transport → motion → tool_changer → navigator into one object."""
 
-    def __init__(self, transport, deck_def: Optional[str] = None) -> None:
+    def __init__(self, transport, deck_def: Optional[str] = None, camera_address: Optional[str] = None, led_address: Optional[str] = None) -> None:
         from science_jubilee.hal.motion_driver import MotionDriver
         from science_jubilee.hal.tool_changer import ToolChanger
 
@@ -50,6 +50,16 @@ class MachineSession:
         else:
             self.navigator = None
 
+        if camera_address is not None:
+            from science_jubilee.tools.Observer import Camera
+
+            self.camera: Optional[object] = Camera(
+                motion=self.motion, tool_changer=self.tool_changer,
+                address=camera_address, led_address=led_address,
+            )
+        else:
+            self.camera = None
+
     # ------------------------------------------------------------------
     # Factory classmethods
     # ------------------------------------------------------------------
@@ -59,13 +69,15 @@ class MachineSession:
         cls,
         deck_def: Optional[str] = None,
         log_path: str = "gcode_logs/latest.gcode",
+        camera_address: Optional[str] = None,
+        led_address: Optional[str] = None,
     ) -> "MachineSession":
         """Build a session backed by the in-memory MockTransport."""
         from science_jubilee.hal.transport.mock import MockTransport
         from science_jubilee.hal.transport.recording import RecordingTransport
 
         transport = RecordingTransport(MockTransport(), log_path=log_path)
-        return cls(transport, deck_def=deck_def)
+        return cls(transport, deck_def=deck_def, camera_address=camera_address, led_address=led_address)
 
     @classmethod
     def hardware(
@@ -74,6 +86,8 @@ class MachineSession:
         deck_def: Optional[str] = None,
         log_path: str = "gcode_logs/latest.gcode",
         deck_clear_provider: Optional[Callable[[], bool]] = None,
+        camera_address: Optional[str] = None,
+        led_address: Optional[str] = None,
     ) -> "MachineSession":
         """Build a session connected to a real Duet/RRF machine."""
         from science_jubilee.hal.transport.http import HTTPTransport
@@ -85,7 +99,7 @@ class MachineSession:
             HTTPTransport(address=address, deck_clear_provider=deck_clear_provider),
             log_path=log_path,
         )
-        return cls(transport, deck_def=deck_def)
+        return cls(transport, deck_def=deck_def, camera_address=camera_address, led_address=led_address)
 
     @classmethod
     def from_env(
@@ -96,10 +110,12 @@ class MachineSession:
         """Build a session from environment variables (optionally loading a .env file).
 
         Reads:
-          JUBILEE_TRANSPORT  — ``mock`` (default) or ``hardware``
-          JUBILEE_ADDRESS    — machine IP, required when transport=hardware
-          JUBILEE_DECK_DEF   — deck definition filename (overridden by *deck_def* arg)
-          JUBILEE_GCODE_LOG  — G-code log path (default: gcode_logs/latest.gcode)
+          JUBILEE_TRANSPORT      — ``mock`` (default) or ``hardware``
+          JUBILEE_ADDRESS        — machine IP, required when transport=hardware
+          JUBILEE_DECK_DEF       — deck definition filename (overridden by *deck_def* arg)
+          JUBILEE_GCODE_LOG      — G-code log path (default: gcode_logs/latest.gcode)
+          JUBILEE_CAMERA_ADDRESS — OctoPi/camera IP; omit to skip camera wiring
+          JUBILEE_NEOPIXEL_ADDRESS — LED server IP; omit to skip Neopixel wiring
         """
         if env_file is not None:
             from science_jubilee.utils.env import load_env_file
@@ -113,15 +129,18 @@ class MachineSession:
         if deck_def is None:
             deck_def = os.getenv("JUBILEE_DECK_DEF") or None
 
+        camera_address = os.getenv("JUBILEE_CAMERA_ADDRESS") or None
+        led_address = os.getenv("JUBILEE_NEOPIXEL_ADDRESS") or None
+
         if transport_type == "hardware":
             if not address:
                 raise ValueError(
                     "JUBILEE_ADDRESS must be set (or passed via --jubilee-address) "
                     "when JUBILEE_TRANSPORT=hardware"
                 )
-            return cls.hardware(address=address, deck_def=deck_def, log_path=log_path)
+            return cls.hardware(address=address, deck_def=deck_def, log_path=log_path, camera_address=camera_address, led_address=led_address)
 
-        return cls.mock(deck_def=deck_def, log_path=log_path)
+        return cls.mock(deck_def=deck_def, log_path=log_path, camera_address=camera_address, led_address=led_address)
 
     # ------------------------------------------------------------------
     # Context manager
@@ -135,4 +154,5 @@ class MachineSession:
 
     def __repr__(self) -> str:
         nav = f", navigator={self.navigator!r}" if self.navigator else ""
-        return f"MachineSession(transport={self.transport!r}{nav})"
+        cam = f", camera={self.camera!r}" if self.camera else ""
+        return f"MachineSession(transport={self.transport!r}{nav}{cam})"
