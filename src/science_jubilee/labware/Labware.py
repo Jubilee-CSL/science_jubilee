@@ -140,7 +140,7 @@ class Well:
             self,
         )
 
-    def random_point(self, safety_margin: float = 0.6) -> Location:
+    def random_point(self, safety_margin: float = 0.9) -> Location:
         """
         Generate a random safe point inside the well.
         """
@@ -189,9 +189,6 @@ class Well:
 
         half_x = (self.xDimension / 2) * safety_margin
         half_y = (self.yDimension / 2) * safety_margin
-
-        dx = random.uniform(-half_x, half_x)
-        dy = random.uniform(-half_y, half_y)
 
         return -half_x <= dx <= half_x and -half_y <= dy <= half_y
 
