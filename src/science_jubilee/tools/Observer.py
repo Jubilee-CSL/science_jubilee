@@ -5,6 +5,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 from science_jubilee.hal.motion_driver import MotionDriver
 from science_jubilee.hal.tool_changer import ToolChanger
 
@@ -20,10 +21,6 @@ logger = logging.getLogger(__name__)
 # CONFIGURATION
 # ==========================================================
 
-OCTOPI_IP = "10.0.9.55"
-
-LED_SERVER = "http://10.0.9.55:5001"
-
 RAW_DATASET_DIR = Path("dataset_brut")
 RAW_LED_DIR = Path("dataset_brut_led")
 
@@ -31,7 +28,7 @@ RAW_DATASET_DIR.mkdir(exist_ok=True)
 RAW_LED_DIR.mkdir(exist_ok=True)
 @dataclass
 class Neopixel:
-    url: str = "http://10.0.9.55:5001"
+    url: str
 
     def pixel_on(self, led_index, r, g, b):
         requests.get(f"{self.url}/pixel/{led_index}/{r}/{g}/{b}")
@@ -48,10 +45,11 @@ class Neopixel:
 
 class Camera:
     
-    def __init__(self, motion,tool_changer):
+    def __init__(self, motion, tool_changer, address: str, led_address: Optional[str] = None):
         self.driver : MotionDriver= motion
         self.tool_changer : ToolChanger = tool_changer
-        #position du point du plateau normale a la caméra
+
+        self.leds: Optional[Neopixel] = Neopixel(url=f"http://{led_address}:5001") if led_address else None
 
         self.K = np.array([
         [1223.5800404310712, 0, 1012.6265109062106],
@@ -70,7 +68,7 @@ class Camera:
                                         [0, 1, 0],
                                         [0, 0, 1]])
         
-        self.url = f"http://{OCTOPI_IP}/webcam/?action=snapshot"
+        self.url = f"http://{address}/webcam/?action=snapshot"
         
         self.offset = (0,-20,0)   ##offset utilisé par quentin
         #self.offset =(-5,0,10) # dernier offset marigold
@@ -145,7 +143,9 @@ class Camera:
         temp_dir=RAW_LED_DIR,
     ):
         # on s'assure que tout soit éteint
-        requests.get(f"{LED_SERVER}/off")
+        if self.leds is None:
+            raise RuntimeError("Neopixel not configured; set JUBILEE_NEOPIXEL_ADDRESS.")
+        self.leds.all_pixel_off()
 
         # nettoyage du dossier temporaire
         for file in temp_dir.glob("*.jpg"):
@@ -154,14 +154,14 @@ class Camera:
         images = []
         # acquisition des images
         for i in range(nb_img):
-            print(f"LED {i%nb_img}")
-            requests.get(f"{LED_SERVER}/pixel/{i%nb_img}/255/255/50")
+            logger.debug("LED %d", i % nb_img)
+            self.leds.pixel_on(i % nb_img, 255, 255, 50)
             time.sleep(3)
 
             images.append(self.get_image())
             self.save_image(img=images[i], save_dir=temp_dir)
 
-            requests.get(f"{LED_SERVER}/pixel/{i}/0/0/0")
+            self.leds.pixel_off(i)
             time.sleep(0.2)
 
         return images

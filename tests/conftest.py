@@ -77,3 +77,10 @@ def navigator(session):
     if session.navigator is None:
         pytest.skip("No deck definition configured; set JUBILEE_DECK_DEF.")
     return session.navigator
+
+
+@pytest.fixture
+def camera(session):
+    if session.camera is None:
+        pytest.skip("No camera configured; set JUBILEE_CAMERA_ADDRESS.")
+    return session.camera
