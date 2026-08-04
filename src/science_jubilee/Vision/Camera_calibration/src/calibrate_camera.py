@@ -95,11 +95,12 @@ if __name__ == "__main__":
         # Saving on a yaml file
         config = {
             'camera': {
-                'fx': float(fx), 
-                'fy': float(fy), 
-                'cx': float(cx), 
+                'fx': float(fx),
+                'fy': float(fy),
+                'cx': float(cx),
                 'cy': float(cy),
-                'dist': dist.flatten().tolist() 
+                'dist': dist.flatten().tolist(),
+                'offset': [0, -20, 0],  # machine-specific: adjust after physical alignment
             }
         }
         

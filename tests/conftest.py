@@ -85,7 +85,5 @@ def camera(session):
 
 
 @pytest.fixture
-def neopixel(session):
-    if session.neopixel is None:
-        pytest.skip("No Neopixel configured; set JUBILEE_NEOPIXEL_ADDRESS.")
-    return session.neopixel
+def light(session):
+    return session.light

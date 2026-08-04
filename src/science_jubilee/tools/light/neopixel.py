@@ -1,13 +1,12 @@
-import logging
 from dataclasses import dataclass
 
 import requests
 
-logger = logging.getLogger(__name__)
+from science_jubilee.tools.light.base import BaseLight
 
 
 @dataclass
-class Neopixel:
+class Neopixel(BaseLight):
     url: str
 
     def pixel_on(self, led_index, r, g, b):

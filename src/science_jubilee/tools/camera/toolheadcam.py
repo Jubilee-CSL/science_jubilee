@@ -11,11 +11,11 @@ from science_jubilee.tools.camera.base import BaseCamera
 logger = logging.getLogger(__name__)
 
 
-class Camera(BaseCamera):
+class ToolheadCam(BaseCamera):
     """OctoPi/mjpeg-streamer camera over HTTP."""
 
-    def __init__(self, motion, tool_changer, address: str) -> None:
-        super().__init__(motion, tool_changer)
+    def __init__(self, motion, tool_changer, address: str, calib_file=None) -> None:
+        super().__init__(motion, tool_changer, calib_file=calib_file)
         self.url = f"http://{address}/webcam/?action=snapshot"
 
     def get_image(self) -> np.ndarray:

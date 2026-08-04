@@ -32,8 +32,8 @@ def test_save_image_writes_file(camera, tmp_path):
 @pytest.mark.secondary
 def test_mock_camera_injected_image(camera):
     """MockCamera returns the injected image exactly (skipped on hardware)."""
-    from science_jubilee.tools.camera.mock import MockCamera
-    if not isinstance(camera, MockCamera):
+    from science_jubilee.tools.camera.toolheadcam_mock import ToolheadCamMock
+    if not isinstance(camera, ToolheadCamMock):
         pytest.skip("injected-image test is mock-only")
     synthetic = np.full((480, 640, 3), 128, dtype=np.uint8)
     camera._image = synthetic
