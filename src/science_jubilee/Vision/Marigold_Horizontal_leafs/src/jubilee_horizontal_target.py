@@ -36,25 +36,23 @@ driver = MotionDriver(transport)
 tool_changer = ToolChanger(transport)
 nav = FreeNavigator(driver, tool_changer)
 OCTOPI_IP = "10.0.9.55"
-target_auto=False  # True pour sélectionner automatiquement le target avec la plus grande surface et la plus proche distance de la caméra, False pour demander confirmation à l'utilisateur
+target_auto=True  # True pour sélectionner automatiquement le target avec la plus grande surface et la plus proche distance de la caméra, False pour demander confirmation à l'utilisateur
 #coordonées de départ(sans le offset de l'outil)
 x_depart=142.0
 y_depart=155.0
 z_depart=320
+def deck_clear():
+    return True
+
 def main():
      # se mettre au millieu pour prendre la photo
+    transport.deck_clear_provider= deck_clear
     tool_changer.pickup_tool(0) 
-    offset_x=0
-    offset_y=0
-    tool= ToolChanger(transport)
+
     #on veut que la camera se place à cet emplacement donc on enleve l'offset de l'outil pour revenir à l'offset global
-    if nav.get_active_tool() !=-1:
-              offset_x= -tool.get_tool_offset(nav.get_active_tool())[0]   
-              offset_y= -tool.get_tool_offset(nav.get_active_tool())[1]   
-     
-    nav.move_to(x=x_depart -offset_x, y=y_depart-offset_y, z=z_depart, speed=6000.0, wait=True)
     time.sleep(2)
     camera = Camera(motion=driver,tool_changer=tool_changer)
+    camera.move_to_get_image(x_depart,y_depart,z_depart)
     # ======================================================
     # RECHERCHE IMAGE LA PLUS RECENTE
     # ======================================================
@@ -81,9 +79,9 @@ def main():
             print(f"{i}: {target}")
         try:
             selected_index = int(input("Entrez l'index du target souhaité: "))
-            if selected_index < 0 or selected_index >= len(targets):
+            while selected_index < 0 or selected_index >= len(targets):
                 print("Index invalide. Veuillez réessayer.")
-                return
+                selected_index = int(input("Entrez l'index du target souhaité: "))
             target = targets[selected_index]
         except ValueError:
             print("Entrée invalide. Veuillez entrer un nombre entier.")
@@ -93,8 +91,11 @@ def main():
             return
     else:
         #On prend le target avec la plus grande surface et la plus plus proche distance de la caméra
-        target = max(targets, key=lambda x: (x['area_px'], -x['xyz_mm'][2]))  # On maximise le score et minimise la distance
+        #target = max(targets, key=lambda x: (x['area_px'], -x['xyz_mm'][2]))  # On maximise le score et minimise la distance
+        target = max(targets, key=lambda x: ( -x['xyz_mm'][2])) 
+    """
     print(f"Target choisi: {target}, veuillez confirmer que c'est bien la cible souhaitée.")
+    
     try:
         confirmation = input("Confirmez-vous ce target? (y/n): ")
         if confirmation.lower() != 'y':
@@ -103,9 +104,10 @@ def main():
     except KeyboardInterrupt:
         print("\nOpération annulée par l'utilisateur.")
         return
-  
-    offset_x =  camera.offset[0] + offset_x # Offset en mm pour ajuster la position finale sur l'axe X
-    offset_y =  camera.offset[1] + offset_y # Offset en mm pour ajuster la position finale sur l'axe Y
+    """
+
+    offset_x =  camera.offset[0]  # Offset en mm pour ajuster la position finale sur l'axe X
+    offset_y =  camera.offset[1]  # Offset en mm pour ajuster la position finale sur l'axe Y
     offset_z =  camera.offset[2]  # Offset en mm pour ajuster la position finale sur l'axe Z
 
     # ======================================================
@@ -114,7 +116,7 @@ def main():
     # On se déplace vers le target en gardant la même hauteur
 
     nav.move_to(x=x_depart + target['xyz_mm'][0] + offset_x, y= y_depart -target['xyz_mm'][1] + offset_y, speed=3000.0, wait=True)  
-    nav.move_to(z=z_depart - offset_z -target['xyz_mm'][2] -5, speed=1000.0, wait=True)  
+    nav.move_to(z=z_depart + offset_z -target['xyz_mm'][2] -5, speed=1000.0, wait=True)  
 
 if __name__ == "__main__":
     main()

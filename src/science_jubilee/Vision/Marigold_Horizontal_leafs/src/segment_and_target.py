@@ -136,25 +136,37 @@ def estimate_horizontal_targets(image_path: str, depth_path: str, normals_path: 
 
     tray_mask = segment_tray_mask(image)
     plant_mask = segment_plant_mask(image, use_ai=use_ai)
-    #tray_mask = tray_mask - plant_mask         ##Add cube mask 
-    cube_mask= segment_cube_mask(image)
-    tray_mask= tray_mask- plant_mask-cube_mask
+    tray_mask = tray_mask - plant_mask         ##Add cube mask 
+    
 
 
 
     tray_depth_values = depth_map[tray_mask > 0]
-    cube_depth_values= depth_map[cube_mask>0]
-    print(f"Cube depth values: {cube_depth_values.size} pixels, min={np.min(cube_depth_values):.2f}, max={np.max(cube_depth_values):.2f}")
     print(f"[+] Tray depth values: {tray_depth_values.size} pixels, min={np.min(tray_depth_values):.2f}, max={np.max(tray_depth_values):.2f}")
 
+    """
+    #Methode en scaling grace à un cube de référence 
+    cube_mask= segment_cube_mask(image)
+    tray_mask= tray_mask- plant_mask-cube_mask
+    tray_depth_values = depth_map[tray_mask > 0]
+    print(f"[+] Tray depth values: {tray_depth_values.size} pixels, min={np.min(tray_depth_values):.2f}, max={np.max(tray_depth_values):.2f}")
+    
+    cube_depth_values= depth_map[cube_mask>0]
+    print(f"Cube depth values: {cube_depth_values.size} pixels, min={np.min(cube_depth_values):.2f}, max={np.max(cube_depth_values):.2f}")
+    
+    
     if tray_depth_values.size == 0 or np.isclose(np.max(tray_depth_values), 0.0):
         scale = 1.0
     else:
         scale = 25/(np.max(tray_depth_values)-np.min(cube_depth_values))
     
-    #depth_mm=config["physical"]["tray_z_mm"] - (np.max(tray_depth_values) - depth_map)*scale            ##Méthode cube de référence 
+
+    depth_mm=config["physical"]["tray_z_mm"] - (np.max(tray_depth_values) - depth_map)*scale            ##Méthode cube de référence 
+
+
+    """
     depth_mm = depth_map * config["physical"]["plant_height_mm"] +config["physical"]["tray_z_mm"]-config["physical"]["plant_height_mm"]
-    print(f"[+] Depth map scaled by {scale:.4f} to convert to mm (tray_z_mm={config['physical']['tray_z_mm']}), depth_max_mm={np.max(depth_mm):.2f}) and depth_min_mm={np.min(depth_mm):.2f}")
+    print(f"[+] Depth map scaled convert to mm (tray_z_mm={config['physical']['tray_z_mm']}), depth_max_mm={np.max(depth_mm):.2f}) and depth_min_mm={np.min(depth_mm):.2f}")
 
     normal_z = normals[:, :, 2]
     normal_threshold = float(config.get("filtering", {}).get("min_normal_z", 0.85))
