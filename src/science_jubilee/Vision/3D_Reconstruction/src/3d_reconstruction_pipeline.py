@@ -29,7 +29,7 @@ from science_jubilee.hal.motion_driver import MotionDriver
 from science_jubilee.hal.tool_changer import ToolChanger
 from science_jubilee.hal.transport.http import HTTPTransport
 from science_jubilee.navigation.free_navigation import FreeNavigator
-from science_jubilee.tools.Observer import Camera
+from science_jubilee.tools.camera.hardware import Camera
 
 
 def main(num_photos=100, dataset_name="Latest_reconstruction", camera=None,Show=True):

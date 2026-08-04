@@ -82,7 +82,7 @@ class ToolChanger:
         if self.get_active_tool_index() == tool_idx:
             return True
 
-        if self.get_tool_offset(tool_idx) == [0.0,0.0,-400.0]:
+        if list(self.get_tool_offset(tool_idx)) == [0.0, 0.0, -400.0]:
             raise ToolStateError("Tool offset must be configured")
 
         self.park_tool()

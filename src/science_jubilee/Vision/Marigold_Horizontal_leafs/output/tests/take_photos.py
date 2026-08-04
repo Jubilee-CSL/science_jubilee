@@ -18,7 +18,7 @@ for path in (SRC_ROOT, REPO_ROOT):
     if path_str not in sys.path:
         sys.path.insert(0, path_str)
 
-from science_jubilee.tools.Observer import Camera
+from science_jubilee.tools.camera.hardware import Camera
 
 # ==========================================================
 # CONFIGURATION
