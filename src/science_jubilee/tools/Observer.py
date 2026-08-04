@@ -195,3 +195,16 @@ class Camera:
                 self.save_image(img=result, save_dir=save_dir, save_name=save_name)
 
         return result
+
+    # ======================================================
+    # Recherche image la plus récente
+    # ======================================================
+
+    @staticmethod
+    def get_latest_image(folder=CLEAN_DATASET_DIR):
+        files = list(folder.glob("*.jpg"))
+        if not files:
+            raise FileNotFoundError(folder)
+
+        latest = max(files, key=os.path.getmtime)
+        return cv2.imread(str(latest))
