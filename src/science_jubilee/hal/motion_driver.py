@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import logging
 from enum import Enum
 from typing import Optional, Union
+
+logger = logging.getLogger(__name__)
 
 
 class MotionDriver:
@@ -52,7 +55,7 @@ class MotionDriver:
     def home_axis(self, axis) -> None:
         """Home a single axis. Z requires deck clearance."""
         if axis.value == "Z" and not self.is_deck_clear():
-            print("Deck is not clear. Aborting Z homing.")
+            logger.warning("Deck is not clear. Aborting Z homing.")
             return
         self.transport.home_axis(axis.value)
 
@@ -105,7 +108,7 @@ class MotionDriver:
             return
         normalized = {self._normalize_axis(k): v for k, v in axes.items()}
         if any(ax.value == "Z" for ax in normalized) and not self.is_deck_clear():
-            print("Deck is not clear. Aborting Z motion.")
+            logger.warning("Deck is not clear. Aborting Z motion.")
             return
         for ax, val in normalized.items():
             lim = self._axis_limits.get(ax.value)
@@ -147,7 +150,7 @@ class MotionDriver:
     def home_all(self) -> None:
         """Home all axes. Requires deck clearance."""
         if not self.is_deck_clear():
-            print("Deck is not clear. Aborting home_all.")
+            logger.warning("Deck is not clear. Aborting home_all.")
             return
         self.transport.home_all()
         self.invalidate_deck_clearance()
