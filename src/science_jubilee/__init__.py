@@ -15,3 +15,7 @@ except PackageNotFoundError:  # pragma: no cover
     __version__ = "unknown"
 finally:
     del version, PackageNotFoundError
+
+from science_jubilee.machine_session import MachineSession  # noqa: E402
+
+__all__ = ["MachineSession", "__version__"]
