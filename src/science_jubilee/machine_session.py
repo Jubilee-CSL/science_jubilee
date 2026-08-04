@@ -25,7 +25,10 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import Callable, Optional
+from typing import TYPE_CHECKING, Callable, Optional
+
+if TYPE_CHECKING:
+    from science_jubilee.tools.light.base import BaseLight
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +36,7 @@ logger = logging.getLogger(__name__)
 class MachineSession:
     """Wires transport → motion → tool_changer → navigator into one object."""
 
-    def __init__(self, transport, deck_def: Optional[str] = None, camera_address: Optional[str] = None, led_address: Optional[str] = None) -> None:
+    def __init__(self, transport, use_mock: bool = True, deck_def: Optional[str] = None, camera_address: Optional[str] = None, led_address: Optional[str] = None, camera_calib: Optional[str] = None) -> None:
         from science_jubilee.hal.motion_driver import MotionDriver
         from science_jubilee.hal.tool_changer import ToolChanger
 
@@ -51,23 +54,20 @@ class MachineSession:
         else:
             self.navigator = None
 
-        if camera_address is not None:
-            from science_jubilee.tools.camera.hardware import Camera
-            self.camera = Camera(
-                motion=self.motion, tool_changer=self.tool_changer,
-                address=camera_address,
-            )
+        if use_mock:
+            from science_jubilee.tools.camera.toolheadcam_mock import ToolheadCamMock
+            from science_jubilee.tools.light.neopixel_mock import NeopixelMock
+            self.camera = ToolheadCamMock(motion=self.motion, tool_changer=self.tool_changer, calib_file=camera_calib)
+            self.light: BaseLight = NeopixelMock()
         else:
-            from science_jubilee.tools.camera.mock import MockCamera
-            self.camera = MockCamera(
-                motion=self.motion, tool_changer=self.tool_changer,
-            )
-
-        if led_address is not None:
-            from science_jubilee.tools.Neopixel import Neopixel
-            self.neopixel: Optional[object] = Neopixel(url=f"http://{led_address}:5001")
-        else:
-            self.neopixel = None
+            if not camera_address:
+                raise ValueError("JUBILEE_CAMERA_ADDRESS required for hardware transport")
+            if not led_address:
+                raise ValueError("JUBILEE_NEOPIXEL_ADDRESS required for hardware transport")
+            from science_jubilee.tools.camera.toolheadcam import ToolheadCam
+            from science_jubilee.tools.light.neopixel import Neopixel
+            self.camera = ToolheadCam(motion=self.motion, tool_changer=self.tool_changer, address=camera_address, calib_file=camera_calib)
+            self.light = Neopixel(url=f"http://{led_address}:5001")
 
     # ------------------------------------------------------------------
     # Factory classmethods
@@ -78,15 +78,14 @@ class MachineSession:
         cls,
         deck_def: Optional[str] = None,
         log_path: str = "gcode_logs/latest.gcode",
-        camera_address: Optional[str] = None,
-        led_address: Optional[str] = None,
+        camera_calib: Optional[str] = None,
     ) -> "MachineSession":
         """Build a session backed by the in-memory MockTransport."""
         from science_jubilee.hal.transport.mock import MockTransport
         from science_jubilee.hal.transport.recording import RecordingTransport
 
         transport = RecordingTransport(MockTransport(), log_path=log_path)
-        return cls(transport, deck_def=deck_def, camera_address=camera_address, led_address=led_address)
+        return cls(transport, use_mock=True, deck_def=deck_def, camera_calib=camera_calib)
 
     @classmethod
     def hardware(
@@ -97,6 +96,7 @@ class MachineSession:
         deck_clear_provider: Optional[Callable[[], bool]] = None,
         camera_address: Optional[str] = None,
         led_address: Optional[str] = None,
+        camera_calib: Optional[str] = None,
     ) -> "MachineSession":
         """Build a session connected to a real Duet/RRF machine."""
         from science_jubilee.hal.transport.http import HTTPTransport
@@ -108,7 +108,7 @@ class MachineSession:
             HTTPTransport(address=address, deck_clear_provider=deck_clear_provider),
             log_path=log_path,
         )
-        return cls(transport, deck_def=deck_def, camera_address=camera_address, led_address=led_address)
+        return cls(transport, use_mock=False, deck_def=deck_def, camera_address=camera_address, led_address=led_address, camera_calib=camera_calib)
 
     @classmethod
     def from_env(
@@ -124,8 +124,7 @@ class MachineSession:
           JUBILEE_DECK_DEF       — deck definition filename (overridden by *deck_def* arg)
           JUBILEE_GCODE_LOG      — G-code log path (default: gcode_logs/latest.gcode)
           JUBILEE_CAMERA_ADDRESS — OctoPi/camera IP; omit to skip camera wiring
-          JUBILEE_NEOPIXEL_ADDRESS — LED server IP; omit to skip Neopixel wiring
-          JUBILEE_RAW_DIR          — directory for raw images (default: dataset_brut)
+          JUBILEE_NEOPIXEL_ADDRESS — LED server IP; omit to skip Neopixel wiring          JUBILEE_CAMERA_CALIB     — path to camera_params.yaml from calibrate_camera.py          JUBILEE_RAW_DIR          — directory for raw images (default: dataset_brut)
           JUBILEE_LED_DIR          — directory for multi-lighting images (default: dataset_brut_led)
         """
         if env_file is not None:
@@ -142,6 +141,7 @@ class MachineSession:
 
         camera_address = os.getenv("JUBILEE_CAMERA_ADDRESS") or None
         led_address = os.getenv("JUBILEE_NEOPIXEL_ADDRESS") or None
+        camera_calib = os.getenv("JUBILEE_CAMERA_CALIB") or None
 
         if transport_type == "hardware":
             if not address:
@@ -149,9 +149,9 @@ class MachineSession:
                     "JUBILEE_ADDRESS must be set (or passed via --jubilee-address) "
                     "when JUBILEE_TRANSPORT=hardware"
                 )
-            return cls.hardware(address=address, deck_def=deck_def, log_path=log_path, camera_address=camera_address, led_address=led_address)
+            return cls.hardware(address=address, deck_def=deck_def, log_path=log_path, camera_address=camera_address, led_address=led_address, camera_calib=camera_calib)
 
-        return cls.mock(deck_def=deck_def, log_path=log_path, camera_address=camera_address, led_address=led_address)
+        return cls.mock(deck_def=deck_def, log_path=log_path, camera_calib=camera_calib)
 
     # ------------------------------------------------------------------
     # Context manager
@@ -165,6 +165,4 @@ class MachineSession:
 
     def __repr__(self) -> str:
         nav = f", navigator={self.navigator!r}" if self.navigator else ""
-        cam = f", camera={self.camera!r}" if self.camera else ""
-        neo = f", neopixel={self.neopixel!r}" if self.neopixel else ""
-        return f"MachineSession(transport={self.transport!r}{nav}{cam}{neo})"
+        return f"MachineSession(transport={self.transport!r}, camera={self.camera!r}, light={self.light!r}{nav})"

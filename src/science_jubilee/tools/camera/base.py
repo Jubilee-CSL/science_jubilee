@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import time
 from abc import ABC, abstractmethod
 from datetime import datetime
@@ -10,6 +9,7 @@ from typing import TYPE_CHECKING, Optional
 
 import cv2
 import numpy as np
+import yaml
 
 if TYPE_CHECKING:
     from science_jubilee.tools.Neopixel import Neopixel
@@ -23,30 +23,37 @@ class BaseCamera(ABC):
     Subclasses implement get_image(); all other methods are shared.
     """
 
-    def __init__(self, motion, tool_changer) -> None:
+    def __init__(self, motion, tool_changer, calib_file: Optional[str] = None) -> None:
         self.driver = motion
         self.tool_changer = tool_changer
 
-        self.K = np.array(
-            [
-                [1223.5800404310712, 0, 1012.6265109062106],
-                [0, 1234.9709223262516, 652.0441120068181],
-                [0, 0, 1],
-            ],
-            dtype=np.float64,
-        )
-        self.dist = np.array(
-            [
-                0.003964559927730257,
-                -0.07805139087827796,
-                0.000522562108766698,
-                -0.000680263815167156,
-                0.26622436928189075,
-            ]
-        )
+        self.K: Optional[np.ndarray] = None
+        self.dist: Optional[np.ndarray] = None
+        self.offset: tuple = (0, 0, 0)
         self.R_machine_camera = np.eye(3, dtype=np.float64)
         self.T_machine_camera = np.zeros(3, dtype=np.float64)
-        self.offset = (0, -20, 0)
+
+        if calib_file is not None:
+            self._load_calibration(calib_file)
+
+    def _load_calibration(self, path: str) -> None:
+        """Load intrinsics and offset from a camera_params.yaml produced by calibrate_camera.py."""
+        with open(path, "r") as f:
+            cfg = yaml.safe_load(f)
+        c = cfg["camera"]
+        self.K = np.array(
+            [[c["fx"], 0, c["cx"]], [0, c["fy"], c["cy"]], [0, 0, 1]],
+            dtype=np.float64,
+        )
+        self.dist = np.array(c["dist"], dtype=np.float64)
+        self.offset = tuple(c.get("offset", [0, 0, 0]))
+
+    def _require_calibration(self) -> None:
+        if self.K is None or self.dist is None:
+            raise RuntimeError(
+                "Camera intrinsics not loaded. "
+                "Pass calib_file= or set JUBILEE_CAMERA_CALIB."
+            )
 
     # ------------------------------------------------------------------
     # Abstract
