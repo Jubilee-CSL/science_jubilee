@@ -1,3 +1,5 @@
+# INSTALLATION:
+
 # Sur WSL (configuré avec miniconda et annexes basiques) acceder au fichier avec
 $ cd /mnt/"ton/chemin/sur/windows/habituel"/3dgs-mcmc$
 
@@ -42,6 +44,11 @@ pip install submodules/simple-knn
 
 Installation faite sur wsl pour plus de stabilitée et moins de conflit des verions 
 
+
+
+# Launch full pipeline
+
+simply launch the pipeline with 3s_reconstrution_pipeline.py bi giving your dataset name and number of photos
 
 
 
