@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Optional
 from science_jubilee.hal.motion_driver import MotionDriver
 from science_jubilee.hal.tool_changer import ToolChanger
+from science_jubilee.tools.Neopixel import Neopixel
 
 
 import cv2
@@ -26,30 +27,13 @@ RAW_LED_DIR = Path("dataset_brut_led")
 
 RAW_DATASET_DIR.mkdir(exist_ok=True)
 RAW_LED_DIR.mkdir(exist_ok=True)
-@dataclass
-class Neopixel:
-    url: str
-
-    def pixel_on(self, led_index, r, g, b):
-        requests.get(f"{self.url}/pixel/{led_index}/{r}/{g}/{b}")
-
-    def pixel_off(self, led_index):
-        requests.get(f"{self.url}/pixel/{led_index}/0/0/0")
-
-    def all_pixel_on(self, r, g, b):
-        requests.get(f"{self.url}/led/{r}/{g}/{b}")
-
-    def all_pixel_off(self):
-        requests.get(f"{self.url}/off")
 
 
 class Camera:
     
-    def __init__(self, motion, tool_changer, address: str, led_address: Optional[str] = None):
+    def __init__(self, motion, tool_changer, address: str):
         self.driver : MotionDriver= motion
         self.tool_changer : ToolChanger = tool_changer
-
-        self.leds: Optional[Neopixel] = Neopixel(url=f"http://{led_address}:5001") if led_address else None
 
         self.K = np.array([
         [1223.5800404310712, 0, 1012.6265109062106],
@@ -139,13 +123,11 @@ class Camera:
 
     def get_multi_lighting_img(
         self,
+        leds: Neopixel,
         nb_img=8,
         temp_dir=RAW_LED_DIR,
     ):
-        # on s'assure que tout soit éteint
-        if self.leds is None:
-            raise RuntimeError("Neopixel not configured; set JUBILEE_NEOPIXEL_ADDRESS.")
-        self.leds.all_pixel_off()
+        leds.all_pixel_off()
 
         # nettoyage du dossier temporaire
         for file in temp_dir.glob("*.jpg"):
@@ -155,13 +137,13 @@ class Camera:
         # acquisition des images
         for i in range(nb_img):
             logger.debug("LED %d", i % nb_img)
-            self.leds.pixel_on(i % nb_img, 255, 255, 50)
+            leds.pixel_on(i % nb_img, 255, 255, 50)
             time.sleep(3)
 
             images.append(self.get_image())
             self.save_image(img=images[i], save_dir=temp_dir)
 
-            self.leds.pixel_off(i)
+            leds.pixel_off(i)
             time.sleep(0.2)
 
         return images
@@ -171,11 +153,13 @@ class Camera:
     # ======================================================
 
     def get_clean_image(
-        self, images=None, save_dir=None, save_name=None, nb_image_used=8
+        self, leds: Optional[Neopixel] = None, images=None, save_dir=None, save_name=None, nb_image_used=8
     ):
 
         if images is None:
-            images = self.get_multi_lighting_img(nb_img=nb_image_used)
+            if leds is None:
+                raise ValueError("leds required when images is not provided")
+            images = self.get_multi_lighting_img(leds=leds, nb_img=nb_image_used)
 
         if len(images) == 0:
             raise ValueError("Aucune image")
