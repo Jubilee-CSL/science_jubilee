@@ -74,23 +74,23 @@ class BaseTransport(ABC):
             return None
 
     # ---- Tools API -------------------------------------------------------
+    @abstractmethod
     def get_active_tool_index(self) -> int:
         """Return the active tool index, or -1 if none."""
-        raise NotImplementedError()
 
-    def select_tool(self, tool_idx: int) -> bool:
-        raise NotImplementedError()
+    @abstractmethod
+    def select_tool(self, tool_idx: int) -> bool: ...
 
-    def park_tool(self) -> bool:
-        raise NotImplementedError()
+    @abstractmethod
+    def park_tool(self) -> bool: ...
 
+    @abstractmethod
     def get_tools(self) -> dict:
         """Return {number: {"name": str}} for configured tools."""
-        raise NotImplementedError()
 
+    @abstractmethod
     def get_tool_offsets(self) -> dict:
         """Return {number: [X, Y, Z]} offsets for all tools."""
-        raise NotImplementedError()
 
     # ---- Homing ----------------------------------------------------------
     def get_axes_homed(self) -> list:
