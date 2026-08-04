@@ -75,16 +75,16 @@ class Camera:
                                         [0, 0, 1]])
         
         self.url = f"http://{OCTOPI_IP}/webcam/?action=snapshot"
-
-        #self.offset = ( 0, -25,11)   ##offset utilisé par quentin
-        self.offset =(-5,-8,10)
+        
+        self.offset = (0,-20,0)   ##offset utilisé par quentin
+        #self.offset =(-5,0,10) # dernier offset marigold
         #self.offset=(10,-13,16)
         self.T_machine_camera = np.array([0,0,0], dtype=np.float64)
         
     # ======================================================
     # Capture image
     # ======================================================
-    def move_to_get_image(self):
+    def move_to_get_image(self,x_depart,y_depart,z_depart):
 
         
         active_tool = self.tool_changer.get_active_tool_index()
@@ -94,12 +94,12 @@ class Camera:
 
         active_tool_offset = self.tool_changer.get_tool_offset(active_tool)
 
-        x = active_tool_offset[0] - self.offset[0]
-        y = active_tool_offset[1] - self.offset[1]
-        z = 40
-        self.driver.move({"Z":float(z)})
-        self.driver.move({"X":float(x),
-                          "Y":float(y),})
+        x = x_depart+ active_tool_offset[0] 
+        y =y_depart+ active_tool_offset[1] 
+        z = z_depart + active_tool_offset[2]
+        self.driver.move_to({"Z":float(z)},s=600)
+        self.driver.move_to({"X":float(x),
+                          "Y":float(y),}, s=800)
         
         position = self.driver.get_positions()
 

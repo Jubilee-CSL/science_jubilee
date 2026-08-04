@@ -26,7 +26,7 @@ camera0:
 
 physical:
   tray_z_mm: 320.00 # Known tray height above the camera reference plane
-  plant_height_mm: 165.0
+  plant_height_mm: 155.0
   tray_reference_mm: 320.00
   camera_z_offset_mm: 0.0
 
