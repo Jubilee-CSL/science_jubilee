@@ -50,7 +50,7 @@ def test_all_pixel_off_clears_all(light):
 # Invasive: full sequence (runs on both mock and hardware)
 # ------------------------------------------------------------------
 
-@pytest.mark.invasive
+@pytest.mark.secondary
 def test_light_sequence(light):
     """Cycle through 8 LEDs on and off — verifiable on hardware, logged on mock."""
     light.all_pixel_off()

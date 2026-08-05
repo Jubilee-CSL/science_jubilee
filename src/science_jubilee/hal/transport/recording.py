@@ -2,7 +2,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Optional, Any, Dict, List
 
 from .base import BaseTransport
 
@@ -34,9 +34,7 @@ class RecordingTransport(BaseTransport):
     ):
         self._inner = inner
         self._sys_dir: Optional[Path] = Path(sys_dir) if sys_dir is not None else None
-        self._macro_dir: Optional[Path] = (
-            Path(macro_dir) if macro_dir is not None else None
-        )
+        self._macro_dir: Optional[Path] = Path(macro_dir) if macro_dir is not None else None
 
         # Default log path can be overridden via env
         if log_path is None:
@@ -53,8 +51,8 @@ class RecordingTransport(BaseTransport):
             # underlying transport.
             seed = (
                 "; visualization seed added by RecordingTransport\n"
-                "G90\n"  # absolute positioning
-                "M82\n"  # absolute extrusion
+                "G90\n"              # absolute positioning
+                "M82\n"              # absolute extrusion
                 "G92 X0 Y0 Z0 E0\n"
                 "G1 X0.10 Y0.00 E0.10 F600\n"  # short extrusion move
             )
@@ -113,7 +111,7 @@ class RecordingTransport(BaseTransport):
         """Resolve an RRF macro path to a local file, or None."""
         clean = rrf_path.strip().lstrip("/")
         if clean.startswith("macros/"):
-            filename = clean[len("macros/") :]
+            filename = clean[len("macros/"):]
             if self._macro_dir is not None:
                 candidate = self._macro_dir / filename
                 if candidate.exists():
@@ -170,7 +168,7 @@ class RecordingTransport(BaseTransport):
             return []
 
         # Tool change: T{n} or T-1
-        tool_match = re.match(r"^T(-?\d+)$", stripped)
+        tool_match = re.match(r'^T(-?\d+)$', stripped)
         if tool_match:
             idx = int(tool_match.group(1))
             lines: List[str] = []
@@ -246,18 +244,10 @@ class RecordingTransport(BaseTransport):
             pass
 
     # ---- Core transport methods ----------------------------------------
-    def send_gcode(
-        self,
-        cmd: str = "",
-        timeout: Optional[float] = None,
-        response_wait: float = 60,
-        wait: bool = False,
-    ):
+    def send_gcode(self, cmd: str = "", timeout: Optional[float] = None, response_wait: float = 60, wait: bool = False):
         # Record every command that goes through the transport
         self._log(cmd)
-        return self._inner.send_gcode(
-            cmd=cmd, timeout=timeout, response_wait=response_wait, wait=wait
-        )
+        return self._inner.send_gcode(cmd=cmd, timeout=timeout, response_wait=response_wait, wait=wait)
 
     def connect(self, timeout: Optional[float] = 5.0) -> bool:
         return self._inner.connect(timeout=timeout)
@@ -289,6 +279,18 @@ class RecordingTransport(BaseTransport):
 
     def get_tool_offsets(self) -> Dict[int, list[float]]:
         return self._inner.get_tool_offsets()
+
+    def set_tool_offset(self, tool_idx: int, *, x: float | None = None, y: float | None = None, z: float | None = None) -> bool:
+        # Log the equivalent G10 command, then delegate.
+        parts = [f"P{int(tool_idx)}"]
+        if x is not None:
+            parts.append(f"X{float(x):.4f}")
+        if y is not None:
+            parts.append(f"Y{float(y):.4f}")
+        if z is not None:
+            parts.append(f"Z{float(z):.4f}")
+        self._log("G10 " + " ".join(parts))
+        return self._inner.set_tool_offset(tool_idx, x=x, y=y, z=z)
 
     def home_all(self) -> None:
         self.send_gcode('M98 P"homeall.g"', wait=True)

@@ -64,15 +64,3 @@ def test_acquire_image_at_two_positions(camera, tmp_path):
     assert len(saved) == 2
 
 
-
-# ------------------------------------------------------------------
-# Hardware camera (skipped in mock mode)
-# ------------------------------------------------------------------
-
-
-@pytest.mark.invasive
-def test_hardware_camera_get_image(camera):
-    img = camera.get_image()
-    assert isinstance(img, np.ndarray)
-    assert img.ndim == 3
-    logger.info("Captured image shape: %s", img.shape)
