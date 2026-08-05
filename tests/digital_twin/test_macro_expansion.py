@@ -15,8 +15,8 @@ from science_jubilee.hal.transport.mock import MockTransport
 from science_jubilee.hal.transport.recording import RecordingTransport
 
 # Persistent log output directory - repo_root/gcode_logs/
-# This file lives at tests/test_macro_expansion.py, so parent.parent = repo root.
-_REPO_ROOT = Path(__file__).parent.parent
+# tests/digital_twin/test_macro_expansion.py → .parent×3 = repo root
+_REPO_ROOT = Path(__file__).parent.parent.parent
 _LOG_DIR = _REPO_ROOT / "gcode_logs"
 
 

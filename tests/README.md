@@ -10,10 +10,7 @@ tests/
 ├── tools/                       # camera, light
 └── digital_twin/                # mock-only: recording transport, macro expansion, blender
 
-scripts/                         # standalone hardware procedures (not pytest)
-├── run_snake_scan.py
-└── run_inoculator.py
-```
+
 
 ## Running tests
 
