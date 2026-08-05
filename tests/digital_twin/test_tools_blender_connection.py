@@ -11,6 +11,8 @@ def test_blender(transport):
         / "jubilee-blender-twin"
         / "from_gcode"
     )
+    if not search_dir.exists():
+        pytest.skip("jubilee-blender-twin not present")
 
     return_code = transport._inner.launch_twin(script_name, search_dir)
     assert return_code == 0, f"Blender script failed with return code {return_code}"
