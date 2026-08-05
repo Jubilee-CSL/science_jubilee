@@ -130,7 +130,14 @@ class MachineSession:
         if env_file is not None:
             from science_jubilee.utils.env import load_env_file
 
-            load_env_file(env_file)
+            path = Path(env_file)
+            if not path.is_absolute():
+                # resolve relative to cwd first, then repo root as fallback
+                if not path.exists():
+                    path = Path(__file__).resolve().parent.parent.parent / env_file
+            if not path.exists():
+                raise FileNotFoundError(f"env file not found: {env_file}")
+            load_env_file(path, override=True)
 
         transport_type = os.getenv("JUBILEE_TRANSPORT", "mock").strip().lower()
         address = os.getenv("JUBILEE_ADDRESS")

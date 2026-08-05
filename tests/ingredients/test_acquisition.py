@@ -19,6 +19,10 @@ from science_jubilee.scripts.ingredients.acquisition import (
 _SLEEP = "science_jubilee.scripts.ingredients.acquisition.time.sleep"
 
 
+_ACQ = dict(mode="simple", nb_leds=8, debug=False, led_r=255, led_g=255, led_b=50)
+_ACQ_ILLUM = dict(mode="illuminated", nb_leds=4, debug=False, led_r=255, led_g=255, led_b=50)
+
+
 # ---------------------------------------------------------------------------
 # acquire() — simple mode
 # ---------------------------------------------------------------------------
@@ -26,13 +30,13 @@ _SLEEP = "science_jubilee.scripts.ingredients.acquisition.time.sleep"
 
 @pytest.mark.primary
 def test_acquire_simple_returns_correct_path(camera, light, tmp_path):
-    path = acquire(cam=camera, light=light, save_dir=tmp_path, name="img", mode="simple", nb_leds=8)
+    path = acquire(cam=camera, light=light, save_dir=tmp_path, name="img", **_ACQ)
     assert path == str(tmp_path / "img.jpg")
 
 
 @pytest.mark.primary
 def test_acquire_simple_writes_file(camera, light, tmp_path):
-    acquire(cam=camera, light=light, save_dir=tmp_path, name="img", mode="simple", nb_leds=8)
+    acquire(cam=camera, light=light, save_dir=tmp_path, name="img", **_ACQ)
     assert (tmp_path / "img.jpg").exists()
 
 
@@ -40,7 +44,7 @@ def test_acquire_simple_writes_file(camera, light, tmp_path):
 def test_acquire_simple_does_not_change_led_state(camera, light, tmp_path, jubilee_env):
     if jubilee_env == "mock":
         before = dict(light.state)
-    acquire(cam=camera, light=light, save_dir=tmp_path, name="img", mode="simple", nb_leds=8)
+    acquire(cam=camera, light=light, save_dir=tmp_path, name="img", **_ACQ)
     if jubilee_env == "mock":
         assert dict(light.state) == before
 
@@ -53,21 +57,21 @@ def test_acquire_simple_does_not_change_led_state(camera, light, tmp_path, jubil
 @pytest.mark.invasive
 def test_acquire_illuminated_returns_correct_path(camera, light, tmp_path):
     with patch(_SLEEP):
-        path = acquire(cam=camera, light=light, save_dir=tmp_path, name="img", mode="illuminated", nb_leds=4)
+        path = acquire(cam=camera, light=light, save_dir=tmp_path, name="img", **_ACQ_ILLUM)
     assert path == str(tmp_path / "img.jpg")
 
 
 @pytest.mark.invasive
 def test_acquire_illuminated_writes_file(camera, light, tmp_path):
     with patch(_SLEEP):
-        acquire(cam=camera, light=light, save_dir=tmp_path, name="img", mode="illuminated", nb_leds=4)
+        acquire(cam=camera, light=light, save_dir=tmp_path, name="img", **_ACQ_ILLUM)
     assert (tmp_path / "img.jpg").exists()
 
 
 @pytest.mark.invasive
 def test_acquire_illuminated_turns_leds_off_after(camera, light, tmp_path, jubilee_env):
     with patch(_SLEEP):
-        acquire(cam=camera, light=light, save_dir=tmp_path, name="img", mode="illuminated", nb_leds=4)
+        acquire(cam=camera, light=light, save_dir=tmp_path, name="img", **_ACQ_ILLUM)
     if jubilee_env == "mock":
         assert all(v == (0, 0, 0) for v in light.state.values())
 
@@ -75,7 +79,7 @@ def test_acquire_illuminated_turns_leds_off_after(camera, light, tmp_path, jubil
 @pytest.mark.primary
 def test_acquire_illuminated_no_light_raises(camera, tmp_path):
     with pytest.raises(ValueError, match="light"):
-        acquire(cam=camera, light=None, save_dir=tmp_path, name="img", mode="illuminated", nb_leds=8)
+        acquire(cam=camera, light=None, save_dir=tmp_path, name="img", **_ACQ_ILLUM)
 
 
 # ---------------------------------------------------------------------------
@@ -106,13 +110,13 @@ def test_pixel_minimum_does_not_modify_input():
 @pytest.mark.primary
 def test_capture_multi_lighting_returns_one_image_per_led(camera, light):
     with patch(_SLEEP):
-        images = _capture_multi_lighting(camera, light, nb_leds=3)
+        images = _capture_multi_lighting(camera, light, nb_leds=3, r=255, g=255, b=50)
     assert len(images) == 3
 
 
 @pytest.mark.secondary
 def test_capture_multi_lighting_turns_off_all_leds(camera, light, jubilee_env):
     with patch(_SLEEP):
-        _capture_multi_lighting(camera, light, nb_leds=3)
+        _capture_multi_lighting(camera, light, nb_leds=3, r=255, g=255, b=50)
     if jubilee_env == "mock":
         assert all(v == (0, 0, 0) for v in light.state.values())
