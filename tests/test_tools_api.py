@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------
 
 
-@pytest.mark.secondary
+@pytest.mark.invasive
 def test_pickup_tool(tool_changer):
     """
     Verify tool activation.
@@ -30,7 +30,7 @@ def test_pickup_tool(tool_changer):
     tool_changer.park_tool()
 
 
-@pytest.mark.secondary
+@pytest.mark.invasive
 def test_park_tool(tool_changer):
     """
     Verify tool parking.
@@ -45,7 +45,7 @@ def test_park_tool(tool_changer):
     assert tool.is_active_tool is False
 
 
-@pytest.mark.secondary
+@pytest.mark.invasive
 def test_exchange_tools(tool_changer):
     """
     Verify switching active tools.
@@ -68,7 +68,7 @@ def test_exchange_tools(tool_changer):
 # ------------------------------------------------------------------
 
 
-@pytest.mark.secondary
+@pytest.mark.invasive
 def test_pickup_empty_slot(tool_changer):
     """
     Selecting empty slot
@@ -79,7 +79,7 @@ def test_pickup_empty_slot(tool_changer):
         tool_changer.pickup_tool(3)
 
 
-@pytest.mark.secondary
+@pytest.mark.invasive
 def test_pickup_tool_without_offset(tool_changer):
     """
     Tool without offset
