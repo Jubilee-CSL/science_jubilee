@@ -1,4 +1,87 @@
-# Hardware test guide for Jubilee
+# Tests
+
+## Structure
+
+```
+tests/
+├── conftest.py                  # fixtures and CLI options
+├── machine_basic/               # connectivity, axes, positions, HTTP
+├── machine_movement/            # homing, navigation, tool changes
+├── tools/                       # camera, light
+└── digital_twin/                # mock-only: recording transport, macro expansion, blender
+
+scripts/                         # standalone hardware procedures (not pytest)
+├── run_snake_scan.py
+└── run_inoculator.py
+```
+
+## Running tests
+
+### Mock (no hardware needed)
+
+```powershell
+pytest -q --jubilee-env mock
+pytest -q --jubilee-env mock -m "not invasive"   # skip motion tests
+```
+
+### Hardware
+
+```powershell
+pytest -q --jubilee-env hardware --jubilee-address 192.168.1.2
+```
+
+Or set in `.env.hardware`:
+```
+JUBILEE_TRANSPORT=hardware
+JUBILEE_ADDRESS=192.168.1.2
+```
+
+Then just:
+```powershell
+pytest -q --jubilee-env hardware
+```
+
+## Markers
+
+| Marker | Meaning |
+|--------|---------|
+| `primary` | connectivity only — run first |
+| `secondary` | reads state, no motion |
+| `invasive` | moves the machine, changes tool state |
+
+```powershell
+pytest -q -m primary
+pytest -q -m "primary or secondary"
+pytest -q --jubilee-env hardware -m invasive --maxfail=1
+```
+
+## Fixtures (`conftest.py`)
+
+| Fixture | Type | Description |
+|---------|------|-------------|
+| `jubilee_env` | `str` | `"mock"` or `"hardware"` |
+| `transport` | `RecordingTransport` | wraps Mock or HTTP transport |
+| `motion` | `MotionDriver` | built on `transport` |
+| `tool_changer` | `ToolChanger` | built on `transport` |
+| `navigator` | `DeckNavigator` | skips if no `JUBILEE_DECK_DEF` set |
+| `camera` | `BaseCamera` | mock or hardware depending on env |
+| `light` | `BaseLight` | `NeopixelMock` or `Neopixel` |
+
+All commands sent during a test are logged to `gcode_logs/latest.gcode`
+and a copy named after the test file.
+
+## Adding tests
+
+- Use the fixture at the right layer (`motion` not `transport` for movement tests).
+- Mark with `primary` / `secondary` / `invasive`.
+- Tests that are multi-step procedures with no clear assertion belong in `scripts/` instead.
+
+## Troubleshooting
+
+- `JUBILEE_ADDRESS not set` → add to `.env.hardware` or pass `--jubilee-address`.
+- HTTP timeout → check IP, network, firewall, and that DWC is reachable.
+- Deck clearance prompt blocks → the hardware transport asks interactively before Z motion.
+
 
 This guide shows how to run the hardware tests in `science-jubilee` on Windows. It also covers simulation runs when hardware isn’t connected.
 
