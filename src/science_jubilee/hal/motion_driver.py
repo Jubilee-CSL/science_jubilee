@@ -110,12 +110,15 @@ class MotionDriver:
         if any(ax.value == "Z" for ax in normalized) and not self.is_deck_clear():
             logger.warning("Deck is not clear. Aborting Z motion.")
             return
+        if not absolute:
+            current = self.get_positions()
         for ax, val in normalized.items():
             lim = self._axis_limits.get(ax.value)
             if lim is not None:
                 lo, hi = lim
-                if not (lo <= float(val) <= hi):
-                    raise ValueError(f"{ax.value}={val} outside limits [{lo}, {hi}]")
+                check = float(val) if absolute else current.get(ax.value, 0.0) + float(val)
+                if not (lo <= check <= hi):
+                    raise ValueError(f"{ax.value}={check} outside limits [{lo}, {hi}]")
         self.transport.move_axes(
             {ax.value: float(v) for ax, v in normalized.items()},
             feedrate=s,
