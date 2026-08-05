@@ -1,18 +1,14 @@
 from __future__ import annotations
 
 import logging
-import time
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 import cv2
 import numpy as np
 import yaml
-
-if TYPE_CHECKING:
-    from science_jubilee.tools.Neopixel import Neopixel
 
 logger = logging.getLogger(__name__)
 
@@ -100,55 +96,3 @@ class BaseCamera(ABC):
         if save_name is None:
             save_name = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         cv2.imwrite(str(save_dir / f"{save_name}.jpg"), img)
-
-    # ------------------------------------------------------------------
-    # Multi-lighting acquisition
-    # ------------------------------------------------------------------
-
-    def get_multi_lighting_img(
-        self,
-        leds: "Neopixel",
-        nb_img: int = 8,
-        temp_dir: Path = Path("."),
-    ) -> list:
-        leds.all_pixel_off()
-        for file in temp_dir.glob("*.jpg"):
-            file.unlink()
-
-        images = []
-        for i in range(nb_img):
-            logger.debug("LED %d", i % nb_img)
-            leds.pixel_on(i % nb_img, 255, 255, 50)
-            time.sleep(3)
-            img = self.get_image()
-            images.append(img)
-            self.save_image(img=img, save_dir=temp_dir)
-            leds.pixel_off(i)
-            time.sleep(0.2)
-
-        return images
-
-    def get_clean_image(
-        self,
-        leds: Optional["Neopixel"] = None,
-        images: Optional[list] = None,
-        save_dir=None,
-        save_name=None,
-        nb_image_used: int = 8,
-    ) -> np.ndarray:
-        if images is None:
-            if leds is None:
-                raise ValueError("leds required when images is not provided")
-            images = self.get_multi_lighting_img(leds=leds, nb_img=nb_image_used)
-
-        if not images:
-            raise ValueError("No images provided")
-
-        result = images[0].copy()
-        for img in images[1:]:
-            result = np.minimum(result, img)
-
-        if save_dir is not None:
-            self.save_image(img=result, save_dir=save_dir, save_name=save_name)
-
-        return result
