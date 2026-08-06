@@ -55,6 +55,11 @@ class MachineSession:
         self.tool_changer = ToolChanger(transport)
         self.experiment_dir: Optional[Path] = experiment_dir
 
+        # always look for deck.json in experiment_dir
+        if deck_def is None and experiment_dir is not None:
+            if (experiment_dir / "deck.json").exists():
+                deck_def = "deck"
+
         if deck_def is not None:
             from science_jubilee.decks.Deck import Deck
             from science_jubilee.navigation.deck_navigation import DeckNavigator
@@ -139,7 +144,7 @@ class MachineSession:
         Reads:
           JUBILEE_TRANSPORT        — ``mock`` (default) or ``hardware``
           JUBILEE_ADDRESS          — machine IP, required when transport=hardware
-          JUBILEE_DECK_DEF         — deck definition filename (overridden by *deck_def* arg)
+          JUBILEE_DECK_DEF         — deck JSON filename; auto-detected when experiment dir has exactly one .json
           JUBILEE_EXPERIMENT_DIR   — folder containing deck.json, labware JSONs, and gcode files
           JUBILEE_GCODE_LOG        — G-code log path (default: gcode_logs/latest.gcode)
           JUBILEE_CAMERA_ADDRESS   — OctoPi/camera IP; omit to skip camera wiring
