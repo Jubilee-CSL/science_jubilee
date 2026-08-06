@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from pathlib import Path
 from typing import Optional, Union
 
 from science_jubilee.hal.motion_driver import MotionDriver
@@ -128,3 +129,23 @@ class FreeNavigator:
     def get_available_axes(self) -> list[str]:
         """Return the list of axis letters available on this machine."""
         return self.driver.get_available_axes()
+
+    # ------------------------------------------------------------------
+    # G-code file execution
+    # ------------------------------------------------------------------
+
+    def run_gcode_file(self, path: Union[str, Path], wait: bool = True) -> None:
+        """Upload a local G-code file to the Duet and run it via M98.
+
+        Falls back to line-by-line sending when the transport has no upload support (e.g. mock).
+        """
+        transport = self.driver.transport
+        if hasattr(transport, "upload_file"):
+            remote_path = transport.upload_file(Path(path), destination="macros")
+            transport.send_gcode(f'M98 P"{remote_path}"', wait=wait)
+        else:
+            # line-by-line fallback for mock/recording transports
+            for raw in Path(path).read_text().splitlines():
+                line = raw.split(";")[0].strip()
+                if line:
+                    transport.send_gcode(line, wait=wait)

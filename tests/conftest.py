@@ -42,7 +42,7 @@ def pytest_configure(config):
     if addr_opt:
         os.environ["JUBILEE_ADDRESS"] = addr_opt
 
-    os.environ.setdefault("JUBILEE_DECK_DEF", "lab_automation_deck_AFL_bolton.json")
+    os.environ.setdefault("JUBILEE_DECK_DEF", "deck.json")
 
 
 @pytest.fixture

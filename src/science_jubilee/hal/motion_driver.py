@@ -117,6 +117,9 @@ class MotionDriver:
             if lim is not None:
                 lo, hi = lim
                 check = float(val) if absolute else current.get(ax.value, 0.0) + float(val)
+                # snap sub-micron float drift to the nearest limit
+                if lo - 1e-3 <= check <= hi + 1e-3:
+                    check = max(lo, min(hi, check))
                 if not (lo <= check <= hi):
                     raise ValueError(f"{ax.value}={check} outside limits [{lo}, {hi}]")
         self.transport.move_axes(

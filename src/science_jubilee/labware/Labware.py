@@ -579,9 +579,11 @@ class Labware(WellSet):
 
             for col_index, well_id in enumerate(column_data):
 
+                _WELL_FIELDS = {f.name for f in Well.__dataclass_fields__.values()}
+                well_data = {k: v for k, v in self.wells_data[well_id].items() if k in _WELL_FIELDS}
                 well = Well(
                     name=well_id,
-                    **self.wells_data[well_id],
+                    **well_data,
                 )
 
                 rows[row_id][well_id] = well

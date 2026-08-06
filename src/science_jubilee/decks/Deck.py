@@ -1,7 +1,7 @@
 import json
 import os
 from dataclasses import dataclass, field
-from typing import Dict, Iterator
+from typing import Dict, Iterator, Optional
 
 from science_jubilee.labware.Labware import Labware, Well
 
@@ -120,6 +120,7 @@ class Deck(SlotSet):
     )
 
     safe_z: float = 10.0
+    labware_search_path: Optional[str] = None  # checked before builtin labware dir
 
     # Runtime state
 
@@ -195,12 +196,13 @@ class Deck(SlotSet):
             self.safe_z = z_height
 
 
-    def load_labware(self,labware_filename: str,slot_id: int,
-        path=os.path.join(os.path.dirname(__file__),
-            "..",
-            "labware",
-            "labware_definition",
-        ),
+    _BUILTIN_LABWARE_PATH: str = field(
+        init=False,
+        default=os.path.join(os.path.dirname(__file__), "..", "labware", "labware_definition"),
+    )
+
+    def load_labware(self, labware_filename: str, slot_id: int,
+        path: Optional[str] = None,
         order: str = "rows",
     ) -> None:
 
@@ -210,7 +212,16 @@ class Deck(SlotSet):
         if not slot.is_empty:
             raise ValueError(f"Slot {slot_id} already contains a labware.")
 
-        labware = Labware(labware_filename,order=order,path=path)
+        # resolve labware directory: explicit path > labware_search_path (if file exists) > builtin
+        fn = labware_filename if labware_filename.endswith(".json") else labware_filename + ".json"
+        if path is not None:
+            labware_dir = path
+        elif self.labware_search_path and os.path.exists(os.path.join(self.labware_search_path, fn)):
+            labware_dir = self.labware_search_path
+        else:
+            labware_dir = os.path.join(os.path.dirname(__file__), "..", "labware", "labware_definition")
+
+        labware = Labware(labware_filename, order=order, path=labware_dir)
         labware.add_slot(slot_id)
         labware.apply_offset(slot.offset)
 
