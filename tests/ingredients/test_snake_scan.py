@@ -30,7 +30,7 @@ def _fake_acquire(save_dir, name, **_):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.primary
+@pytest.mark.secondary
 def test_run_scan_creates_output_folder(patched_session, tmp_path):
     out = tmp_path / "grid"
     with patch(_ACQUIRE, side_effect=_fake_acquire):
@@ -44,7 +44,7 @@ def test_run_scan_creates_output_folder(patched_session, tmp_path):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.primary
+@pytest.mark.secondary
 def test_run_scan_returns_one_path_per_step(patched_session, tmp_path):
     with patch(_ACQUIRE, side_effect=_fake_acquire):
         saved = run_scan(start=[0.0, 0.0], stop=[20.0, 10.0], steps=[3, 4],
@@ -52,7 +52,7 @@ def test_run_scan_returns_one_path_per_step(patched_session, tmp_path):
     assert len(saved) == 3 * 4
 
 
-@pytest.mark.primary
+@pytest.mark.secondary
 def test_run_scan_returned_paths_exist(patched_session, tmp_path):
     with patch(_ACQUIRE, side_effect=_fake_acquire):
         saved = run_scan(start=[0.0, 0.0], stop=[10.0, 10.0], steps=[2, 3],

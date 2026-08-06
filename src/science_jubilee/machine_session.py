@@ -1,22 +1,31 @@
 """MachineSession: single-object entry point for the science-jubilee stack.
 
+The recommended workflow is to keep all experiment-specific files (deck.json,
+labware JSONs, gcode files) in one folder and point JUBILEE_EXPERIMENT_DIR at it.
+
 Usage examples::
 
-    # Mock (no hardware required)
-    session = MachineSession.mock(deck_def="lab_automation_deck_AFL_bolton.json")
-    session.motion.move_to({"X": 100, "Y": 50})
+    # From a .env file (recommended)
+    # .env contains: JUBILEE_EXPERIMENT_DIR, JUBILEE_DECK_DEF, JUBILEE_TRANSPORT, ...
+    session = MachineSession.from_env(".env.mock")
+    session.free_navigator.move_to(x=100, y=50)
+    session.navigator.move_to_well(slot="0", well="A1")
 
-    # Hardware
-    session = MachineSession.hardware(
-        "192.168.1.2",
-        deck_def="lab_automation_deck_AFL_bolton.json",
+    # Mock with explicit experiment folder
+    session = MachineSession.mock(
+        deck_def="deck",
+        experiment_dir=Path("/path/to/my_experiment"),
     )
 
-    # From a .env file
-    session = MachineSession.from_env(".env.mock")
+    # Hardware with explicit experiment folder
+    session = MachineSession.hardware(
+        "192.168.1.2",
+        deck_def="deck",
+        experiment_dir=Path("/path/to/my_experiment"),
+    )
 
     # Context manager
-    with MachineSession.mock() as s:
+    with MachineSession.from_env(".env.mock") as s:
         s.motion.home_all()
 """
 
@@ -28,6 +37,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Optional
 
 if TYPE_CHECKING:
+    from science_jubilee.navigation.deck_navigation import DeckNavigator
     from science_jubilee.tools.light.base import BaseLight
 
 logger = logging.getLogger(__name__)
@@ -36,20 +46,26 @@ logger = logging.getLogger(__name__)
 class MachineSession:
     """Wires transport → motion → tool_changer → navigator into one object."""
 
-    def __init__(self, transport, use_mock: bool = True, deck_def: Optional[str] = None, camera_address: Optional[str] = None, led_address: Optional[str] = None, camera_calib: Optional[str] = None) -> None:
+    def __init__(self, transport, use_mock: bool = True, deck_def: Optional[str] = None, camera_address: Optional[str] = None, led_address: Optional[str] = None, camera_calib: Optional[str] = None, experiment_dir: Optional[Path] = None) -> None:
         from science_jubilee.hal.motion_driver import MotionDriver
         from science_jubilee.hal.tool_changer import ToolChanger
 
         self.transport = transport
         self.motion = MotionDriver(transport)
         self.tool_changer = ToolChanger(transport)
+        self.experiment_dir: Optional[Path] = experiment_dir
 
         if deck_def is not None:
             from science_jubilee.decks.Deck import Deck
             from science_jubilee.navigation.deck_navigation import DeckNavigator
 
-            self.navigator: Optional[object] = DeckNavigator(
-                driver=self.motion, deck=Deck(deck_def)
+            deck_kwargs = {}
+            if experiment_dir is not None:
+                deck_kwargs["path"] = str(experiment_dir)
+                deck_kwargs["labware_search_path"] = str(experiment_dir)
+
+            self.navigator: Optional["DeckNavigator"] = DeckNavigator(
+                driver=self.motion, deck=Deck(deck_def, **deck_kwargs)
             )
         else:
             self.navigator = None
@@ -79,13 +95,14 @@ class MachineSession:
         deck_def: Optional[str] = None,
         log_path: str = "gcode_logs/latest.gcode",
         camera_calib: Optional[str] = None,
+        experiment_dir: Optional[Path] = None,
     ) -> "MachineSession":
         """Build a session backed by the in-memory MockTransport."""
         from science_jubilee.hal.transport.mock import MockTransport
         from science_jubilee.hal.transport.recording import RecordingTransport
 
         transport = RecordingTransport(MockTransport(), log_path=log_path)
-        return cls(transport, use_mock=True, deck_def=deck_def, camera_calib=camera_calib)
+        return cls(transport, use_mock=True, deck_def=deck_def, camera_calib=camera_calib, experiment_dir=experiment_dir)
 
     @classmethod
     def hardware(
@@ -97,18 +114,19 @@ class MachineSession:
         camera_address: Optional[str] = None,
         led_address: Optional[str] = None,
         camera_calib: Optional[str] = None,
+        experiment_dir: Optional[Path] = None,
     ) -> "MachineSession":
         """Build a session connected to a real Duet/RRF machine."""
         from science_jubilee.hal.transport.http import HTTPTransport
         from science_jubilee.hal.transport.recording import RecordingTransport
 
         if deck_clear_provider is None:
-            deck_clear_provider = lambda: True
+            deck_clear_provider = lambda: True  # caller must supply a real probe if deck-clear checks are needed
         transport = RecordingTransport(
             HTTPTransport(address=address, deck_clear_provider=deck_clear_provider),
             log_path=log_path,
         )
-        return cls(transport, use_mock=False, deck_def=deck_def, camera_address=camera_address, led_address=led_address, camera_calib=camera_calib)
+        return cls(transport, use_mock=False, deck_def=deck_def, camera_address=camera_address, led_address=led_address, camera_calib=camera_calib, experiment_dir=experiment_dir)
 
     @classmethod
     def from_env(
@@ -119,12 +137,15 @@ class MachineSession:
         """Build a session from environment variables (optionally loading a .env file).
 
         Reads:
-          JUBILEE_TRANSPORT      — ``mock`` (default) or ``hardware``
-          JUBILEE_ADDRESS        — machine IP, required when transport=hardware
-          JUBILEE_DECK_DEF       — deck definition filename (overridden by *deck_def* arg)
-          JUBILEE_GCODE_LOG      — G-code log path (default: gcode_logs/latest.gcode)
-          JUBILEE_CAMERA_ADDRESS — OctoPi/camera IP; omit to skip camera wiring
-          JUBILEE_NEOPIXEL_ADDRESS — LED server IP; omit to skip Neopixel wiring          JUBILEE_CAMERA_CALIB     — path to camera_params.yaml from calibrate_camera.py          JUBILEE_RAW_DIR          — directory for raw images (default: dataset_brut)
+          JUBILEE_TRANSPORT        — ``mock`` (default) or ``hardware``
+          JUBILEE_ADDRESS          — machine IP, required when transport=hardware
+          JUBILEE_DECK_DEF         — deck definition filename (overridden by *deck_def* arg)
+          JUBILEE_EXPERIMENT_DIR   — folder containing deck.json, labware JSONs, and gcode files
+          JUBILEE_GCODE_LOG        — G-code log path (default: gcode_logs/latest.gcode)
+          JUBILEE_CAMERA_ADDRESS   — OctoPi/camera IP; omit to skip camera wiring
+          JUBILEE_NEOPIXEL_ADDRESS — LED server IP; omit to skip Neopixel wiring
+          JUBILEE_CAMERA_CALIB     — path to camera_params.yaml from calibrate_camera.py
+          JUBILEE_RAW_DIR          — directory for raw images (default: dataset_brut)
           JUBILEE_LED_DIR          — directory for multi-lighting images (default: dataset_brut_led)
         """
         if env_file is not None:
@@ -149,6 +170,8 @@ class MachineSession:
         camera_address = os.getenv("JUBILEE_CAMERA_ADDRESS") or None
         led_address = os.getenv("JUBILEE_NEOPIXEL_ADDRESS") or None
         camera_calib = os.getenv("JUBILEE_CAMERA_CALIB") or None
+        _exp_dir = os.getenv("JUBILEE_EXPERIMENT_DIR") or None
+        experiment_dir = Path(_exp_dir) if _exp_dir else None
 
         if transport_type == "hardware":
             if not address:
@@ -156,9 +179,19 @@ class MachineSession:
                     "JUBILEE_ADDRESS must be set (or passed via --jubilee-address) "
                     "when JUBILEE_TRANSPORT=hardware"
                 )
-            return cls.hardware(address=address, deck_def=deck_def, log_path=log_path, camera_address=camera_address, led_address=led_address, camera_calib=camera_calib)
+            return cls.hardware(address=address, deck_def=deck_def, log_path=log_path, camera_address=camera_address, led_address=led_address, camera_calib=camera_calib, experiment_dir=experiment_dir)
 
-        return cls.mock(deck_def=deck_def, log_path=log_path, camera_calib=camera_calib)
+        return cls.mock(deck_def=deck_def, log_path=log_path, camera_calib=camera_calib, experiment_dir=experiment_dir)
+
+    # ------------------------------------------------------------------
+    # Convenience properties
+    # ------------------------------------------------------------------
+
+    @property
+    def free_navigator(self):
+        """A FreeNavigator wired to this session's motion and tool changer."""
+        from science_jubilee.navigation.free_navigation import FreeNavigator
+        return FreeNavigator(self.motion, self.tool_changer)
 
     # ------------------------------------------------------------------
     # Context manager

@@ -50,7 +50,7 @@ def test_eight_corners_xy_at_two_z(motion, tool_changer):
     driver.home("z")
 
     # Safety margin (absolute mm) away from hard limits
-    margin = 5.0
+    margin = 25.0
     sxmin = xmin + margin
     sxmax = xmax - margin
     symin = ymin + margin

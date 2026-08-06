@@ -9,16 +9,17 @@ from science_jubilee.tools.Tool import Tool
 
 logger = logging.getLogger(__name__)
 
+# Z height that puts the carriage in range of the parking posts
+_PARK_Z = 150.0
+
 # ------------------------------------------------------------------
 # Tool activation
 # ------------------------------------------------------------------
 
 
 @pytest.mark.invasive
-def test_pickup_tool(tool_changer):
-    """
-    Verify tool activation.
-    """
+def test_pickup_tool(motion, tool_changer):
+    motion.move_to({"Z": _PARK_Z})
     ok = tool_changer.pickup_tool(0)
 
     assert ok is True
@@ -31,10 +32,8 @@ def test_pickup_tool(tool_changer):
 
 
 @pytest.mark.invasive
-def test_park_tool(tool_changer):
-    """
-    Verify tool parking.
-    """
+def test_park_tool(motion, tool_changer):
+    motion.move_to({"Z": _PARK_Z})
     tool_changer.pickup_tool(0)
     ok = tool_changer.park_tool()
 
@@ -46,10 +45,8 @@ def test_park_tool(tool_changer):
 
 
 @pytest.mark.invasive
-def test_exchange_tools(tool_changer):
-    """
-    Verify switching active tools.
-    """
+def test_exchange_tools(motion, tool_changer):
+    motion.move_to({"Z": _PARK_Z})
     assert tool_changer.pickup_tool(0) is True
     assert tool_changer.get_active_tool_index() == 0
 
@@ -69,21 +66,14 @@ def test_exchange_tools(tool_changer):
 
 
 @pytest.mark.invasive
-def test_pickup_empty_slot(tool_changer):
-    """
-    Selecting empty slot
-    must fail.
-    """
-
+def test_pickup_empty_slot(motion, tool_changer):
+    motion.move_to({"Z": _PARK_Z})
     with pytest.raises(ToolSlotError):
         tool_changer.pickup_tool(3)
 
 
 @pytest.mark.invasive
-def test_pickup_tool_without_offset(tool_changer):
-    """
-    Tool without offset
-    must not be usable.
-    """
+def test_pickup_tool_without_offset(motion, tool_changer):
+    motion.move_to({"Z": _PARK_Z})
     with pytest.raises(ToolStateError):
         tool_changer.pickup_tool(2)
