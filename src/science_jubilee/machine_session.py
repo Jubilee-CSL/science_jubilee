@@ -164,6 +164,9 @@ class MachineSession:
             if not path.exists():
                 raise FileNotFoundError(f"env file not found: {env_file}")
             load_env_file(path, override=True)
+            _env_dir = path.parent  # used to resolve relative paths in env values
+        else:
+            _env_dir = Path(__file__).resolve().parent.parent.parent
 
         transport_type = os.getenv("JUBILEE_TRANSPORT", "mock").strip().lower()
         address = os.getenv("JUBILEE_ADDRESS")
@@ -174,9 +177,10 @@ class MachineSession:
 
         camera_address = os.getenv("JUBILEE_CAMERA_ADDRESS") or None
         led_address = os.getenv("JUBILEE_NEOPIXEL_ADDRESS") or None
-        camera_calib = os.getenv("JUBILEE_CAMERA_CALIB") or None
+        _calib = os.getenv("JUBILEE_CAMERA_CALIB") or None
+        camera_calib = str((_env_dir / _calib).resolve()) if _calib and not Path(_calib).is_absolute() else _calib
         _exp_dir = os.getenv("JUBILEE_EXPERIMENT_DIR") or None
-        experiment_dir = Path(_exp_dir) if _exp_dir else None
+        experiment_dir = Path(_exp_dir) if (_exp_dir and Path(_exp_dir).is_absolute()) else ((_env_dir / _exp_dir).resolve() if _exp_dir else None)
 
         if transport_type == "hardware":
             if not address:
