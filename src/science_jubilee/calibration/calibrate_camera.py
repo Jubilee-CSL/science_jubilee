@@ -37,7 +37,7 @@ def collect_images(images_folder: str) -> None:
     limits = session.motion.get_axis_limits()
     BED_CX = sum(limits["X"]) / 2
     BED_CY = sum(limits["Y"]) / 2
-    BED_Z = limits["Z"][0] + 300.0  # 300 mm above Z min so board fills frame
+    BED_Z = limits["Z"][1]- 15
 
     print("Checking homing state...")
     if not session.motion.get_axes_homed() or not all(session.motion.get_axes_homed()):

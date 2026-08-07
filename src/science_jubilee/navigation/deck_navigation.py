@@ -95,6 +95,7 @@ class DeckNavigator:
     def move_inside_well(self, well: Well,
                          dx: float = 0, 
                          dy: float = 0,
+                         dz: float = 0,
                          z: float | None = None, 
                          speed_xy:float | None = None, 
                          speed_z: float | None = None,
@@ -114,9 +115,10 @@ class DeckNavigator:
             self.driver.move_to({"X":float(destination.point.x)},s=speed_xy,wait=True)
             self.driver.move_to({"Y":float(destination.point.y)},s=speed_xy,wait=True)
 
-        if z !=None: 
-            self.driver.move_to({"Z":float(z),},
-                             s=speed_z,wait=True)
+        if z is not None:
+            self.driver.move_to({"Z": float(z)}, s=speed_z, wait=True)
+        elif dz != 0:
+            self.driver.move_to({"Z": float(location.point.z + dz)}, s=speed_z, wait=True)
 
 
     def random_move_inside_well(self, well:Well ,margin : float = 0.6 , speed_xy:float | None = None):
