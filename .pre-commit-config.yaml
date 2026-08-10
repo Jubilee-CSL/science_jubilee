@@ -83,7 +83,7 @@ repos:
   hooks:
   - id: pytest-mock
     name: pytest (mock mode)
-    entry: pytest --jubilee-env mock -x -v
+    entry: python -m pytest --jubilee-env mock -x -v
     language: system
     pass_filenames: false
     always_run: true
