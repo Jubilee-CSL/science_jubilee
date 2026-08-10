@@ -35,7 +35,7 @@ def pytest_addoption(parser):
 _MOCK_DEFAULTS = {
     "JUBILEE_TRANSPORT": "mock",
     "JUBILEE_GCODE_LOG": "gcode_logs/latest.gcode",
-    "JUBILEE_EXPERIMENT_DIR": "C:/Users/Alienor/Documents/Projects/Jubilee/science_jubilee/src/science_jubilee/decks/example_deck",
+    "JUBILEE_EXPERIMENT_DIR": "src/science_jubilee/decks/example_deck",
     "JUBILEE_CAMERA_CALIB": "src/science_jubilee/calibration/camera_params.yaml",
 }
 
