@@ -257,7 +257,20 @@ class MockTransport(BaseTransport):
 
     # ---- Twin link -------------------------------------------------------
 
-    def launch_twin(self, script_name: str, search_dir: str):
+    def launch_twin(self, script_name: str, search_dir: str = None):
+        if search_dir is None:
+            from importlib.metadata import entry_points
+
+            for ep in entry_points(group="science_jubilee.digital_twin"):
+                try:
+                    search_dir = ep.load()
+                    break
+                except Exception:
+                    pass
+        if search_dir is None:
+            raise RuntimeError(
+                "jubilee-blender-twin is not installed and no search_dir was given"
+            )
         matches = glob.glob(os.path.join(search_dir, "**", script_name), recursive=True)
 
         if not matches:
