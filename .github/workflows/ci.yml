@@ -38,6 +38,8 @@ jobs:
         id: setup-python
         with: {python-version: "3.11"}
       - name: Run static analysis and format checkers
+        env:
+          SKIP: pytest-mock  # tests run in the dedicated test job
         run: pipx run pre-commit run --all-files --show-diff-on-failure
       - name: Build package distribution files
         run: >-
