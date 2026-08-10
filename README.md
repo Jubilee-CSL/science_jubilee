@@ -65,6 +65,72 @@ m.load_tool(pipette)                                           # configure the p
 ...
 ```
 
+### MachineSession (recommended entry point)
+
+`MachineSession` wires the full stack — transport, motion, tool-changer, deck navigator, camera, and light — into a single object.
+
+**From a `.env` file (recommended)**
+
+Put experiment-specific settings in a `.env` file next to your notebook or script:
+
+```ini
+JUBILEE_TRANSPORT=mock            # or: hardware
+JUBILEE_ADDRESS=192.168.1.2       # required when TRANSPORT=hardware
+JUBILEE_EXPERIMENT_DIR=my_exp/    # folder with deck.json, labware JSONs, gcode files
+JUBILEE_DECK_DEF=deck             # stem of the deck JSON (auto-detected if omitted)
+JUBILEE_GCODE_LOG=gcode_logs/latest.gcode
+JUBILEE_CAMERA_ADDRESS=           # camera server IP (hardware only)
+JUBILEE_NEOPIXEL_ADDRESS=         # LED server IP (hardware only)
+JUBILEE_CAMERA_CALIB=calibration/camera_params.yaml
+```
+
+Then build the session:
+
+```python
+from science_jubilee.machine_session import MachineSession
+
+session = MachineSession.from_env(".env")
+session.free_navigator.move_to(x=100, y=50)
+session.navigator.move_to_well(slot="0", well="A1")
+```
+
+**Explicit constructors**
+
+```python
+# Mock (no hardware required)
+session = MachineSession.mock(
+    deck_def="deck",
+    experiment_dir=Path("my_exp/"),
+)
+
+# Real machine
+session = MachineSession.hardware(
+    address="192.168.1.2",
+    deck_def="deck",
+    experiment_dir=Path("my_exp/"),
+    camera_address="192.168.1.3",
+    led_address="192.168.1.4",
+)
+```
+
+**Context manager**
+
+```python
+with MachineSession.from_env(".env") as s:
+    s.motion.home_all()
+```
+
+Key attributes:
+
+| Attribute | Type | Description |
+|---|---|---|
+| `session.motion` | `MotionDriver` | Low-level G-code motion |
+| `session.tool_changer` | `ToolChanger` | Pick and park tools |
+| `session.navigator` | `DeckNavigator` | Well-addressed deck navigation (requires `deck_def`) |
+| `session.free_navigator` | `FreeNavigator` | Coordinate-based navigation |
+| `session.camera` | `ToolheadCam` / mock | Camera capture |
+| `session.light` | `Neopixel` / mock | LED ring control |
+
 ### Setting up a new tool with the HAL layer
 For tool setup and calibration, a lower-level interface based on `MotionDriver` is available. It gives direct control over motion and handles generating the Duet firmware files needed for each tool (tpre, tpost, tfree):
 

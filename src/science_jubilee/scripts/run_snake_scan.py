@@ -15,7 +15,7 @@ ex.observers.append(MongoObserver(db_name="jubilee26"))
 @ex.config
 def config():
     name = ""               # run label stored in Sacred config
-    out  = "snake_images"
+    out  = "images/snake_images"
     scan = dict(            # noqa: F841
         start = [144.0, 125.0],
         stop  = [184.0, 145.0],
