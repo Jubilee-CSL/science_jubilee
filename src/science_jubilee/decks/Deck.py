@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from dataclasses import dataclass, field
 from importlib.metadata import entry_points
@@ -6,16 +7,35 @@ from typing import Dict, Iterator, Optional
 
 from science_jubilee.labware.Labware import Labware, Well
 
+logger = logging.getLogger(__name__)
+
 
 def _plugin_labware_dirs() -> list[str]:
     """Return labware definition directories registered by installed plugins."""
     dirs = []
     for ep in entry_points(group="science_jubilee.labware"):
         try:
-            dirs.append(ep.load())
+            dirs.append(ep.load()())
         except Exception:
             pass
     return dirs
+
+
+def _plugin_deck_dirs() -> list[str]:
+    """Return deck definition directories registered by installed plugins."""
+    dirs = []
+    for ep in entry_points(group="science_jubilee.deck"):
+        try:
+            dirs.append(ep.load()())
+        except Exception:
+            pass
+    return dirs
+
+
+_BUILTIN_DECK_PATH: str = os.path.join(os.path.dirname(__file__), "example_deck")
+_BUILTIN_LABWARE_PATH: str = os.path.join(
+    os.path.dirname(__file__), "..", "labware", "labware_definition"
+)
 
 
 @dataclass(slots=True, repr=False)
@@ -126,10 +146,7 @@ class Deck(SlotSet):
     """
 
     deck_filename: str
-    path: str = os.path.join(
-        os.path.dirname(__file__),
-        "deck_definition",
-    )
+    path: Optional[str] = None  # explicit experiment dir; None = auto-discover
 
     safe_z: float = 10.0
     labware_search_path: Optional[str] = None  # checked before builtin labware dir
@@ -153,8 +170,47 @@ class Deck(SlotSet):
         if not filename.endswith(".json"):
             filename += ".json"
 
-        self.config_path = os.path.join(self.path, filename)
+        # priority: explicit path > plugin dirs > built-in deck_definition/
+        search_dirs: list[str] = []
+        if self.path is not None:
+            search_dirs.append(self.path)
+        search_dirs.extend(_plugin_deck_dirs())
+        search_dirs.append(_BUILTIN_DECK_PATH)
 
+        for d in search_dirs:
+            if os.path.exists(os.path.join(d, filename)):
+                self.path = d
+                break
+            # Search one level of subdirectories, newest first (handles dated
+            # experiment dirs like YYYY-MM-DD_<name>/ from jubilee-interface).
+            try:
+                sub = next(
+                    (
+                        os.path.join(d, s)
+                        for s in sorted(os.listdir(d), reverse=True)
+                        if os.path.isdir(os.path.join(d, s))
+                        and os.path.exists(os.path.join(d, s, filename))
+                    ),
+                    None,
+                )
+                if sub is not None:
+                    self.path = sub
+                    break
+            except OSError:
+                pass
+
+        if self.path is None:
+            searched = ", ".join(search_dirs)
+            raise FileNotFoundError(
+                f"Could not find '{filename}' in any of: {searched}. "
+                "Set JUBILEE_EXPERIMENT_DIR or install a science_jubilee.deck plugin."
+            )
+
+        self.config_path = os.path.join(self.path, filename)
+        logger.debug("Deck config loaded from: %s", self.config_path)
+        # labware files that live next to the deck JSON are always searchable
+        if self.labware_search_path is None:
+            self.labware_search_path = self.path
         with open(self.config_path, "r") as file:
             self.deck_config = json.load(file)
 
@@ -206,13 +262,6 @@ class Deck(SlotSet):
         if z_height > self.safe_z:
             self.safe_z = z_height
 
-    _BUILTIN_LABWARE_PATH: str = field(
-        init=False,
-        default=os.path.join(
-            os.path.dirname(__file__), "..", "labware", "labware_definition"
-        ),
-    )
-
     def load_labware(
         self,
         labware_filename: str,
@@ -240,16 +289,14 @@ class Deck(SlotSet):
         ):
             labware_dir = self.labware_search_path
         else:
-            # search plugin-registered directories before falling back to built-in
+            # priority: plugin dirs > built-in labware_definition/
             labware_dir = next(
                 (
                     d
                     for d in _plugin_labware_dirs()
                     if os.path.exists(os.path.join(d, fn))
                 ),
-                os.path.join(
-                    os.path.dirname(__file__), "..", "labware", "labware_definition"
-                ),
+                _BUILTIN_LABWARE_PATH,
             )
 
         labware = Labware(labware_filename, order=order, path=labware_dir)

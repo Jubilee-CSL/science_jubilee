@@ -82,6 +82,10 @@ class MachineSession:
             if (experiment_dir / "deck.json").exists():
                 deck_def = "deck"
 
+        # fall back to "deck" and let Deck.__post_init__ resolve via plugins / built-in
+        if deck_def is None:
+            deck_def = "deck"
+
         if deck_def is not None:
             from science_jubilee.decks.Deck import Deck
             from science_jubilee.navigation.deck_navigation import DeckNavigator
