@@ -192,10 +192,13 @@ class Well:
 
         return -half_x <= dx <= half_x and -half_y <= dy <= half_y
 
-    def safe_move(self,start: Location,
-                  x: float = 0,
-                  y: float = 0,
-                  safety_margin: float = 0.9,) -> Location:
+    def safe_move(
+        self,
+        start: Location,
+        x: float = 0,
+        y: float = 0,
+        safety_margin: float = 0.9,
+    ) -> Location:
         """
         Return a safe move destination inside the well.
 
@@ -215,11 +218,11 @@ class Well:
             self,
         )
 
-        if self.in_usable_space(finish,safety_margin=safety_margin):
+        if self.in_usable_space(finish, safety_margin=safety_margin):
             return finish
 
         if self.shape == "rectangular":
-            #calcule des dimensions adapté pour un coin de réference x y z en bas a gauche
+            # calcule des dimensions adapté pour un coin de réference x y z en bas a gauche
             xmin = self.x - safety_margin
             xmax = self.x + self.xDimension - safety_margin
             ymin = self.y + safety_margin
@@ -250,7 +253,7 @@ class Well:
 
             cx = self.x
             cy = self.y
-            r = (self.diameter / 2 ) * safety_margin
+            r = (self.diameter / 2) * safety_margin
 
             sx = start.point.x - cx
             sy = start.point.y - cy
@@ -580,7 +583,11 @@ class Labware(WellSet):
             for col_index, well_id in enumerate(column_data):
 
                 _WELL_FIELDS = {f.name for f in Well.__dataclass_fields__.values()}
-                well_data = {k: v for k, v in self.wells_data[well_id].items() if k in _WELL_FIELDS}
+                well_data = {
+                    k: v
+                    for k, v in self.wells_data[well_id].items()
+                    if k in _WELL_FIELDS
+                }
                 well = Well(
                     name=well_id,
                     **well_data,

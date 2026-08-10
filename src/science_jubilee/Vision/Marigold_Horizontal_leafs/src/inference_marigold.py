@@ -1,4 +1,4 @@
-#Code for importing Marigold models from HugginFace and use it on our pipeline, the first time importing may take some time( around 2 min) then the models is instantly ready to use
+# Code for importing Marigold models from HugginFace and use it on our pipeline, the first time importing may take some time( around 2 min) then the models is instantly ready to use
 
 import argparse
 import importlib
@@ -37,7 +37,12 @@ def infer_depth_and_normals(image_path: str, output_dir: str):
     output_dir = str(output_dir)
     os.makedirs(output_dir, exist_ok=True)
 
-    torch, device, dtype = _build_pipeline("cuda" if importlib.util.find_spec("torch") is not None and importlib.import_module("torch").cuda.is_available() else "cpu")
+    torch, device, dtype = _build_pipeline(
+        "cuda"
+        if importlib.util.find_spec("torch") is not None
+        and importlib.import_module("torch").cuda.is_available()
+        else "cpu"
+    )
     print(f"[+] Using device: {device}")
 
     image_bgr = cv2.imread(image_path)
@@ -98,9 +103,13 @@ def infer_depth_and_normals(image_path: str, output_dir: str):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run Marigold depth and normal inference on one image")
+    parser = argparse.ArgumentParser(
+        description="Run Marigold depth and normal inference on one image"
+    )
     parser.add_argument("--image", required=True, help="Input image path")
-    parser.add_argument("--output", default="output", help="Directory to store depth and normal arrays")
+    parser.add_argument(
+        "--output", default="output", help="Directory to store depth and normal arrays"
+    )
     args = parser.parse_args()
 
     infer_depth_and_normals(args.image, args.output)

@@ -1,11 +1,8 @@
 import logging
+
 import pytest
 
-from science_jubilee.hal.tool_changer import (
-    ToolSlotError,
-    ToolStateError
-)
-from science_jubilee.tools.Tool import Tool
+from science_jubilee.hal.tool_changer import ToolSlotError, ToolStateError
 
 logger = logging.getLogger(__name__)
 

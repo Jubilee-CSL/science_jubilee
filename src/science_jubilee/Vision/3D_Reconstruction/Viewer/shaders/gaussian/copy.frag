@@ -3,7 +3,7 @@
  * GRAPHDECO research group, https://team.inria.fr/graphdeco
  * All rights reserved.
  *
- * This software is free for non-commercial, research and evaluation use 
+ * This software is free for non-commercial, research and evaluation use
  * under the terms of the LICENSE.md file.
  *
  * For inquiries contact sibr@inria.fr and/or George.Drettakis@inria.fr
@@ -29,12 +29,12 @@ void main(void)
 {
 	int x = int(texcoord.x * width);
 	int y;
-	
+
 	if(flip)
 		y = height - 1 - int(texcoord.y * height);
 	else
 		y = int(texcoord.y * height);
-	
+
 	float r = source.data[0 * width * height + (y * width + x)];
 	float g = source.data[1 * width * height + (y * width + x)];
 	float b = source.data[2 * width * height + (y * width + x)];

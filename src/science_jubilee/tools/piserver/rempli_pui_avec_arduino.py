@@ -1,5 +1,6 @@
-import serial
 from time import sleep
+
+import serial
 from gpiozero import Motor
 
 # ==========================================
@@ -28,7 +29,7 @@ try:
     arduino = serial.Serial(PORT, VITESSE_SERIE, timeout=1)
     arduino.reset_input_buffer()
     print("✅ Arduino connecté avec succès !")
-    
+
     # Démarrage du moteur
     print("Moteur : EN AVANT")
     moteur.forward(speed=VITESSE_MOTEUR)
@@ -38,21 +39,21 @@ try:
         if arduino.in_waiting > 0:
             # Lecture de la donnée de l'Arduino
             ligne = arduino.readline().decode('utf-8').rstrip()
-            
+
             try:
                 # L'Arduino envoie un nombre entre 0 et 1023
                 valeur_brute = int(ligne)
-                
+
                 # Conversion du nombre brut en Volts (0 à 5V)
                 tension_actuelle = (valeur_brute * 5.0) / 1023.0
                 print(f"Valeur lue : {tension_actuelle:.2f} V  (brut: {valeur_brute})")
-                
+
                 # --- LA LOGIQUE ---
                 if tension_actuelle >= SEUIL_DECLENCHEMENT:
                     print("\n>>> Capteur activé ! Arrêt du moteur. <<<")
                     moteur.stop()
                     break # On sort de la boucle, le programme se termine
-                    
+
             except ValueError:
                 # Si jamais l'Arduino envoie un bout de texte illisible, on l'ignore
                 pass

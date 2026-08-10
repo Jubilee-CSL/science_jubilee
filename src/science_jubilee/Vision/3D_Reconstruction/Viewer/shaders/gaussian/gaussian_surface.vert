@@ -3,7 +3,7 @@
  * GRAPHDECO research group, https://team.inria.fr/graphdeco
  * All rights reserved.
  *
- * This software is free for non-commercial, research and evaluation use 
+ * This software is free for non-commercial, research and evaluation use
  * under the terms of the LICENSE.md file.
  *
  * For inquiries contact sibr@inria.fr and/or George.Drettakis@inria.fr
@@ -103,7 +103,7 @@ void main() {
 	float b = colors[boxID * 48 + 2] * 0.2 + 0.5;
 
 	colorVert = vec3(r, g, b);
-	
+
 	if((stage == 0 && a < alpha_limit) || (stage == 1 && a >= alpha_limit))
 	 	gl_Position = vec4(0,0,0,0);
 	else

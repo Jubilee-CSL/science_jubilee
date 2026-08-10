@@ -12,7 +12,7 @@ function playVids(videoId) {
 
     var mergeContext = videoMerge.getContext("2d");
 
-    
+
     if (vid.readyState > 3) {
         vid.play();
 
@@ -27,7 +27,7 @@ function playVids(videoId) {
             position = ((e.touches[0].pageX - bcr.x) / bcr.width);
         }
 
-        videoMerge.addEventListener("mousemove",  trackLocation, false); 
+        videoMerge.addEventListener("mousemove",  trackLocation, false);
         videoMerge.addEventListener("touchstart", trackLocationTouch, false);
         videoMerge.addEventListener("touchmove",  trackLocationTouch, false);
 
@@ -45,7 +45,7 @@ function playVids(videoId) {
             );
             requestAnimationFrame(drawLoop);
 
-            
+
             var arrowLength = 0.09 * vidHeight;
             var arrowheadWidth = 0.025 * vidHeight;
             var arrowheadLength = 0.04 * vidHeight;
@@ -59,23 +59,23 @@ function playVids(videoId) {
             mergeContext.fill()
             //mergeContext.strokeStyle = "#444444";
             //mergeContext.stroke()
-            
+
             // Draw border
             mergeContext.beginPath();
             mergeContext.moveTo(vidWidth*position, 0);
             mergeContext.lineTo(vidWidth*position, vidHeight);
             mergeContext.closePath()
             mergeContext.strokeStyle = "#AAAAAA";
-            mergeContext.lineWidth = 5;            
+            mergeContext.lineWidth = 5;
             mergeContext.stroke();
 
             // Draw arrow
             mergeContext.beginPath();
             mergeContext.moveTo(currX, arrowPosY - arrowWidth/2);
-            
+
             // Move right until meeting arrow head
             mergeContext.lineTo(currX + arrowLength/2 - arrowheadLength/2, arrowPosY - arrowWidth/2);
-            
+
             // Draw right arrow head
             mergeContext.lineTo(currX + arrowLength/2 - arrowheadLength/2, arrowPosY - arrowheadWidth/2);
             mergeContext.lineTo(currX + arrowLength/2, arrowPosY);
@@ -84,13 +84,13 @@ function playVids(videoId) {
 
             // Go back to the left until meeting left arrow head
             mergeContext.lineTo(currX - arrowLength/2 + arrowheadLength/2, arrowPosY + arrowWidth/2);
-            
+
             // Draw left arrow head
             mergeContext.lineTo(currX - arrowLength/2 + arrowheadLength/2, arrowPosY + arrowheadWidth/2);
             mergeContext.lineTo(currX - arrowLength/2, arrowPosY);
             mergeContext.lineTo(currX - arrowLength/2 + arrowheadLength/2, arrowPosY  - arrowheadWidth/2);
             mergeContext.lineTo(currX - arrowLength/2 + arrowheadLength/2, arrowPosY);
-            
+
             mergeContext.lineTo(currX - arrowLength/2 + arrowheadLength/2, arrowPosY - arrowWidth/2);
             mergeContext.lineTo(currX, arrowPosY - arrowWidth/2);
 
@@ -107,20 +107,20 @@ function playVids(videoId) {
             // Draw text overlay for our method
             mergeContext.font = "40px Arial";
             mergeContext.fillStyle = "white";
-            mergeContext.fillText("Baseline", 10, 50);           
-            // mergeContext.fillText("Gaussian", 10, 100);           
-            // mergeContext.fillText("Splatting", 10, 150);           
-            
+            mergeContext.fillText("Baseline", 10, 50);
+            // mergeContext.fillText("Gaussian", 10, 100);
+            // mergeContext.fillText("Splatting", 10, 150);
+
         }
         requestAnimationFrame(drawLoop);
-    } 
+    }
 }
 
 Number.prototype.clamp = function(min, max) {
   return Math.min(Math.max(this, min), max);
 };
-    
-    
+
+
 function resizeAndPlay(element)
 {
   var cv = document.getElementById(element.id + "Merge");
@@ -128,6 +128,6 @@ function resizeAndPlay(element)
   cv.height = element.videoHeight;
   element.play();
   element.style.height = "0px";  // Hide video without stopping it
-    
+
   playVids(element.id);
 }

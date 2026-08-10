@@ -16,13 +16,13 @@ This project estimates depth and surface normals from a camera image, isolates t
    pip install diffusers transformers accelerate omegaconf open_clip_torch opencv-python numpy pillow rembg pyyaml
    ```
 
-# Camera calibration 
+# Camera calibration
 1. Print "calibration_sheet.pdf" and take different photos with your camera and store them on input/calibration/
 
 2. Change the calibration folder path on calibration.py
 
 3. ```powershell
-   python src/calibration.py 
+   python src/calibration.py
    ```
 
 4. Update the camera parameters in config.yaml

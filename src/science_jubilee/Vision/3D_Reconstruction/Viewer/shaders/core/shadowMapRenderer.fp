@@ -3,7 +3,7 @@
  * GRAPHDECO research group, https://team.inria.fr/graphdeco
  * All rights reserved.
  *
- * This software is free for non-commercial, research and evaluation use 
+ * This software is free for non-commercial, research and evaluation use
  * under the terms of the LICENSE.md file.
  *
  * For inquiries contact sibr@inria.fr and/or George.Drettakis@inria.fr
@@ -95,7 +95,7 @@ in vec3 VtoF_pos;
 out float out_val;
 
 void main(void) {
-	
+
 	vec2 texc = (depthMapProj.xy + 1.0) / 2.0;
 
 	float depthImSpace = depthMapProj.z;
@@ -137,7 +137,7 @@ void main(void) {
 					sum_weight += weight;
 					blocker_num_val += 1.0;
 			    }
-			}		
+			}
 		}
 	}
 
@@ -187,4 +187,3 @@ void main(void) {
 	}
 
 }
-

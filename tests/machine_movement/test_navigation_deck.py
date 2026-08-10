@@ -1,5 +1,3 @@
-import os
-
 import pytest
 
 
@@ -17,14 +15,8 @@ def test_navigation_with_motion_fixture_moves_control_point(navigator):
     loc = well.get_bottom_location(z_offset=offset)
     x_exp, y_exp, z_exp = loc.point
 
-    navigator.move_to_well(
-        well,
-        speed_xy=6000.0,
-        speed_z=1000.0,
-        margin = 10
-    )
-    navigator.move_inside_well(well,z=z_exp)
-
+    navigator.move_to_well(well, speed_xy=6000.0, speed_z=1000.0, margin=10)
+    navigator.move_inside_well(well, z=z_exp)
 
     pos = navigator.driver.get_positions()
     assert pos.get("X") == pytest.approx(float(x_exp), rel=1e-3)
@@ -48,13 +40,8 @@ def test_navigation_moves_to_all_wells(navigator):
     labware = navigator.get_labware_in_slot(0)
     for well in labware:
         last_loc = well.get_bottom_location(z_offset=offset)
-        navigator.move_to_well(
-            well,
-            speed_xy=6000.0,
-            speed_z=1000.0,
-            margin = 10
-        )
-        navigator.move_inside_well(well,z=last_loc.point.z)
+        navigator.move_to_well(well, speed_xy=6000.0, speed_z=1000.0, margin=10)
+        navigator.move_inside_well(well, z=last_loc.point.z)
         count += 1
 
     assert count == len(labware.wells)

@@ -37,7 +37,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Optional
 
 if TYPE_CHECKING:
-    from science_jubilee.navigation.deck_navigation import DeckNavigator
     from science_jubilee.tools.light.base import BaseLight
 
 logger = logging.getLogger(__name__)
@@ -101,16 +100,31 @@ class MachineSession:
         if use_mock:
             from science_jubilee.tools.camera.toolheadcam_mock import ToolheadCamMock
             from science_jubilee.tools.light.neopixel_mock import NeopixelMock
-            self.camera = ToolheadCamMock(motion=self.motion, tool_changer=self.tool_changer, calib_file=camera_calib)
+
+            self.camera = ToolheadCamMock(
+                motion=self.motion,
+                tool_changer=self.tool_changer,
+                calib_file=camera_calib,
+            )
             self.light: BaseLight = NeopixelMock()
         else:
             if not camera_address:
-                raise ValueError("JUBILEE_CAMERA_ADDRESS required for hardware transport")
+                raise ValueError(
+                    "JUBILEE_CAMERA_ADDRESS required for hardware transport"
+                )
             if not led_address:
-                raise ValueError("JUBILEE_NEOPIXEL_ADDRESS required for hardware transport")
+                raise ValueError(
+                    "JUBILEE_NEOPIXEL_ADDRESS required for hardware transport"
+                )
             from science_jubilee.tools.camera.toolheadcam import ToolheadCam
             from science_jubilee.tools.light.neopixel import Neopixel
-            self.camera = ToolheadCam(motion=self.motion, tool_changer=self.tool_changer, address=camera_address, calib_file=camera_calib)
+
+            self.camera = ToolheadCam(
+                motion=self.motion,
+                tool_changer=self.tool_changer,
+                address=camera_address,
+                calib_file=camera_calib,
+            )
             self.light = Neopixel(url=f"http://{led_address}:5001")
 
     # ------------------------------------------------------------------
@@ -137,7 +151,13 @@ class MachineSession:
         from science_jubilee.hal.transport.recording import RecordingTransport
 
         transport = RecordingTransport(MockTransport(), log_path=log_path)
-        return cls(transport, use_mock=True, deck_def=deck_def, camera_calib=camera_calib, experiment_dir=experiment_dir)
+        return cls(
+            transport,
+            use_mock=True,
+            deck_def=deck_def,
+            camera_calib=camera_calib,
+            experiment_dir=experiment_dir,
+        )
 
     @classmethod
     def hardware(
@@ -168,12 +188,22 @@ class MachineSession:
         from science_jubilee.hal.transport.recording import RecordingTransport
 
         if deck_clear_provider is None:
-            deck_clear_provider = lambda: True  # caller must supply a real probe if deck-clear checks are needed
+            deck_clear_provider = (
+                lambda: True
+            )  # caller must supply a real probe if deck-clear checks are needed
         transport = RecordingTransport(
             HTTPTransport(address=address, deck_clear_provider=deck_clear_provider),
             log_path=log_path,
         )
-        return cls(transport, use_mock=False, deck_def=deck_def, camera_address=camera_address, led_address=led_address, camera_calib=camera_calib, experiment_dir=experiment_dir)
+        return cls(
+            transport,
+            use_mock=False,
+            deck_def=deck_def,
+            camera_address=camera_address,
+            led_address=led_address,
+            camera_calib=camera_calib,
+            experiment_dir=experiment_dir,
+        )
 
     @classmethod
     def from_env(
@@ -220,9 +250,17 @@ class MachineSession:
         camera_address = os.getenv("JUBILEE_CAMERA_ADDRESS") or None
         led_address = os.getenv("JUBILEE_NEOPIXEL_ADDRESS") or None
         _calib = os.getenv("JUBILEE_CAMERA_CALIB") or None
-        camera_calib = str((_env_dir / _calib).resolve()) if _calib and not Path(_calib).is_absolute() else _calib
+        camera_calib = (
+            str((_env_dir / _calib).resolve())
+            if _calib and not Path(_calib).is_absolute()
+            else _calib
+        )
         _exp_dir = os.getenv("JUBILEE_EXPERIMENT_DIR") or None
-        experiment_dir = Path(_exp_dir) if (_exp_dir and Path(_exp_dir).is_absolute()) else ((_env_dir / _exp_dir).resolve() if _exp_dir else None)
+        experiment_dir = (
+            Path(_exp_dir)
+            if (_exp_dir and Path(_exp_dir).is_absolute())
+            else ((_env_dir / _exp_dir).resolve() if _exp_dir else None)
+        )
 
         if transport_type == "hardware":
             if not address:
@@ -230,9 +268,22 @@ class MachineSession:
                     "JUBILEE_ADDRESS must be set (or passed via --jubilee-address) "
                     "when JUBILEE_TRANSPORT=hardware"
                 )
-            return cls.hardware(address=address, deck_def=deck_def, log_path=log_path, camera_address=camera_address, led_address=led_address, camera_calib=camera_calib, experiment_dir=experiment_dir)
+            return cls.hardware(
+                address=address,
+                deck_def=deck_def,
+                log_path=log_path,
+                camera_address=camera_address,
+                led_address=led_address,
+                camera_calib=camera_calib,
+                experiment_dir=experiment_dir,
+            )
 
-        return cls.mock(deck_def=deck_def, log_path=log_path, camera_calib=camera_calib, experiment_dir=experiment_dir)
+        return cls.mock(
+            deck_def=deck_def,
+            log_path=log_path,
+            camera_calib=camera_calib,
+            experiment_dir=experiment_dir,
+        )
 
     # ------------------------------------------------------------------
     # Convenience properties
@@ -242,6 +293,7 @@ class MachineSession:
     def free_navigator(self):
         """A FreeNavigator wired to this session's motion and tool changer."""
         from science_jubilee.navigation.free_navigation import FreeNavigator
+
         return FreeNavigator(self.motion, self.tool_changer)
 
     # ------------------------------------------------------------------

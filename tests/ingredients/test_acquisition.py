@@ -20,7 +20,9 @@ _SLEEP = "science_jubilee.scripts.ingredients.acquisition.time.sleep"
 
 
 _ACQ = dict(mode="simple", nb_leds=8, debug=False, led_r=255, led_g=255, led_b=50)
-_ACQ_ILLUM = dict(mode="illuminated", nb_leds=4, debug=False, led_r=255, led_g=255, led_b=50)
+_ACQ_ILLUM = dict(
+    mode="illuminated", nb_leds=4, debug=False, led_r=255, led_g=255, led_b=50
+)
 
 
 # ---------------------------------------------------------------------------
@@ -57,7 +59,9 @@ def test_acquire_simple_does_not_change_led_state(camera, light, tmp_path, jubil
 @pytest.mark.invasive
 def test_acquire_illuminated_returns_correct_path(camera, light, tmp_path):
     with patch(_SLEEP):
-        path = acquire(cam=camera, light=light, save_dir=tmp_path, name="img", **_ACQ_ILLUM)
+        path = acquire(
+            cam=camera, light=light, save_dir=tmp_path, name="img", **_ACQ_ILLUM
+        )
     assert path == str(tmp_path / "img.jpg")
 
 
@@ -89,7 +93,7 @@ def test_acquire_illuminated_no_light_raises(camera, tmp_path):
 
 def test_pixel_minimum_takes_elementwise_min():
     a = np.array([[[100, 50, 200]]], dtype=np.uint8)
-    b = np.array([[[ 80, 60, 150]]], dtype=np.uint8)
+    b = np.array([[[80, 60, 150]]], dtype=np.uint8)
     c = np.array([[[120, 30, 180]]], dtype=np.uint8)
     result = _pixel_minimum([a, b, c])
     np.testing.assert_array_equal(result, np.array([[[80, 30, 150]]], dtype=np.uint8))
@@ -97,7 +101,7 @@ def test_pixel_minimum_takes_elementwise_min():
 
 def test_pixel_minimum_does_not_modify_input():
     a = np.array([[[100]]], dtype=np.uint8)
-    b = np.array([[[ 50]]], dtype=np.uint8)
+    b = np.array([[[50]]], dtype=np.uint8)
     _pixel_minimum([a, b])
     np.testing.assert_array_equal(a, np.array([[[100]]], dtype=np.uint8))
 

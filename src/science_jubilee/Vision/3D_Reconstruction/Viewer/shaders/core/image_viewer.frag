@@ -3,7 +3,7 @@
  * GRAPHDECO research group, https://team.inria.fr/graphdeco
  * All rights reserved.
  *
- * This software is free for non-commercial, research and evaluation use 
+ * This software is free for non-commercial, research and evaluation use
  * under the terms of the LICENSE.md file.
  *
  * For inquiries contact sibr@inria.fr and/or George.Drettakis@inria.fr
@@ -27,7 +27,7 @@ void main(void)
 	if(any(greaterThan(texcoord, vec2(1.0))) || any(lessThan(texcoord, vec2(0.0)))){
 		discard;
 	}
-	
+
 	vec4 col = texture(in_texture, texcoord);
 	// Rescale.
 	out_color = channels*(col - minVal)/(maxVal - minVal);

@@ -13,7 +13,7 @@ Remarque de bonne pratique : utiliser au maximum le matériel et les emplacement
 1. Inspecter les emplacements assignés aux outils pour identifier un emplacement libre et adapté (espace, fixation, alimentation électrique si nécessaire).
 2. Si un parking slot adapté existe et n'est pas occupé : passer à l'étape 3.
 3. Si aucun slot n'existe :
-   - Conception / impression : imprimer le support (fichier STL) nécessaire pour fixer l'outil. 
+   - Conception / impression : imprimer le support (fichier STL) nécessaire pour fixer l'outil.
    - Installer mécaniquement le support sur la machine à l'emplacement physique choisi.
    - Exécuter le notebook `SetToolParkingPositions` (ou son équivalent) pour :
      - enregistrer la position dans un fichier de macro (G-code) pour la Duet,
@@ -91,7 +91,7 @@ Remarque de bonne pratique : utiliser au maximum le matériel et les emplacement
 - [ ] Modifier `config.g` (en bas) pour créer la définition `Tool N` et lui associer un nom (idem que le fichier python si possible)
 - [ ] Créer la classe Python dans `tools/unique_tools/` et un fichier de config dans `tools/configs/`
 - [ ] Ajouter tests Mock et Hardware et vérifier les G-code logs
-- [ ] Documenter la mécanique (STL, orientation) et la procédure 
+- [ ] Documenter la mécanique (STL, orientation) et la procédure
 
 ## 7. Bonnes pratiques et recommandations
 
@@ -100,4 +100,3 @@ Remarque de bonne pratique : utiliser au maximum le matériel et les emplacement
 - Nommer l'outil Python et le nom Duet de façon cohérente (par ex. `camera_front` -> `camera_front.py`).
 - Centraliser la configuration de l'outil dans `tools/configs` pour faciliter l'automatisation et les tests.
 - Ajouter des tests `@pytest.mark.invasive` pour les tests hardware et `@pytest.mark.primary/secondary` pour les validations non invasives.
-

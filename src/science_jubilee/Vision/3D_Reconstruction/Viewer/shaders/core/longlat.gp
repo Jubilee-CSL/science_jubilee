@@ -3,7 +3,7 @@
  * GRAPHDECO research group, https://team.inria.fr/graphdeco
  * All rights reserved.
  *
- * This software is free for non-commercial, research and evaluation use 
+ * This software is free for non-commercial, research and evaluation use
  * under the terms of the LICENSE.md file.
  *
  * For inquiries contact sibr@inria.fr and/or George.Drettakis@inria.fr
@@ -19,9 +19,9 @@ layout(location = 1) in vec3 colors_tes[];
 layout(location = 2) in vec2 coordsTex_tes[];
 layout(location = 3) in vec3 normals_tes[];
 
-uniform vec3 pos;                           
+uniform vec3 pos;
 
-const float PI = 3.1415926535897932384626433832795;   
+const float PI = 3.1415926535897932384626433832795;
 
 layout(location = 0) out vec4 position;
 layout(location = 1) out vec3 colors_gs;
@@ -29,7 +29,7 @@ layout(location = 2) out vec2 coordsTex_gs;
 layout(location = 3) out vec3 normals_gs;
 
 void main()
-{	
+{
 int i,j;
 vec3 toPoint[3];
 vec3 d[3];
@@ -40,7 +40,7 @@ float longt[3];
 for(i=0; i<3; i++)
 {
   toPoint[i] = gl_in[i].gl_Position.xyz-pos;
-  d[i] = normalize(toPoint[i]);                                  
+  d[i] = normalize(toPoint[i]);
   lat[i] = d[i].z;
   longt[i] = atan(d[i].y,d[i].x);
   if(longt[i]<0)
@@ -108,7 +108,7 @@ for(i=0; i<3; i++){
   }
 }
 
-  
+
 }
 
 }

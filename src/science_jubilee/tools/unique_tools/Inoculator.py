@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from science_jubilee.labware.Labware import Location, Point, Well
+from science_jubilee.labware.Labware import Well
 from science_jubilee.navigation.deck_navigation import DeckNavigator
 from science_jubilee.tools.Tool import Tool, requires_active_tool
 
@@ -34,22 +34,19 @@ class Inoculator(Tool):
             nav.move_to_well(source, speed_xy, margin=10)
 
             if randomize_pickup:
-                nav.random_move_inside_well(well= source,speed_xy=speed_xy)
+                nav.random_move_inside_well(well=source, speed_xy=speed_xy)
 
             else:
-                nav.move_inside_well(source,z=source.depth,speed_z=sweep_speed),
-    
-            nav.move_inside_well(well= source,
-                                dx = sweep_x, 
-                                dy = sweep_y,
-                                speed_xy = sweep_speed)
+                nav.move_inside_well(source, z=source.depth, speed_z=sweep_speed),
 
-            nav.move_to_well(well_dest,speed_xy,margin= 10)
+            nav.move_inside_well(
+                well=source, dx=sweep_x, dy=sweep_y, speed_xy=sweep_speed
+            )
 
-            nav.move_inside_well(well= well_dest,
-                                dx = sweep_x, 
-                                dy = sweep_y,
-                                speed_xy = sweep_speed)        
-            
+            nav.move_to_well(well_dest, speed_xy, margin=10)
+
+            nav.move_inside_well(
+                well=well_dest, dx=sweep_x, dy=sweep_y, speed_xy=sweep_speed
+            )
+
         nav.move_to_safe_z()
-

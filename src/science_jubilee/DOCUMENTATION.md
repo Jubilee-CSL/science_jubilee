@@ -209,7 +209,7 @@ Objectif : fonctions transverses, configuration et intégration externe.
 
 - Mettre à jour les fichiers / Notebooks de unique_tools qui se base encore sur l'ancienne version - dossier old
 
-- Optionnel : 
+- Optionnel :
   - Ajouter des tests unitaires pour :
     - `Deck.load_labware` et `Deck.unload_labware`
     - `Labware` et `Well` (offsets, commandes sûres, ordonnancement)
@@ -230,7 +230,7 @@ Objectif : fonctions transverses, configuration et intégration externe.
  - La branche Add_on_experiment dans le dossier experiment propose une version : https://github.com/Jubilee-CSL/science_jubilee/tree/Add_on_experiment/experiment
  - Pour récupérer les données et construire une base de données d'expérience potentiel utilisation de Altar qui rassemble MongoDB et Sacred
  - L'objectif proposé est d'utiliser une interface graphique pour construire une expérience comme du Scratch
-  - Cette enchainement d'action "Scratch" serait envoyé sous la forme d'un fichier json à la machine pour réaliser l'expérience. 
+  - Cette enchainement d'action "Scratch" serait envoyé sous la forme d'un fichier json à la machine pour réaliser l'expérience.
 
 
 ### 7.1. Branche expérimentale recommandée
