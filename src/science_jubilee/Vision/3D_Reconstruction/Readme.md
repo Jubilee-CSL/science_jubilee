@@ -24,7 +24,7 @@ conda install -c conda-forge libxcrypt -y
 
 
 
-# export les chemins 
+# export les chemins
 
 export CUDA_HOME=$CONDA_PREFIX
 export CXX=x86_64-conda-linux-gnu-g++
@@ -42,7 +42,7 @@ pip install submodules/simple-knn
 
 
 
-Installation faite sur wsl pour plus de stabilitée et moins de conflit des verions 
+Installation faite sur wsl pour plus de stabilitée et moins de conflit des verions
 
 
 
@@ -110,32 +110,32 @@ Once the MCMC 3DGS training outputs the `.ply` file, we need a custom Python scr
 
  python filter_plants.py --input C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\3dgs_inria\point_cloud\iteration_10000\point_cloud0.ply--output C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\3dgs_inria\point_cloud\iteration_10000\point_cloud1.ply --bbox_size 17.0 --elongation_threshold 4.0 --scale_threshold 0.1  --std_ratio 1.5
 
-recent call 
+recent call
 
-python filter_plants.py --input C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\3dgs-mcmc-output\point_cloud\iteration_10000\point_cloud0.ply --output C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\3dgs-mcmc-output\point_cloud\iteration_10000\point_cloud.ply --bbox_size 15 --bbox_y 2 --elongation_threshold 7.0 --scale_threshold 0.2 --std_ratio 3 --opacity_threshold 0.05 --nb_neighbors 40 --ban_hue_min 30  --ban_hue_max 60 --white_val_thresh 0.05 
+python filter_plants.py --input C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\3dgs-mcmc-output\point_cloud\iteration_10000\point_cloud0.ply --output C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\3dgs-mcmc-output\point_cloud\iteration_10000\point_cloud.ply --bbox_size 15 --bbox_y 2 --elongation_threshold 7.0 --scale_threshold 0.2 --std_ratio 3 --opacity_threshold 0.05 --nb_neighbors 40 --ban_hue_min 30  --ban_hue_max 60 --white_val_thresh 0.05
 
-recent call 
-python filter_plants.py --input C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\Results_vrai2\train_output\point_cloud\iteration_7000\point_cloud0.ply --output C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\Results_vrai2\train_output\point_cloud\iteration_7000\point_cloud.ply --bbox_size 16 --bbox_y 2 --elongation_threshold 7.0 --scale_threshold 0.2 --std_ratio 3 --opacity_threshold 0.05 --nb_neighbors 40 --ban_hue_min 30  --ban_hue_max 60 --white_val_thresh 0.05 
+recent call
+python filter_plants.py --input C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\Results_vrai2\train_output\point_cloud\iteration_7000\point_cloud0.ply --output C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\Results_vrai2\train_output\point_cloud\iteration_7000\point_cloud.ply --bbox_size 16 --bbox_y 2 --elongation_threshold 7.0 --scale_threshold 0.2 --std_ratio 3 --opacity_threshold 0.05 --nb_neighbors 40 --ban_hue_min 30  --ban_hue_max 60 --white_val_thresh 0.05
 
 
 ### ** Optional gaussien viewer with SIBR_gaussianViewer app**
 
-cd C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\src\viewers_windows\bin> 
+cd C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\src\viewers_windows\bin>
 
-SIBR_gaussianViewer_app.exe -m "Outpout_path"   
+SIBR_gaussianViewer_app.exe -m "Outpout_path"
 
 ## Scaling the ply
 
-python .\scale.py --input C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\Results_vrai2\train_output\point_cloud\iteration_7000\point_cloud.ply --output C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\Results_vrai2\train_output\point_cloud\point_cloud_scaled.ply                                                                                                                                 
+python .\scale.py --input C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\Results_vrai2\train_output\point_cloud\iteration_7000\point_cloud.ply --output C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\Results_vrai2\train_output\point_cloud\point_cloud_scaled.ply
 
 ## Messhing
 
-python .\meshing.py --input C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\Results_vrai2\train_output\point_cloud\iteration_7000\point_cloud_scaled.ply --output C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\gs_to_mesh\mesh_plant_2.obj --alpha 0.0049 --decimate 0.50                
+python .\meshing.py --input C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\Results_vrai2\train_output\point_cloud\iteration_7000\point_cloud_scaled.ply --output C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\gs_to_mesh\mesh_plant_2.obj --alpha 0.0049 --decimate 0.50
 
 
-## filter with 2.5d projection 
+## filter with 2.5d projection
 
-python .\proj_25d.py --input C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\Results_fake2_z320\point_cloud\iteration_7000\point_cloud.ply --output C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\depth\ --cameras C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\Results_fake2_z320\cameras.json --image_name 20260713_153523_112621.jpg -oi C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\input_data\Dataset_fake2_z320\input\20260713_153523_112621.jpg     
+python .\proj_25d.py --input C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\Results_fake2_z320\point_cloud\iteration_7000\point_cloud.ply --output C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\depth\ --cameras C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\Results_fake2_z320\cameras.json --image_name 20260713_153523_112621.jpg -oi C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\input_data\Dataset_fake2_z320\input\20260713_153523_112621.jpg
 
 
 
@@ -143,11 +143,11 @@ python .\proj_25d.py --input C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\o
 
 ## Filter horizontal directly from gaussians
 
-python .\track_horizontal_splats.py --input C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\Results_fake2_z320\point_cloud\iteration_7000\point_cloud.ply --output C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\horizontauxv2\ --cameras C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\Results_fake2_z320\cameras.json --image_name 20260713_153523_112621.jpg -oi C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\input_data\Dataset_fake2_z320\input\20260713_153523_112621.jpg     
+python .\track_horizontal_splats.py --input C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\Results_fake2_z320\point_cloud\iteration_7000\point_cloud.ply --output C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\horizontauxv2\ --cameras C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\Results_fake2_z320\cameras.json --image_name 20260713_153523_112621.jpg -oi C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\input_data\Dataset_fake2_z320\input\20260713_153523_112621.jpg
 
-                                        
+
 
 ## Filter using the mesh
 
 
-python .\track_horizontal_mesh.py --input C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\gs_to_mesh\mesh_final.obj --output C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\horizontauxv3\ --cameras C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\Results_fake2_z320\cameras.json --image_name 20260713_153523_112621.jpg -oi C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\input_data\Dataset_fake2_z320\input\20260713_153523_112621.jpg     
+python .\track_horizontal_mesh.py --input C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\gs_to_mesh\mesh_final.obj --output C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\horizontauxv3\ --cameras C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\output_data\Results_fake2_z320\cameras.json --image_name 20260713_153523_112621.jpg -oi C:\Users\Justin\Desktop\Jubilee\3d_reconstruction\input_data\Dataset_fake2_z320\input\20260713_153523_112621.jpg

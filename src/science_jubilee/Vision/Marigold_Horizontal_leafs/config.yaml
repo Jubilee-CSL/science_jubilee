@@ -32,7 +32,7 @@ physical:
 
 filtering:
   min_area_px: 20000
-  
+
   max_extent_ratio: 8.0
   min_border_margin_px: 8
   min_normal_z: 0.85

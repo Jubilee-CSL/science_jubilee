@@ -20,7 +20,9 @@ from science_jubilee.navigation.free_navigation import FreeNavigator
 from science_jubilee.scripts.config_dialog import ask_run_config
 from science_jubilee.scripts.ingredients.acquisition import acquire, acquisition
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 
 ex = Experiment("acquisition_test", ingredients=[acquisition])
 ex.observers.append(MongoObserver(db_name="jubilee26"))
@@ -28,19 +30,15 @@ ex.observers.append(MongoObserver(db_name="jubilee26"))
 
 @ex.config
 def config():
-    name    = ""
-    out     = "acquisition_test"
-    x       = 100.0    # set in dialog before running
-    y       = 100.0
-    z       = 150.0
-    compare = True    # also capture a simple image for side-by-side comparison
-    acquisition = dict(         # noqa: F841
-        mode    = "illuminated",
-        nb_leds = 8,
-        debug   = True,
-        led_r   = 50,
-        led_g   = 0,
-        led_b   = 0,
+    x = 100.0  # set in dialog before running
+    compare = True  # also capture a simple image for side-by-side comparison
+    acquisition = dict(  # noqa: F841
+        mode="illuminated",
+        nb_leds=8,
+        debug=True,
+        led_r=50,
+        led_g=0,
+        led_b=0,
     )
 
 
@@ -60,16 +58,27 @@ def main(_config, _run):
     nav.move_to(x=cfg["x"], y=cfg["y"])
 
     illum_path = acquire(
-        cam=cam, light=light, save_dir=folder, name="illuminated",
-        mode="illuminated", nb_leds=acq_cfg["nb_leds"], debug=acq_cfg.get("debug", False),
-        led_r=acq_cfg["led_r"], led_g=acq_cfg["led_g"], led_b=acq_cfg["led_b"],
+        cam=cam,
+        light=light,
+        save_dir=folder,
+        name="illuminated",
+        mode="illuminated",
+        nb_leds=acq_cfg["nb_leds"],
+        debug=acq_cfg.get("debug", False),
+        led_r=acq_cfg["led_r"],
+        led_g=acq_cfg["led_g"],
+        led_b=acq_cfg["led_b"],
     )
     _run.add_artifact(illum_path, "illuminated.jpg")
 
     if cfg["compare"]:
         simple_path = acquire(
-            cam=cam, light=light, save_dir=folder, name="simple",
-            mode="simple", nb_leds=acq_cfg["nb_leds"],
+            cam=cam,
+            light=light,
+            save_dir=folder,
+            name="simple",
+            mode="simple",
+            nb_leds=acq_cfg["nb_leds"],
         )
         _run.add_artifact(simple_path, "simple.jpg")
 

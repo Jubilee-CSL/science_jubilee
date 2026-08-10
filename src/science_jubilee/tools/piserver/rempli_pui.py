@@ -1,10 +1,11 @@
+from time import sleep, time
+
 import board
 import busio
+from adafruit_ads1x15 import ads1x15
 from adafruit_ads1x15.ads1115 import ADS1115
 from adafruit_ads1x15.analog_in import AnalogIn
-from adafruit_ads1x15 import ads1x15 
 from gpiozero import Motor
-from time import sleep, time
 
 # ==========================================
 # 1. CONFIGURATION DU MATÉRIEL
@@ -38,13 +39,13 @@ try:
         # Lecture de la tension
         tension_actuelle = capteur.voltage
         print(f"Valeur lue : {tension_actuelle:.2f} V")
-        
+
         # --- LA LOGIQUE ---
         if tension_actuelle >= SEUIL_DECLENCHEMENT:
             print(">>> Capteur activé ! Arrêt du moteur. <<<")
             moteur.stop()
-            break 
-            
+            break
+
         sleep(0.1)
 
 except KeyboardInterrupt:

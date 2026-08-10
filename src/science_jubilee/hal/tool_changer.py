@@ -122,7 +122,7 @@ class ToolChanger:
     # ------------------------------------------------------------------
     # Tool state inspection
     # ------------------------------------------------------------------
-    def get_tool(self,tool_idx) -> Tool:
+    def get_tool(self, tool_idx) -> Tool:
         if tool_idx not in self.tools:
             raise ToolSlotError(f"Invalid tool slot {tool_idx}")
 

@@ -124,8 +124,8 @@ class Deck(SlotSet):
 
     # Runtime state
 
-    deck_config: dict = field(init=False,default_factory=dict)
-    slots_data: dict = field(init=False,default_factory=dict)
+    deck_config: dict = field(init=False, default_factory=dict)
+    slots_data: dict = field(init=False, default_factory=dict)
     config_path: str = field(init=False)
 
     # ------------------------------------------------------------------
@@ -158,7 +158,6 @@ class Deck(SlotSet):
                     labware_filename=labware_filename,
                     slot_id=slot_id,
                 )
-
 
     def __repr__(self):
         return f"Deck(" f"bed_type={self.bed_type}, " f"slots={len(self.slots)}" f")"
@@ -195,13 +194,17 @@ class Deck(SlotSet):
         if z_height > self.safe_z:
             self.safe_z = z_height
 
-
     _BUILTIN_LABWARE_PATH: str = field(
         init=False,
-        default=os.path.join(os.path.dirname(__file__), "..", "labware", "labware_definition"),
+        default=os.path.join(
+            os.path.dirname(__file__), "..", "labware", "labware_definition"
+        ),
     )
 
-    def load_labware(self, labware_filename: str, slot_id: int,
+    def load_labware(
+        self,
+        labware_filename: str,
+        slot_id: int,
         path: Optional[str] = None,
         order: str = "rows",
     ) -> None:
@@ -213,13 +216,21 @@ class Deck(SlotSet):
             raise ValueError(f"Slot {slot_id} already contains a labware.")
 
         # resolve labware directory: explicit path > labware_search_path (if file exists) > builtin
-        fn = labware_filename if labware_filename.endswith(".json") else labware_filename + ".json"
+        fn = (
+            labware_filename
+            if labware_filename.endswith(".json")
+            else labware_filename + ".json"
+        )
         if path is not None:
             labware_dir = path
-        elif self.labware_search_path and os.path.exists(os.path.join(self.labware_search_path, fn)):
+        elif self.labware_search_path and os.path.exists(
+            os.path.join(self.labware_search_path, fn)
+        ):
             labware_dir = self.labware_search_path
         else:
-            labware_dir = os.path.join(os.path.dirname(__file__), "..", "labware", "labware_definition")
+            labware_dir = os.path.join(
+                os.path.dirname(__file__), "..", "labware", "labware_definition"
+            )
 
         labware = Labware(labware_filename, order=order, path=labware_dir)
         labware.add_slot(slot_id)
@@ -246,9 +257,6 @@ class Deck(SlotSet):
             if isinstance(offset, list):
                 offset = tuple(offset)
 
-            slots[slot_id] = Slot(
-                slot_index=slot_id,
-                offset=offset
-                )
-            
+            slots[slot_id] = Slot(slot_index=slot_id, offset=offset)
+
         return slots

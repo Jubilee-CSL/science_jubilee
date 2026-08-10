@@ -16,10 +16,10 @@ scan = Ingredient("scan", ingredients=[acquisition])
 @scan.config
 def scan_config():
     start = [144.0, 125.0]  # start corner [X, Y] in mm
-    stop  = [184.0, 145.0]  # stop corner  [X, Y] in mm
-    steps = [20, 10]        # grid size [NX, NY]
-    z     = 320.0           # Z height in mm
-    delay = 0.5             # seconds between captures
+    stop = [184.0, 145.0]  # stop corner  [X, Y] in mm
+    steps = [20, 10]  # grid size [NX, NY]
+    z = 320.0  # Z height in mm
+    delay = 0.5  # seconds between captures
 
 
 @scan.capture
@@ -34,8 +34,16 @@ def run_scan(start, stop, steps, z, delay, out) -> list[str]:
     cam = session.camera
     light = session.light
 
-    logger.info("Region (%.1f,%.1f) → (%.1f,%.1f)  steps %dx%d  Z=%.1f",
-                start[0], start[1], stop[0], stop[1], steps[0], steps[1], z)
+    logger.info(
+        "Region (%.1f,%.1f) → (%.1f,%.1f)  steps %dx%d  Z=%.1f",
+        start[0],
+        start[1],
+        stop[0],
+        stop[1],
+        steps[0],
+        steps[1],
+        z,
+    )
     nav.move_to(z=z)
     nav.move_to(x=start[0], y=start[1])
 

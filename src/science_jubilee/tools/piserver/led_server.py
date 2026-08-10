@@ -1,7 +1,6 @@
-from flask import Flask
-
-import neopixel
 import board
+import neopixel
+from flask import Flask
 
 app = Flask(__name__)
 
@@ -18,9 +17,9 @@ def test():
 
 @app.route("/led/<int:r>/<int:g>/<int:b>")
 def led(r,g,b):
-	
+
 	pixels.fill((r,g,b))
-	
+
 	return "OK"
 
 @app.route("/pixel/<int:index>/<int:r>/<int:g>/<int:b>")

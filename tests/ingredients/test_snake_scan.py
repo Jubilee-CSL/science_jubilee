@@ -34,8 +34,14 @@ def _fake_acquire(save_dir, name, **_):
 def test_run_scan_creates_output_folder(patched_session, tmp_path):
     out = tmp_path / "grid"
     with patch(_ACQUIRE, side_effect=_fake_acquire):
-        run_scan(start=[0.0, 0.0], stop=[10.0, 10.0], steps=[2, 2],
-                 z=50.0, delay=0.0, out=str(out))
+        run_scan(
+            start=[0.0, 0.0],
+            stop=[10.0, 10.0],
+            steps=[2, 2],
+            z=50.0,
+            delay=0.0,
+            out=str(out),
+        )
     assert out.is_dir()
 
 
@@ -47,16 +53,28 @@ def test_run_scan_creates_output_folder(patched_session, tmp_path):
 @pytest.mark.secondary
 def test_run_scan_returns_one_path_per_step(patched_session, tmp_path):
     with patch(_ACQUIRE, side_effect=_fake_acquire):
-        saved = run_scan(start=[0.0, 0.0], stop=[20.0, 10.0], steps=[3, 4],
-                         z=50.0, delay=0.0, out=str(tmp_path))
+        saved = run_scan(
+            start=[0.0, 0.0],
+            stop=[20.0, 10.0],
+            steps=[3, 4],
+            z=50.0,
+            delay=0.0,
+            out=str(tmp_path),
+        )
     assert len(saved) == 3 * 4
 
 
 @pytest.mark.secondary
 def test_run_scan_returned_paths_exist(patched_session, tmp_path):
     with patch(_ACQUIRE, side_effect=_fake_acquire):
-        saved = run_scan(start=[0.0, 0.0], stop=[10.0, 10.0], steps=[2, 3],
-                         z=50.0, delay=0.0, out=str(tmp_path))
+        saved = run_scan(
+            start=[0.0, 0.0],
+            stop=[10.0, 10.0],
+            steps=[2, 3],
+            z=50.0,
+            delay=0.0,
+            out=str(tmp_path),
+        )
     assert all(Path(p).exists() for p in saved)
 
 
@@ -76,18 +94,30 @@ def test_run_scan_calls_acquire_for_every_position(patched_session, tmp_path):
         return str(p)
 
     with patch(_ACQUIRE, side_effect=counting_acquire):
-        run_scan(start=[0.0, 0.0], stop=[10.0, 10.0], steps=[3, 2],
-                 z=50.0, delay=0.0, out=str(tmp_path))
+        run_scan(
+            start=[0.0, 0.0],
+            stop=[10.0, 10.0],
+            steps=[3, 2],
+            z=50.0,
+            delay=0.0,
+            out=str(tmp_path),
+        )
 
     assert len(calls) == 3 * 2
     assert calls[0] == "snake_000_000"
     assert calls[1] == "snake_000_001"
-    assert calls[2] == "snake_001_001"   # row 1 travels in reverse
+    assert calls[2] == "snake_001_001"  # row 1 travels in reverse
 
 
 @pytest.mark.secondary
 def test_run_scan_1x1_grid_calls_acquire_once(patched_session, tmp_path):
     with patch(_ACQUIRE, side_effect=_fake_acquire) as mock_acq:
-        run_scan(start=[5.0, 5.0], stop=[5.0, 5.0], steps=[1, 1],
-                 z=50.0, delay=0.0, out=str(tmp_path))
+        run_scan(
+            start=[5.0, 5.0],
+            stop=[5.0, 5.0],
+            steps=[1, 1],
+            z=50.0,
+            delay=0.0,
+            out=str(tmp_path),
+        )
     mock_acq.assert_called_once()

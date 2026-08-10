@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from functools import wraps
 
 # ======================================================================
@@ -13,15 +13,11 @@ class ToolStateError(Exception):
     Raised when a tool is in an invalid runtime state.
     """
 
-    pass
-
 
 class ToolConfigurationError(Exception):
     """
     Raised when a tool configuration is invalid.
     """
-
-    pass
 
 
 # ======================================================================
@@ -103,8 +99,6 @@ class Tool:
         Called after the tool is associated
         with the machine.
         """
-
-        pass
 
     # ------------------------------------------------------------------
     # Runtime state

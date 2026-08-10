@@ -3,24 +3,31 @@
 # GRAPHDECO research group, https://team.inria.fr/graphdeco
 # All rights reserved.
 #
-# This software is free for non-commercial, research and evaluation use 
+# This software is free for non-commercial, research and evaluation use
 # under the terms of the LICENSE.md file.
 #
 # For inquiries contact  george.drettakis@inria.fr
 #
 
-import torch
-import numpy as np
-from utils.general_utils import inverse_sigmoid, get_expon_lr_func, build_rotation
-from torch import nn
 import os
-from utils.system_utils import mkdir_p
+
+import numpy as np
+import torch
 from plyfile import PlyData, PlyElement
-from utils.sh_utils import RGB2SH
 from simple_knn._C import distCUDA2
+from torch import nn
+from utils.general_utils import (
+    build_rotation,
+    build_scaling_rotation,
+    get_expon_lr_func,
+    inverse_sigmoid,
+    strip_symmetric,
+)
 from utils.graphics_utils import BasicPointCloud
-from utils.general_utils import strip_symmetric, build_scaling_rotation
 from utils.reloc_utils import compute_relocation_cuda
+from utils.sh_utils import RGB2SH
+from utils.system_utils import mkdir_p
+
 
 class GaussianModel:
 
@@ -30,7 +37,7 @@ class GaussianModel:
             actual_covariance = L @ L.transpose(1, 2)
             symm = strip_symmetric(actual_covariance)
             return symm
-        
+
         self.scaling_activation = torch.exp
         self.scaling_inverse_activation = torch.log
 
@@ -44,7 +51,7 @@ class GaussianModel:
 
     def __init__(self, sh_degree : int):
         self.active_sh_degree = 0
-        self.max_sh_degree = sh_degree  
+        self.max_sh_degree = sh_degree
         self._xyz = torch.empty(0)
         self._features_dc = torch.empty(0)
         self._features_rest = torch.empty(0)
@@ -74,19 +81,19 @@ class GaussianModel:
             self.optimizer.state_dict(),
             self.spatial_lr_scale,
         )
-    
+
     def restore(self, model_args, training_args):
-        (self.active_sh_degree, 
-        self._xyz, 
-        self._features_dc, 
+        (self.active_sh_degree,
+        self._xyz,
+        self._features_dc,
         self._features_rest,
-        self._scaling, 
-        self._rotation, 
+        self._scaling,
+        self._rotation,
         self._opacity,
-        self.max_radii2D, 
-        xyz_gradient_accum, 
+        self.max_radii2D,
+        xyz_gradient_accum,
         denom,
-        opt_dict, 
+        opt_dict,
         self.spatial_lr_scale) = model_args
         self.training_setup(training_args)
         self.xyz_gradient_accum = xyz_gradient_accum
@@ -96,25 +103,25 @@ class GaussianModel:
     @property
     def get_scaling(self):
         return self.scaling_activation(self._scaling)
-    
+
     @property
     def get_rotation(self):
         return self.rotation_activation(self._rotation)
-    
+
     @property
     def get_xyz(self):
         return self._xyz
-    
+
     @property
     def get_features(self):
         features_dc = self._features_dc
         features_rest = self._features_rest
         return torch.cat((features_dc, features_rest), dim=1)
-    
+
     @property
     def get_opacity(self):
         return self.opacity_activation(self._opacity)
-    
+
     def get_covariance(self, scaling_modifier = 1):
         return self.covariance_activation(self.get_scaling, scaling_modifier, self._rotation)
 
@@ -378,7 +385,7 @@ class GaussianModel:
         selected_pts_mask = torch.where(torch.norm(grads, dim=-1) >= grad_threshold, True, False)
         selected_pts_mask = torch.logical_and(selected_pts_mask,
                                               torch.max(self.get_scaling, dim=1).values <= self.percent_dense*scene_extent)
-        
+
         new_xyz = self._xyz[selected_pts_mask]
         new_features_dc = self._features_dc[selected_pts_mask]
         new_features_rest = self._features_rest[selected_pts_mask]
@@ -421,7 +428,7 @@ class GaussianModel:
             assert len(group["params"]) == 1
             tensor = tensors_dict[group["name"]]
             stored_state = self.optimizer.state.get(group['params'][0], None)
-            
+
             if inds is not None:
                 stored_state["exp_avg"][inds] = 0
                 stored_state["exp_avg_sq"][inds] = 0
@@ -440,13 +447,13 @@ class GaussianModel:
         self._features_rest = optimizable_tensors["f_rest"]
         self._opacity = optimizable_tensors["opacity"]
         self._scaling = optimizable_tensors["scaling"]
-        self._rotation = optimizable_tensors["rotation"] 
+        self._rotation = optimizable_tensors["rotation"]
 
         torch.cuda.empty_cache()
-        
+
         return optimizable_tensors
 
-    
+
     def _update_params(self, idxs, ratio):
         new_opacity, new_scaling = compute_relocation_cuda(
             opacity_old=self.get_opacity[idxs, 0],
@@ -467,14 +474,14 @@ class GaussianModel:
             sampled_idxs = alive_indices[sampled_idxs]
         ratio = torch.bincount(sampled_idxs).unsqueeze(-1)
         return sampled_idxs, ratio
-    
+
 
     def relocate_gs(self, dead_mask=None):
 
         if dead_mask.sum() == 0:
             return
 
-        alive_mask = ~dead_mask 
+        alive_mask = ~dead_mask
         dead_indices = dead_mask.nonzero(as_tuple=True)[0]
         alive_indices = alive_mask.nonzero(as_tuple=True)[0]
 
@@ -482,23 +489,23 @@ class GaussianModel:
             return
 
         # sample from alive ones based on opacity
-        probs = (self.get_opacity[alive_indices, 0]) 
+        probs = (self.get_opacity[alive_indices, 0])
         reinit_idx, ratio = self._sample_alives(alive_indices=alive_indices, probs=probs, num=dead_indices.shape[0])
 
         (
-            self._xyz[dead_indices], 
+            self._xyz[dead_indices],
             self._features_dc[dead_indices],
             self._features_rest[dead_indices],
             self._opacity[dead_indices],
             self._scaling[dead_indices],
-            self._rotation[dead_indices] 
+            self._rotation[dead_indices]
         ) = self._update_params(reinit_idx, ratio=ratio)
-        
+
         self._opacity[reinit_idx] = self._opacity[dead_indices]
         self._scaling[reinit_idx] = self._scaling[dead_indices]
 
-        self.replace_tensors_to_optimizer(inds=reinit_idx) 
-        
+        self.replace_tensors_to_optimizer(inds=reinit_idx)
+
 
     def add_new_gs(self, cap_max):
         current_num_points = self._opacity.shape[0]
@@ -508,16 +515,16 @@ class GaussianModel:
         if num_gs <= 0:
             return 0
 
-        probs = self.get_opacity.squeeze(-1) 
+        probs = self.get_opacity.squeeze(-1)
         add_idx, ratio = self._sample_alives(probs=probs, num=num_gs)
 
         (
-            new_xyz, 
+            new_xyz,
             new_features_dc,
             new_features_rest,
             new_opacity,
             new_scaling,
-            new_rotation 
+            new_rotation
         ) = self._update_params(add_idx, ratio=ratio)
 
         self._opacity[add_idx] = new_opacity
@@ -527,7 +534,3 @@ class GaussianModel:
         self.replace_tensors_to_optimizer(inds=add_idx)
 
         return num_gs
-
-
-
-

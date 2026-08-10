@@ -559,7 +559,7 @@ class Pipette(Tool):
         :param s: The speed of the plunger movement in mm/min, defaults to 5000
         :type s: int, optional
         """
-        v = self.vol2move(vol) * -1
+        self.vol2move(vol) * -1
 
         self._machine.move_to(z=self.current_well.top_ + 1)
         self.prime()

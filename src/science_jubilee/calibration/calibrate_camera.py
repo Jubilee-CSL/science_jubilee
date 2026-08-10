@@ -32,12 +32,13 @@ def collect_images(images_folder: str) -> None:
     os.makedirs(images_folder, exist_ok=True)
 
     from science_jubilee.machine_session import MachineSession
+
     session = MachineSession.from_env(env_file=".env.hardware")
 
     limits = session.motion.get_axis_limits()
     BED_CX = sum(limits["X"]) / 2
     BED_CY = sum(limits["Y"]) / 2
-    BED_Z = limits["Z"][1]- 15
+    BED_Z = limits["Z"][1] - 15
 
     print("Checking homing state...")
     if not session.motion.get_axes_homed() or not all(session.motion.get_axes_homed()):
@@ -56,7 +57,11 @@ def collect_images(images_folder: str) -> None:
 
     idx = 0
     while True:
-        user = input(f"  Shot {idx:02d} — Enter to capture, 'q' to finish: ").strip().lower()
+        user = (
+            input(f"  Shot {idx:02d} — Enter to capture, 'q' to finish: ")
+            .strip()
+            .lower()
+        )
         if user == "q":
             break
         img = session.camera.get_image()
@@ -70,7 +75,7 @@ def collect_images(images_folder: str) -> None:
 
 def calibrate(images_folder: str) -> tuple[np.ndarray, np.ndarray, float]:
     objp = np.zeros((CHECKERBOARD[0] * CHECKERBOARD[1], 3), np.float32)
-    objp[:, :2] = np.mgrid[0:CHECKERBOARD[0], 0:CHECKERBOARD[1]].T.reshape(-1, 2)
+    objp[:, :2] = np.mgrid[0 : CHECKERBOARD[0], 0 : CHECKERBOARD[1]].T.reshape(-1, 2)
 
     objpoints, imgpoints = [], []
 
@@ -117,7 +122,9 @@ def calibrate(images_folder: str) -> tuple[np.ndarray, np.ndarray, float]:
     errors = []
     for i in range(len(objpoints)):
         projected, _ = cv2.projectPoints(objpoints[i], rvecs[i], tvecs[i], mtx, dist)
-        err = np.linalg.norm(imgpoints[i].reshape(-1, 2) - projected.reshape(-1, 2)) / len(projected)
+        err = np.linalg.norm(
+            imgpoints[i].reshape(-1, 2) - projected.reshape(-1, 2)
+        ) / len(projected)
         errors.append(err)
         print(f"  Image {i:2d}: reprojection error = {err:.4f} px")
 
@@ -147,13 +154,29 @@ def save_params(mtx: np.ndarray, dist: np.ndarray, out_path: str) -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Collect calibration images and/or calibrate camera.")
-    parser.add_argument("--collect", action="store_true", help="Capture images from the machine before calibrating.")
-    parser.add_argument("--images", required=True, help="Folder to save/read calibration images.")
-    parser.add_argument("--out", default="calibration/camera_params.yaml", help="Output YAML path.")
+    parser = argparse.ArgumentParser(
+        description="Collect calibration images and/or calibrate camera."
+    )
     parser.add_argument(
-        "--checkerboard", nargs=2, type=int, default=list(CHECKERBOARD), metavar=("COLS", "ROWS"),
-        help="Inner corner count: columns rows (default: 6 8)."
+        "--collect",
+        action="store_true",
+        help="Capture images from the machine before calibrating.",
+    )
+    parser.add_argument(
+        "--images", required=True, help="Folder to save/read calibration images."
+    )
+    parser.add_argument(
+        "--out",
+        default="src/science_jubilee/calibration/camera_params.yaml",
+        help="Output YAML path.",
+    )
+    parser.add_argument(
+        "--checkerboard",
+        nargs=2,
+        type=int,
+        default=list(CHECKERBOARD),
+        metavar=("COLS", "ROWS"),
+        help="Inner corner count: columns rows (default: 6 8).",
     )
     args = parser.parse_args()
 

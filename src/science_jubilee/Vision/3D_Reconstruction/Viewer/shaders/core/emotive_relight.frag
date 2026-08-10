@@ -3,7 +3,7 @@
  * GRAPHDECO research group, https://team.inria.fr/graphdeco
  * All rights reserved.
  *
- * This software is free for non-commercial, research and evaluation use 
+ * This software is free for non-commercial, research and evaluation use
  * under the terms of the LICENSE.md file.
  *
  * For inquiries contact sibr@inria.fr and/or George.Drettakis@inria.fr
@@ -36,14 +36,14 @@ float sRGB2LinF(float inF){
 }
 
 float lin2sRGBF(float inF){
-	
+
 	if(inF<0.0031308){
 		return 12.92*inF;
 	}
 	else{
 		return 1.055*pow(inF,1.0/2.4)-0.055;
 	}
-	
+
 }
 
 vec4 sRGB2Lin(vec4 inVec){
@@ -83,4 +83,3 @@ void main(void) {
 
     out_color = mix(composed_color, vec4(0.5,0.5,0.5,1.0), alpha);
 }
-

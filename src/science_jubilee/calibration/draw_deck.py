@@ -8,16 +8,21 @@
 
 import argparse
 import sys
-from pathlib import Path
 
 from science_jubilee.machine_session import MachineSession
 
 
 def run() -> None:
-    parser = argparse.ArgumentParser(description="Pick up pen tool and draw from JUBILEE_EXPERIMENT_DIR.")
+    parser = argparse.ArgumentParser(
+        description="Pick up pen tool and draw from JUBILEE_EXPERIMENT_DIR."
+    )
     parser.add_argument("--env", default=".env.hardware", help="env file to load")
     parser.add_argument("--tool", type=int, default=1, help="pen tool index")
-    parser.add_argument("--gcode", default="plan_jubilee.gcode", help="G-code filename inside experiment dir")
+    parser.add_argument(
+        "--gcode",
+        default="plan_jubilee.gcode",
+        help="G-code filename inside experiment dir",
+    )
     args = parser.parse_args()
 
     session = MachineSession.from_env(args.env)

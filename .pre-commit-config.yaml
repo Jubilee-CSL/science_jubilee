@@ -1,4 +1,11 @@
-exclude: '^docs/conf.py'
+exclude: |
+  (?x)^(
+    docs/conf\.py|
+    src/science_jubilee/Vision/3D_Reconstruction/src/3dgs-mcmc/.*|
+    src/science_jubilee/Vision/3D_Reconstruction/Viewer/.*|
+    src/science_jubilee/tools/piserver/.*|
+    src/science_jubilee/tools/unique_tools/old/.*
+  )$
 
 
 repos:
@@ -10,7 +17,8 @@ repos:
     args: ['--maxkb=5000']
     # exclude: ^(docs/_static/robot-loop.gif)$
   - id: check-ast
-  # - id: check-json
+  - id: check-json
+    exclude: 'templates/.*\.json$'
   - id: check-merge-conflict
   - id: check-xml
   - id: check-yaml
@@ -29,15 +37,15 @@ repos:
 #     args: ['--py37-plus']
 
 ## If you want to avoid flake8 errors due to unused vars or imports:
-# - repo: https://github.com/PyCQA/autoflake
-#   rev: v2.1.1
-#   hooks:
-#   - id: autoflake
-#     args: [
-#       --in-place,
-#       --remove-all-unused-imports,
-#       --remove-unused-variables,
-#     ]
+- repo: https://github.com/PyCQA/autoflake
+  rev: v2.1.1
+  hooks:
+  - id: autoflake
+    args: [
+      --in-place,
+      --remove-all-unused-imports,
+      --remove-unused-variables,
+    ]
 
 - repo: https://github.com/PyCQA/isort
   rev: 5.13.2
@@ -69,3 +77,13 @@ repos:
 #   rev: v2.2.5
 #   hooks:
 #   - id: codespell
+
+# Full test suite in mock mode (no hardware required)
+- repo: local
+  hooks:
+  - id: pytest-mock
+    name: pytest (mock mode)
+    entry: python -m pytest --jubilee-env mock -x -v
+    language: system
+    pass_filenames: false
+    always_run: true

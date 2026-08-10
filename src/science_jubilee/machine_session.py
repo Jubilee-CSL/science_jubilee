@@ -37,7 +37,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Optional
 
 if TYPE_CHECKING:
-    from science_jubilee.navigation.deck_navigation import DeckNavigator
     from science_jubilee.tools.light.base import BaseLight
 
 logger = logging.getLogger(__name__)
@@ -46,7 +45,30 @@ logger = logging.getLogger(__name__)
 class MachineSession:
     """Wires transport → motion → tool_changer → navigator into one object."""
 
-    def __init__(self, transport, use_mock: bool = True, deck_def: Optional[str] = None, camera_address: Optional[str] = None, led_address: Optional[str] = None, camera_calib: Optional[str] = None, experiment_dir: Optional[Path] = None) -> None:
+    def __init__(
+        self,
+        transport,
+        use_mock: bool = True,
+        deck_def: Optional[str] = None,
+        camera_address: Optional[str] = None,
+        led_address: Optional[str] = None,
+        camera_calib: Optional[str] = None,
+        experiment_dir: Optional[Path] = None,
+    ) -> None:
+        """Wire transport, motion, tool-changer, navigator, camera, and light into one session.
+
+        Args:
+            transport: Pre-built transport layer (e.g. ``RecordingTransport(MockTransport())``).
+            use_mock: When ``True`` use ``ToolheadCamMock`` and ``NeopixelMock``; when
+                ``False`` connect to real hardware using ``camera_address`` and ``led_address``.
+            deck_def: Stem of the deck JSON file (e.g. ``"deck"`` resolves to ``deck.json``).
+                Defaults to ``"deck"`` when ``experiment_dir`` contains ``deck.json``.
+            camera_address: Hostname or IP of the camera server (required when ``use_mock=False``).
+            led_address: Hostname or IP of the Neopixel LED server (required when ``use_mock=False``).
+            camera_calib: Path to the ``camera_params.yaml`` produced by ``calibrate_camera.py``.
+            experiment_dir: Folder containing ``deck.json``, labware JSONs, and G-code files.
+                Passed as both ``path`` and ``labware_search_path`` to :class:`~science_jubilee.decks.Deck.Deck`.
+        """
         from science_jubilee.hal.motion_driver import MotionDriver
         from science_jubilee.hal.tool_changer import ToolChanger
 
@@ -78,16 +100,31 @@ class MachineSession:
         if use_mock:
             from science_jubilee.tools.camera.toolheadcam_mock import ToolheadCamMock
             from science_jubilee.tools.light.neopixel_mock import NeopixelMock
-            self.camera = ToolheadCamMock(motion=self.motion, tool_changer=self.tool_changer, calib_file=camera_calib)
+
+            self.camera = ToolheadCamMock(
+                motion=self.motion,
+                tool_changer=self.tool_changer,
+                calib_file=camera_calib,
+            )
             self.light: BaseLight = NeopixelMock()
         else:
             if not camera_address:
-                raise ValueError("JUBILEE_CAMERA_ADDRESS required for hardware transport")
+                raise ValueError(
+                    "JUBILEE_CAMERA_ADDRESS required for hardware transport"
+                )
             if not led_address:
-                raise ValueError("JUBILEE_NEOPIXEL_ADDRESS required for hardware transport")
+                raise ValueError(
+                    "JUBILEE_NEOPIXEL_ADDRESS required for hardware transport"
+                )
             from science_jubilee.tools.camera.toolheadcam import ToolheadCam
             from science_jubilee.tools.light.neopixel import Neopixel
-            self.camera = ToolheadCam(motion=self.motion, tool_changer=self.tool_changer, address=camera_address, calib_file=camera_calib)
+
+            self.camera = ToolheadCam(
+                motion=self.motion,
+                tool_changer=self.tool_changer,
+                address=camera_address,
+                calib_file=camera_calib,
+            )
             self.light = Neopixel(url=f"http://{led_address}:5001")
 
     # ------------------------------------------------------------------
@@ -102,12 +139,25 @@ class MachineSession:
         camera_calib: Optional[str] = None,
         experiment_dir: Optional[Path] = None,
     ) -> "MachineSession":
-        """Build a session backed by the in-memory MockTransport."""
+        """Build a session backed by the in-memory ``MockTransport``.
+
+        Args:
+            deck_def: Stem of the deck JSON file; auto-detected from ``experiment_dir`` if omitted.
+            log_path: Destination for the G-code recording log.
+            camera_calib: Path to ``camera_params.yaml``; ``None`` skips calibration loading.
+            experiment_dir: Folder containing deck and labware definitions.
+        """
         from science_jubilee.hal.transport.mock import MockTransport
         from science_jubilee.hal.transport.recording import RecordingTransport
 
         transport = RecordingTransport(MockTransport(), log_path=log_path)
-        return cls(transport, use_mock=True, deck_def=deck_def, camera_calib=camera_calib, experiment_dir=experiment_dir)
+        return cls(
+            transport,
+            use_mock=True,
+            deck_def=deck_def,
+            camera_calib=camera_calib,
+            experiment_dir=experiment_dir,
+        )
 
     @classmethod
     def hardware(
@@ -121,17 +171,39 @@ class MachineSession:
         camera_calib: Optional[str] = None,
         experiment_dir: Optional[Path] = None,
     ) -> "MachineSession":
-        """Build a session connected to a real Duet/RRF machine."""
+        """Build a session connected to a real Duet/RRF machine over HTTP.
+
+        Args:
+            address: IP address or hostname of the Duet board.
+            deck_def: Stem of the deck JSON file; auto-detected from ``experiment_dir`` if omitted.
+            log_path: Destination for the G-code recording log.
+            deck_clear_provider: Callable returning ``True`` when the deck is safe to move over.
+                Defaults to a no-op lambda; supply a real probe callback for safety.
+            camera_address: Hostname or IP of the camera server.
+            led_address: Hostname or IP of the Neopixel LED server.
+            camera_calib: Path to ``camera_params.yaml``; ``None`` skips calibration loading.
+            experiment_dir: Folder containing deck and labware definitions.
+        """
         from science_jubilee.hal.transport.http import HTTPTransport
         from science_jubilee.hal.transport.recording import RecordingTransport
 
         if deck_clear_provider is None:
-            deck_clear_provider = lambda: True  # caller must supply a real probe if deck-clear checks are needed
+            deck_clear_provider = (
+                lambda: True
+            )  # caller must supply a real probe if deck-clear checks are needed
         transport = RecordingTransport(
             HTTPTransport(address=address, deck_clear_provider=deck_clear_provider),
             log_path=log_path,
         )
-        return cls(transport, use_mock=False, deck_def=deck_def, camera_address=camera_address, led_address=led_address, camera_calib=camera_calib, experiment_dir=experiment_dir)
+        return cls(
+            transport,
+            use_mock=False,
+            deck_def=deck_def,
+            camera_address=camera_address,
+            led_address=led_address,
+            camera_calib=camera_calib,
+            experiment_dir=experiment_dir,
+        )
 
     @classmethod
     def from_env(
@@ -178,9 +250,17 @@ class MachineSession:
         camera_address = os.getenv("JUBILEE_CAMERA_ADDRESS") or None
         led_address = os.getenv("JUBILEE_NEOPIXEL_ADDRESS") or None
         _calib = os.getenv("JUBILEE_CAMERA_CALIB") or None
-        camera_calib = str((_env_dir / _calib).resolve()) if _calib and not Path(_calib).is_absolute() else _calib
+        camera_calib = (
+            str((_env_dir / _calib).resolve())
+            if _calib and not Path(_calib).is_absolute()
+            else _calib
+        )
         _exp_dir = os.getenv("JUBILEE_EXPERIMENT_DIR") or None
-        experiment_dir = Path(_exp_dir) if (_exp_dir and Path(_exp_dir).is_absolute()) else ((_env_dir / _exp_dir).resolve() if _exp_dir else None)
+        experiment_dir = (
+            Path(_exp_dir)
+            if (_exp_dir and Path(_exp_dir).is_absolute())
+            else ((_env_dir / _exp_dir).resolve() if _exp_dir else None)
+        )
 
         if transport_type == "hardware":
             if not address:
@@ -188,9 +268,22 @@ class MachineSession:
                     "JUBILEE_ADDRESS must be set (or passed via --jubilee-address) "
                     "when JUBILEE_TRANSPORT=hardware"
                 )
-            return cls.hardware(address=address, deck_def=deck_def, log_path=log_path, camera_address=camera_address, led_address=led_address, camera_calib=camera_calib, experiment_dir=experiment_dir)
+            return cls.hardware(
+                address=address,
+                deck_def=deck_def,
+                log_path=log_path,
+                camera_address=camera_address,
+                led_address=led_address,
+                camera_calib=camera_calib,
+                experiment_dir=experiment_dir,
+            )
 
-        return cls.mock(deck_def=deck_def, log_path=log_path, camera_calib=camera_calib, experiment_dir=experiment_dir)
+        return cls.mock(
+            deck_def=deck_def,
+            log_path=log_path,
+            camera_calib=camera_calib,
+            experiment_dir=experiment_dir,
+        )
 
     # ------------------------------------------------------------------
     # Convenience properties
@@ -200,6 +293,7 @@ class MachineSession:
     def free_navigator(self):
         """A FreeNavigator wired to this session's motion and tool changer."""
         from science_jubilee.navigation.free_navigation import FreeNavigator
+
         return FreeNavigator(self.motion, self.tool_changer)
 
     # ------------------------------------------------------------------

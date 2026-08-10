@@ -12,7 +12,7 @@ def lpips(x: torch.Tensor,
 
     Arguments:
         x, y (torch.Tensor): the input tensors to compare.
-        net_type (str): the network type to compare the features: 
+        net_type (str): the network type to compare the features:
                         'alex' | 'squeeze' | 'vgg'. Default: 'alex'.
         version (str): the version of LPIPS. Default: 0.1.
     """

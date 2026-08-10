@@ -36,7 +36,9 @@ def ask_run_config(
         tk.Label(root, text=key).grid(row=i, column=0, sticky="w", padx=12, pady=3)
         text = repr(value) if isinstance(value, (list, tuple)) else str(value)
         var = tk.StringVar(value=text)
-        tk.Entry(root, textvariable=var, width=44).grid(row=i, column=1, padx=12, pady=3)
+        tk.Entry(root, textvariable=var, width=44).grid(
+            row=i, column=1, padx=12, pady=3
+        )
         entry_vars[key] = var
 
     # --- Buttons ---
@@ -52,8 +54,12 @@ def ask_run_config(
     )
     btn_frame = tk.Frame(root)
     btn_frame.grid(row=sep_row + 1, column=0, columnspan=2, pady=(0, 12))
-    tk.Button(btn_frame, text="Run",    width=14, command=root.quit).pack(side="left", padx=6)
-    tk.Button(btn_frame, text="Cancel", width=14, command=on_cancel).pack(side="left", padx=6)
+    tk.Button(btn_frame, text="Run", width=14, command=root.quit).pack(
+        side="left", padx=6
+    )
+    tk.Button(btn_frame, text="Cancel", width=14, command=on_cancel).pack(
+        side="left", padx=6
+    )
 
     root.mainloop()
     root.destroy()
@@ -88,8 +94,7 @@ def _unflatten(flat: dict, original: dict) -> dict:
     for k, v in original.items():
         if isinstance(v, dict):
             result[k] = {
-                sub_k: flat.get(f"{k}.{sub_k}", sub_v)
-                for sub_k, sub_v in v.items()
+                sub_k: flat.get(f"{k}.{sub_k}", sub_v) for sub_k, sub_v in v.items()
             }
         else:
             result[k] = flat.get(k, v)

@@ -3,7 +3,7 @@
  * GRAPHDECO research group, https://team.inria.fr/graphdeco
  * All rights reserved.
  *
- * This software is free for non-commercial, research and evaluation use 
+ * This software is free for non-commercial, research and evaluation use
  * under the terms of the LICENSE.md file.
  *
  * For inquiries contact sibr@inria.fr and/or George.Drettakis@inria.fr
@@ -49,15 +49,15 @@ float 	smoothShadowDist( float dist01 )
 
 void main(void) {
 
-//===========================================================================//	
+//===========================================================================//
 //                                                                           //
 //							   Adding Shadow                                 //
 //                                                                           //
-//===========================================================================//	
-{	
+//===========================================================================//
+{
 	const float scanSizeX = (1.0 / in_image_size.x)*4.0; /// \todo TODO: should be split into H and W and use image size
 	const float scanSizeY = (1.0 / in_image_size.y)*4.0; /// \todo TODO: should be split into H and W and use image size
-	
+
 	vec4 bg = texture(firstPassRT,tex_coord); 	// background color
 	vec4 fg = texture(tex,tex_coord);			// foreground color (object to add)
 	float bgDepth = bg.a;
@@ -68,10 +68,10 @@ void main(void) {
     out_color = vec4(bg.rgb, 1.0);
 	//out_color = vec4(bg.a, 0.0, 0.0, 1.0);
 	//gl_FragDepth = bgDepth;
-    
+
 	bool fgIsEmpty = (fg.r == 0 && fg.g == 0 && fg.b == 0);
 	/// gl_FragDepth = 0;
-	
+
     if (fgIsEmpty == false)
 	{
 		out_color = vec4(fg.rgb, (bgDepth <= fgDepth)? 0.0 : 1.0);
@@ -81,17 +81,17 @@ void main(void) {
 		/// out_color = vec4(fg.a, 0.0, 0.0, 1.0);
 	}
 	else
-	{		
+	{
 		// Scan for non-empty pixels for determining the power
 		// of the shadow.
 		// 'non-empty' pixels are FULL black pixels
-		
+
 		const int 	scanItCount = 8;
 		const int 	maxScanablePixels = (scanItCount*2 + 1)*(scanItCount*2 + 1);
 		const float maxAxisX = (scanItCount*2 + 1)*scanSizeX;
 		const float maxAxisY = (scanItCount*2 + 1)*scanSizeY;
-		const float maxScanDist = maxAxisX*maxAxisX + maxAxisY*maxAxisY; 
-		
+		const float maxScanDist = maxAxisX*maxAxisX + maxAxisY*maxAxisY;
+
 		float nearestDist = maxScanDist*2.0;//maxScanDist + 1.0;
 		float nearestXs = 1.0;
 		float nearestYs = 1.0;
@@ -107,9 +107,9 @@ void main(void) {
 				float dist = (xs*xs + ys*ys);
 				vec4 color = texture(tex, vec2(tex_coord.x+xs, tex_coord.y+ys));
 				float sampleDepth =  color.a+constFgAdditionalOffset;
-				
+
 				averageBgDepth += sampleDepth;
-				
+
 				if ( (color.r == 0 && color.g == 0 && color.b == 0) == false
 //// [A] this one will cause you trouble with object in front of your shadow caster
 //				)
@@ -127,35 +127,35 @@ void main(void) {
 						// nearestDepth = sampleDepth;
 					}
 
-					
+
 					//nearestXs = min(xs, nearestXs);
 					//nearestYs = min(ys, nearestYs); // note that stored nearestXs/Ys might stores an unexisting coordinate pair
 					nearestDist = min(nearestDist, dist);
 					nearestDepth += sampleDepth;//max(nearestDepth, sampleDepth);
 					++nonEmptyPixelFound;
-					
+
 					averageBgDepth -= sampleDepth; // cancel this in this case
 				}
 			}
 		}
 		nearestDepth = nearestDepth/float(nonEmptyPixelFound);
 		averageBgDepth = averageBgDepth/float(maxScanablePixels-nonEmptyPixelFound);
-		
+
 		//if (nearestDist > 0)
 		{
-			
+
 			// Compute the shadow power
 			float shadowPower = 1.0;
-			
+
 			float ratioNonEmptyPixelFound = float(nonEmptyPixelFound) / float(maxScanablePixels);
 			// influence of the caster size
 			shadowPower *= smoothstep(0.0, 0.5, ratioNonEmptyPixelFound);
-			
+
 			//if (nonEmptyPixelFound < 100)
 			//	shadowPower = 0.0;
-			
+
 			//shadowPower *= max(0.0, min(1.0, nonEmptyPixelFound/minPixelCaster ));
-			
+
 			// Dev Note for improving things
 			// There are two way to implement the influence of the shadow caster/receiver distance.
 			// [3d solution]
@@ -163,7 +163,7 @@ void main(void) {
 			// [estim solution]
 			// - another one is roughly estimate the effect
 
-#if SHADOWPOWER_METHOD == SHADOWPOWER_METHOD_ESTIM_NONLINEAR			
+#if SHADOWPOWER_METHOD == SHADOWPOWER_METHOD_ESTIM_NONLINEAR
 			// [estim solution]
 			// influence of the distance to the object that cast this shadow (slightly improve but not enough)
 			//shadowPower *= smoothShadowDist(nearestDist/maxScanDist);
@@ -173,9 +173,9 @@ void main(void) {
 			diffDepth = diffDepth / maxDiffDepth;
 			float depthFactor = clamp(diffDepth, 0.0, 1.0);
 			shadowPower *= (1.0 - depthFactor);
-#endif			
-			
-#if SHADOWPOWER_METHOD == SHADOWPOWER_METHOD_ESTIM			
+#endif
+
+#if SHADOWPOWER_METHOD == SHADOWPOWER_METHOD_ESTIM
 			// [estim solution]
 			// influence of the distance to the object that cast this shadow (slightly improve but not enough)
 			//shadowPower *= smoothShadowDist(nearestDist/maxScanDist);
@@ -188,10 +188,10 @@ void main(void) {
 			float line = abs(caster3dPos.z-bg3dPos.z);
 			float factorDist = 1.0 - max(0.0, min(1.0, line/maxDist) );
 			shadowPower *= factorDist;
-#endif			
-			
+#endif
+
 #if SHADOWPOWER_METHOD == SHADOWPOWER_METHOD_3D
-			// [3d solution]			
+			// [3d solution]
 			// influence of the shadow receiver distance
 			const float maxDist = 0.25; // in world unit
 			const float maxDistSqr = maxDist*maxDist;
@@ -203,12 +203,12 @@ void main(void) {
 			float distSqr = line.x*line.x + line.y*line.y + line.z*line.z;
 			float factorDist = 1.0 - max(0.0, min(1.0, distSqr/maxDistSqr) );
 			shadowPower *= factorDist;
-#endif			
-			
-		
-			
+#endif
+
+
+
 			out_color = vec4(0, 0, 0, shadowPower / 1.5);
-			
+
 			// //out_color = vec4(fgZ/10.0, 0, 0, 1.0);
 			// float nearPlane = 3.23569;
 			// float farPlane = 17.1543;
@@ -216,20 +216,20 @@ void main(void) {
 			// out_color = vec4(bg2dPos.z/farPlane, 0, 0, 1.0);
 			//out_color = vec4(bgDepth, 0, 0, 1.0);
 			//gl_FragDepth = nearestDepth;
-			
-			
+
+
 			//gl_FragDepth = bgDepth + constFgAdditionalOffset - 1;
 			float newDepth = bgDepth;// + constFgAdditionalOffset;
 			outDepth = (newDepth <= bgDepth)? newDepth : bgDepth;
 		}
-		
+
 		// if (nearestDist < 1.0)
 		// {
 			// out_color = vec4(nearestDepth, 0.0, 0.0, 1.0);
 			// gl_FragDepth = 0;
-		// }		
+		// }
 	}
-	
+
 	// Simulate BLEND function (GL_ONE_MINUS_SRC_ALPHA)
 	//out_color = vec4(bg.xyz + out_color.xyz/out_color.a, gl_FragDepth);
 	out_color = vec4(bg.xyz*(1.0 - out_color.a) + out_color.xyz*out_color.a,  outDepth);

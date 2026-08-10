@@ -1,10 +1,8 @@
+import logging
+import os
+import sys
 import time
 from pathlib import Path
-import sys
-import pytest
-import logging
-import requests
-import os
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 SRC_ROOT = REPO_ROOT
@@ -14,26 +12,26 @@ for path in (SRC_ROOT, REPO_ROOT):
     if path_str not in sys.path:
         sys.path.insert(0, path_str)
 
-from science_jubilee.tools.camera.toolheadcam import ToolheadCam
-from science_jubilee.labware.Labware import Well
-from science_jubilee.hal.tool_changer import ToolChanger
-from science_jubilee.hal.transport.http import HTTPTransport
-from science_jubilee.hal.transport.mock import MockTransport
-from science_jubilee.hal.motion_driver import MotionDriver
-from science_jubilee.navigation.deck_navigation import DeckNavigator
-from science_jubilee.decks.Deck import Deck
 import duckweed_segment_and_track
 import numpy as np
 import yaml
+
+from science_jubilee.decks.Deck import Deck
+from science_jubilee.hal.motion_driver import MotionDriver
+from science_jubilee.hal.tool_changer import ToolChanger
+from science_jubilee.hal.transport.http import HTTPTransport
+from science_jubilee.labware.Labware import Well
+from science_jubilee.navigation.deck_navigation import DeckNavigator
+
 LED_SERVER = "http://10.0.9.55:5001"
 
 logger = logging.getLogger(__name__)
- 
-#Test à utiliser uniquement en Hardware
-transport= HTTPTransport(address="10.0.9.6")
+
+# Test à utiliser uniquement en Hardware
+transport = HTTPTransport(address="10.0.9.6")
 driver = MotionDriver(transport)
 tool_changer = ToolChanger(transport)
-deck= Deck(os.getenv("JUBILEE_DECK_DEF", "lab_automation_deck_AFL_bolton.json"))
+deck = Deck(os.getenv("JUBILEE_DECK_DEF", "lab_automation_deck_AFL_bolton.json"))
 nav = DeckNavigator(driver, deck=deck)
 """
 intrinsics= REPO_ROOT/ "science_jubilee/Vision/Camera_calibration/src/camera_params.yaml"
@@ -54,18 +52,22 @@ def main(debug,x_depart=142.0,y_depart=155.0, z_depart= 190.0, well = None):
     
     #cam.dist = np.array(intrinsics["dist"], dtype=np.float32)
     tool_changer.pickup_tool(0)
-    tool_offset = np.array(tool_changer.get_tool_offset(0))
+    np.array(tool_changer.get_tool_offset(0))
     print(cam.offset)
     print(tool_changer.get_tool_offset(0))
-    
-    cam.move_to_get_image(x_depart,y_depart,z_depart)
+
+    cam.move_to_get_image(x_depart, y_depart, z_depart)
     time.sleep(3)
     img = cam.get_image()
     img1 = img.copy()
-    #img = cam.get_latest_image(folder = Path("dataset_brut"))
-    duckweed, float_center = duckweed_segment_and_track.main(img=img1,camera=cam,float_radius_mm=37.5)
-    print(f"Target choisi: {duckweed}, veuillez confirmer que c'est bien la cible souhaitée.")
-    if well==None:
+    # img = cam.get_latest_image(folder = Path("dataset_brut"))
+    duckweed, float_center = duckweed_segment_and_track.main(
+        img=img1, camera=cam, float_radius_mm=37.5
+    )
+    print(
+        f"Target choisi: {duckweed}, veuillez confirmer que c'est bien la cible souhaitée."
+    )
+    if well == None:
         well = Well(
         "A1",
         depth=120,
@@ -76,10 +78,9 @@ def main(debug,x_depart=142.0,y_depart=155.0, z_depart= 190.0, well = None):
         z=2,
         diameter=37.5*2,
         )
-    else :
-        error = np.linalg.norm(np.array(well.x,well.y)-float_center)
+    else:
+        error = np.linalg.norm(np.array(well.x, well.y) - float_center)
         print(f"Erreur de détéction du puit à {error} mm ")
-    
 
     x = float(x_depart + cam.offset[0] + duckweed[0]+offest_sup[0])
     y = float(y_depart + cam.offset[1] - duckweed[1]+offest_sup[1])
@@ -88,10 +89,10 @@ def main(debug,x_depart=142.0,y_depart=155.0, z_depart= 190.0, well = None):
     print(f"Target choisi: {x,y,z}, veuillez confirmer que c'est bien la cible souhaitée.")
     if debug == True:
         try:
-                confirmation = input("Confirmez-vous ce target? (y/n): ")
-                if confirmation.lower() != 'y':
-                    print("Cible non confirmée. Veuillez sélectionner une autre cible.")
-                    return
+            confirmation = input("Confirmez-vous ce target? (y/n): ")
+            if confirmation.lower() != "y":
+                print("Cible non confirmée. Veuillez sélectionner une autre cible.")
+                return
         except KeyboardInterrupt:
                 print("\nOpération annulée par l'utilisateur.")
                 return

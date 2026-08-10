@@ -65,6 +65,72 @@ m.load_tool(pipette)                                           # configure the p
 ...
 ```
 
+### MachineSession (recommended entry point)
+
+`MachineSession` wires the full stack — transport, motion, tool-changer, deck navigator, camera, and light — into a single object.
+
+**From a `.env` file (recommended)**
+
+Put experiment-specific settings in a `.env` file next to your notebook or script:
+
+```ini
+JUBILEE_TRANSPORT=mock            # or: hardware
+JUBILEE_ADDRESS=192.168.1.2       # required when TRANSPORT=hardware
+JUBILEE_EXPERIMENT_DIR=my_exp/    # folder with deck.json, labware JSONs, gcode files
+JUBILEE_DECK_DEF=deck             # stem of the deck JSON (auto-detected if omitted)
+JUBILEE_GCODE_LOG=gcode_logs/latest.gcode
+JUBILEE_CAMERA_ADDRESS=           # camera server IP (hardware only)
+JUBILEE_NEOPIXEL_ADDRESS=         # LED server IP (hardware only)
+JUBILEE_CAMERA_CALIB=calibration/camera_params.yaml
+```
+
+Then build the session:
+
+```python
+from science_jubilee.machine_session import MachineSession
+
+session = MachineSession.from_env(".env")
+session.free_navigator.move_to(x=100, y=50)
+session.navigator.move_to_well(slot="0", well="A1")
+```
+
+**Explicit constructors**
+
+```python
+# Mock (no hardware required)
+session = MachineSession.mock(
+    deck_def="deck",
+    experiment_dir=Path("my_exp/"),
+)
+
+# Real machine
+session = MachineSession.hardware(
+    address="192.168.1.2",
+    deck_def="deck",
+    experiment_dir=Path("my_exp/"),
+    camera_address="192.168.1.3",
+    led_address="192.168.1.4",
+)
+```
+
+**Context manager**
+
+```python
+with MachineSession.from_env(".env") as s:
+    s.motion.home_all()
+```
+
+Key attributes:
+
+| Attribute | Type | Description |
+|---|---|---|
+| `session.motion` | `MotionDriver` | Low-level G-code motion |
+| `session.tool_changer` | `ToolChanger` | Pick and park tools |
+| `session.navigator` | `DeckNavigator` | Well-addressed deck navigation (requires `deck_def`) |
+| `session.free_navigator` | `FreeNavigator` | Coordinate-based navigation |
+| `session.camera` | `ToolheadCam` / mock | Camera capture |
+| `session.light` | `Neopixel` / mock | LED ring control |
+
 ### Setting up a new tool with the HAL layer
 For tool setup and calibration, a lower-level interface based on `MotionDriver` is available. It gives direct control over motion and handles generating the Duet firmware files needed for each tool (tpre, tpost, tfree):
 
@@ -112,6 +178,75 @@ The generated files are written to `firmware/sys/` locally and, when `transport`
 
 
 
+
+<!-- pyscaffold-notes -->
+
+## Development
+
+### Setup
+
+```powershell
+pip install -e ".[testing,scripts]"
+pre-commit install        # registers hooks in .git/hooks — run once per clone
+```
+
+### Pre-commit hooks
+
+Every `git commit` automatically runs the following checks on staged files:
+
+| Hook | What it does |
+|---|---|
+| `trailing-whitespace`, `end-of-file-fixer` | Whitespace cleanup |
+| `check-ast` | Validates Python syntax |
+| `check-json` | Validates JSON files |
+| `check-yaml` | Validates YAML files |
+| `debug-statements` | Blocks committed `pdb` / `ipdb` calls |
+| `autoflake` | Removes unused imports |
+| `isort` | Sorts imports (black-compatible profile) |
+| `black` | Formats Python code |
+| `pytest --jubilee-env mock` | Runs the full test suite in mock mode |
+
+Most hooks are **auto-fixers**: they modify files in-place and then block the commit so you can review and re-stage the changes.
+
+### Commit workflow
+
+```powershell
+git add -u                # stage all changes first — important!
+git commit -m "message"   # hooks run automatically
+```
+
+If hooks modify files (black, isort, autoflake), the commit is blocked. Re-stage and retry:
+
+```powershell
+git add -u
+git commit -m "message"   # hooks now pass on the already-formatted files
+```
+
+```
+git commit         →  black modifies file.py  →  commit blocked
+                                ↓
+                    file.py now has unstaged changes
+                                ↓
+git add -u         →  those fixes are now staged
+                                ↓
+git commit         →  hooks pass (file already formatted)  →  committed ✓
+```
+
+> **Tip:** always `git add -u` before committing.
+
+To run hooks manually on all files (useful before a PR):
+
+```powershell
+pre-commit run --all-files
+```
+
+### Running tests
+
+```powershell
+pytest --jubilee-env mock       # mock mode, no hardware needed
+pytest --jubilee-env hardware   # requires a connected Jubilee at JUBILEE_ADDRESS
+pytest -m "not invasive"        # skip tests that move the machine
+```
 
 <!-- pyscaffold-notes -->
 

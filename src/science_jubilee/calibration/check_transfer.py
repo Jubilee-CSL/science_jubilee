@@ -14,7 +14,9 @@ from science_jubilee.machine_session import MachineSession
 from science_jubilee.scripts.config_dialog import ask_run_config
 from science_jubilee.tools.unique_tools.Inoculator import Inoculator
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 
 ex = Experiment("duckweed")
 ex.observers.append(MongoObserver(db_name="jubilee26"))
@@ -22,22 +24,22 @@ ex.observers.append(MongoObserver(db_name="jubilee26"))
 
 @ex.config
 def config():
-    name        = ""      # run label
-    tool        = 0       # inoculator tool index
-    source_slot = "0"
-    source_well = "A1"
-    dest_slot   = "0"     # slot whose wells are all destinations
-    randomize   = False   # randomize pickup position inside source well
+    name = ""  # run label
+    tool = 0  # inoculator tool index
+    dest_slot = "0"  # slot whose wells are all destinations
+    randomize = False  # randomize pickup position inside source well
 
 
 @ex.main
 def main(_config, _run):
     cfg = ask_run_config(_config, title="Duckweed — configure run")
 
-    session = MachineSession.from_env(env_file = ".env.hardware")
+    session = MachineSession.from_env(env_file=".env.hardware")
     nav = session.navigator
     if nav is None:
-        raise RuntimeError("No deck loaded — set JUBILEE_DECK_DEF and JUBILEE_EXPERIMENT_DIR.")
+        raise RuntimeError(
+            "No deck loaded — set JUBILEE_DECK_DEF and JUBILEE_EXPERIMENT_DIR."
+        )
 
     tool_idx = cfg["tool"]
     tool = session.tool_changer.get_tool(tool_idx)
