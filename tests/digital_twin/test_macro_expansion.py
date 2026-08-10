@@ -9,8 +9,6 @@ function so they persist after the run and can be inspected.
 
 from pathlib import Path
 
-import pytest
-
 from science_jubilee.hal.transport.mock import MockTransport
 from science_jubilee.hal.transport.recording import RecordingTransport
 

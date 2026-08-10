@@ -183,7 +183,6 @@ def make_PS4_control(m, filename):
     xReq, yReq, zReq = m.position
 
     done = False
-    move = False
 
     # Main event loop
     while not done:
@@ -204,7 +203,6 @@ def make_PS4_control(m, filename):
                     print("End of recording")
 
             if event.type == pygame.JOYBUTTONDOWN:
-                move = True
                 dx, dy, dz = button_event(event, step=10)
                 while len(pygame.event.get()) == 0:
                     # keep moving while the button is still pressed
@@ -215,7 +213,7 @@ def make_PS4_control(m, filename):
                     m.move(dx=dx, dy=dy, dz=dz)
 
             if event.type == pygame.JOYBUTTONUP:
-                move = False
+                pass
 
             if event.type == pygame.JOYAXISMOTION:
                 if abs(event.value) > 0.5:

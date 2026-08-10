@@ -35,7 +35,7 @@ let defaultOptions = {
 let Dics = function(options) {
   this.options = utils.extend({}, [defaultOptions, options], {
     clearEmpty: true
-  }); 
+  });
 
   this.container = this.options.container;
 
@@ -640,4 +640,3 @@ let utils = {
     return Object.prototype.toString.call(object).slice(8, -1);
   }
 };
-

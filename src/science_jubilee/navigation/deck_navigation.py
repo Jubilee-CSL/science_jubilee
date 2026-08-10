@@ -1,13 +1,12 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
-from typing import Iterable
 
 from science_jubilee.decks.Deck import Deck
 from science_jubilee.hal.motion_driver import MotionDriver
 from science_jubilee.labware.Labware import Labware, Location, Point, Well
 
-import logging
 logger = logging.getLogger(__name__)
 
 
@@ -85,47 +84,57 @@ class DeckNavigator:
         )
 
         # 2) XY trave
-        self.driver.move_to({"X": float(well.x)},s=speed_xy,wait=True)
-        self.driver.move_to({"Y": float(well.y)},s=speed_xy,wait=True)
-
+        self.driver.move_to({"X": float(well.x)}, s=speed_xy, wait=True)
+        self.driver.move_to({"Y": float(well.y)}, s=speed_xy, wait=True)
 
         # 2) Z travel
-        self.driver.move_to({"Z": float(well.top)},s=speed_z,wait=True)
+        self.driver.move_to({"Z": float(well.top)}, s=speed_z, wait=True)
 
-    def move_inside_well(self, well: Well,
-                         dx: float = 0, 
-                         dy: float = 0,
-                         dz: float = 0,
-                         z: float | None = None, 
-                         speed_xy:float | None = None, 
-                         speed_z: float | None = None,
-                         ):
+    def move_inside_well(
+        self,
+        well: Well,
+        dx: float = 0,
+        dy: float = 0,
+        dz: float = 0,
+        z: float | None = None,
+        speed_xy: float | None = None,
+        speed_z: float | None = None,
+    ):
 
-        speed_xy = (self.default_speed_xy if speed_xy is None else speed_xy)
-        speed_z = (self.default_speed_z if speed_z is None else speed_z)
+        speed_xy = self.default_speed_xy if speed_xy is None else speed_xy
+        speed_z = self.default_speed_z if speed_z is None else speed_z
 
         position = self.driver.get_positions()
-        location = Location(point = Point(x=position["X"],
-                                          y=position["Y"],
-                                          z=position["Z"]),
-                                          resource=well)
-        
+        location = Location(
+            point=Point(x=position["X"], y=position["Y"], z=position["Z"]),
+            resource=well,
+        )
+
         if (dx or dy) != 0:
-            destination : Location = well.safe_move(location,dx,dy)
-            self.driver.move_to({"X":float(destination.point.x)},s=speed_xy,wait=True)
-            self.driver.move_to({"Y":float(destination.point.y)},s=speed_xy,wait=True)
+            destination: Location = well.safe_move(location, dx, dy)
+            self.driver.move_to(
+                {"X": float(destination.point.x)}, s=speed_xy, wait=True
+            )
+            self.driver.move_to(
+                {"Y": float(destination.point.y)}, s=speed_xy, wait=True
+            )
 
         if z is not None:
             self.driver.move_to({"Z": float(z)}, s=speed_z, wait=True)
         elif dz != 0:
-            self.driver.move_to({"Z": float(location.point.z + dz)}, s=speed_z, wait=True)
+            self.driver.move_to(
+                {"Z": float(location.point.z + dz)}, s=speed_z, wait=True
+            )
 
+    def random_move_inside_well(
+        self, well: Well, margin: float = 0.6, speed_xy: float | None = None
+    ):
 
-    def random_move_inside_well(self, well:Well ,margin : float = 0.6 , speed_xy:float | None = None):
-        
         destination = well.random_point(safety_margin=margin)
         logger.info(destination)
-        self.move_inside_well(well,destination.point.x,destination.point.y,speed_xy=speed_xy)
+        self.move_inside_well(
+            well, destination.point.x, destination.point.y, speed_xy=speed_xy
+        )
 
     # ------------------------------------------------------------------
     # Deck helpers
@@ -147,9 +156,9 @@ class DeckNavigator:
         Retrieve a well directly from deck state.
         """
 
-        return self.deck.get_well(str(slot_id),well_id)
-    
-    def get_wells_in_slot(self,slot_id: str | int) -> list[Well]:
+        return self.deck.get_well(str(slot_id), well_id)
+
+    def get_wells_in_slot(self, slot_id: str | int) -> list[Well]:
         """
         Retrieve loaded labware from deck.
         """

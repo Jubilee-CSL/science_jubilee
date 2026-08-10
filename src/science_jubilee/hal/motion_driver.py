@@ -116,7 +116,9 @@ class MotionDriver:
             lim = self._axis_limits.get(ax.value)
             if lim is not None:
                 lo, hi = lim
-                check = float(val) if absolute else current.get(ax.value, 0.0) + float(val)
+                check = (
+                    float(val) if absolute else current.get(ax.value, 0.0) + float(val)
+                )
                 # snap sub-micron float drift to the nearest limit
                 if lo - 1e-3 <= check <= hi + 1e-3:
                     check = max(lo, min(hi, check))

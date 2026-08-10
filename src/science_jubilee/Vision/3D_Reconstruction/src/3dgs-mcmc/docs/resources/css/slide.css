@@ -5,25 +5,25 @@
     height: 400px; /* Adjust to your preference */
     margin: 0 auto; /* Center horizontally */
   }
-  
+
   .img-comp-container {
     position: relative;
     width: 500px; /* Adjust to your preference */
   }
-  
+
   .img-comp-img {
     position: absolute;
     width: auto;
     height: 100%;
     overflow: hidden;
   }
-  
+
   .img-comp-img img {
     display: block;
     width: auto;
     height: 100%;
   }
-  
+
   .img-comp-slider {
     position: absolute;
     z-index: 9;

@@ -1,4 +1,4 @@
-# You must set $COLMAP_EXE_PATH to 
+# You must set $COLMAP_EXE_PATH to
 # the directory containing the COLMAP executables.
 $COLMAP_EXE_PATH/colmap patch_match_stereo \
   --workspace_path . \

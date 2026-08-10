@@ -8,7 +8,7 @@ DATASET_PATH="$PROJECT_DIR/Datasets/latest_dataset"
 OUTPUT_DIR="$PROJECT_DIR/Outputs/latest_dataset_results"
 ITERATIONS=10000
 
-#You can also call the .sh file with arguments so it change the 
+#You can also call the .sh file with arguments so it change the
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --dataset) DATASET_PATH="$2"; shift ;;
@@ -34,13 +34,13 @@ mkdir -p "$OUTPUT_DIR"
 
 # 1. Conda environement activation; You can change this if you are not using miniconda3 and if you have call the wsl environement differently
 echo " Activation de l'environnement Conda (gs_final)..."
-source ~/miniconda3/etc/profile.d/conda.sh  
+source ~/miniconda3/etc/profile.d/conda.sh
 conda activate gaussian_splatting_inria
 
 #Colmap training for sparse points and camera pose estimation
 echo "Step 1/2 : Colmap sparse points"
 cd "$PROJECT_DIR/src/3dgs-mcmc"
-python convert.py -s "$DATASET_PATH" 
+python convert.py -s "$DATASET_PATH"
 
 #3DGS-mcmc training
 cd "$PROJECT_DIR/src/3dgs-mcmc"

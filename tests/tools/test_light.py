@@ -11,9 +11,11 @@ logger = logging.getLogger(__name__)
 # Secondary: state tracking (mock only, no network)
 # ------------------------------------------------------------------
 
+
 @pytest.mark.secondary
 def test_pixel_on_sets_state(light):
     from science_jubilee.tools.light.neopixel_mock import NeopixelMock
+
     if not isinstance(light, NeopixelMock):
         pytest.skip("state-inspection test is mock-only")
     light.pixel_on(0, 255, 128, 0)
@@ -49,6 +51,7 @@ def test_all_pixel_off_clears_all(light):
 # ------------------------------------------------------------------
 # Invasive: full sequence (runs on both mock and hardware)
 # ------------------------------------------------------------------
+
 
 @pytest.mark.secondary
 def test_light_sequence(light):

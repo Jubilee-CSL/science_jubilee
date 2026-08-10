@@ -99,7 +99,7 @@ You may need to change the compiler options in the setup.py file to run both the
     extra_compile_args={"nvcc": ["-Xcompiler", "-fno-gnu-unique", "-I" + os.path.join(os.path.dirname(os.path.abspath(__file__)), "third_party/glm/")]}
     ```
     Afterwards, you need to reinstall diff-gaussian-rasterization. This is mentioned in [3DGS-issue-#41](https://github.com/graphdeco-inria/gaussian-splatting/issues/41).
-    
+
 By following these steps, you should be able to install the project and reproduce the results. If you encounter any issues, refer to the original 3DGS code base for further guidance.
 
 ## How to run
@@ -114,7 +114,3 @@ Running code is similar to the [Original 3DGS code base](https://github.com/grap
 ```sh
 python train.py --source_path PATH/TO/Shape --config configs/shape.json --eval
 ```
-
-
-
-

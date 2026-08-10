@@ -1,5 +1,4 @@
 import logging
-from pathlib import Path
 
 import numpy as np
 import pytest
@@ -10,6 +9,7 @@ logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------
 # Secondary: image acquisition, no motion
 # ------------------------------------------------------------------
+
 
 @pytest.mark.secondary
 def test_get_image_returns_bgr_array(camera):
@@ -33,6 +33,7 @@ def test_save_image_writes_file(camera, tmp_path):
 def test_mock_camera_injected_image(camera):
     """MockCamera returns the injected image exactly (skipped on hardware)."""
     from science_jubilee.tools.camera.toolheadcam_mock import ToolheadCamMock
+
     if not isinstance(camera, ToolheadCamMock):
         pytest.skip("injected-image test is mock-only")
     synthetic = np.full((480, 640, 3), 128, dtype=np.uint8)
@@ -45,6 +46,7 @@ def test_mock_camera_injected_image(camera):
 # ------------------------------------------------------------------
 # Invasive: motion + acquisition at two positions
 # ------------------------------------------------------------------
+
 
 @pytest.mark.invasive
 def test_acquire_image_at_two_positions(camera, tmp_path):
@@ -62,5 +64,3 @@ def test_acquire_image_at_two_positions(camera, tmp_path):
 
     saved = sorted(tmp_path.glob("*.jpg"))
     assert len(saved) == 2
-
-

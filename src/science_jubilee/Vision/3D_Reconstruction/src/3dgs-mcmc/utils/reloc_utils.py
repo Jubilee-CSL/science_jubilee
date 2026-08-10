@@ -1,6 +1,7 @@
-from diff_gaussian_rasterization import compute_relocation
-import torch
 import math
+
+import torch
+from diff_gaussian_rasterization import compute_relocation
 
 # Provide a fallback for math.comb for Python versions < 3.8
 try:

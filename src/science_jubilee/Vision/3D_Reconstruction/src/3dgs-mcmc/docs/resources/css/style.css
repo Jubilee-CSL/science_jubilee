@@ -318,7 +318,7 @@ a:hover {
     display: block;
     line-height: 0;
   }
-  
+
   .video {
     width: 100%;
     height: auto;
@@ -326,7 +326,7 @@ a:hover {
     top: 0;
     left: 0;
   }
-  
+
   .videoMerge {
     position: relative;
     top: 0;
@@ -337,7 +337,7 @@ a:hover {
     margin: 0 auto;
     background-size: cover;
   }
-  
+
   .cropped-video {
     width: 100%;
     overflow: hidden;
