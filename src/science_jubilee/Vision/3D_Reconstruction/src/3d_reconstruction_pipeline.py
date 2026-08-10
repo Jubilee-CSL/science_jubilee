@@ -48,9 +48,10 @@ def main(num_photos=100, dataset_name="Latest_reconstruction", camera=None,Show=
 
     images_dir.mkdir(parents=True, exist_ok=True)
     output_path.mkdir(parents=True, exist_ok=True)
-    
+
+    """
     if camera is None:
-        camera = Camera(driver, tool_changer)
+        camera = ToolheadCam(driver=driver, tool_changer=tool_changer,adress="")
 
     grid_size = int(np.ceil(np.sqrt(num_photos)))
     start_x = 94.0
@@ -113,10 +114,10 @@ def main(num_photos=100, dataset_name="Latest_reconstruction", camera=None,Show=
     result = os.system(commande)
     if result != 0:
         raise RuntimeError(f"WSL reconstruction failed with exit code {result}")
-    
+    """
     output_reconstruction = output_path / "3d_reconstruction"
     
-    ply_path = output_reconstruction / "point_cloud/iteration_10000" / "point_cloud.ply"
+    ply_path = output_reconstruction / "point_cloud/iteration_7000" / "point_cloud.ply"
     if not ply_path.exists():
         raise FileNotFoundError(f"Expected point cloud not found: {ply_path}")
     
@@ -126,7 +127,7 @@ def main(num_photos=100, dataset_name="Latest_reconstruction", camera=None,Show=
     filter_plants.filter_gaussians(
         input_ply=str(ply_path),
         output_ply=str(filtered_ply_path),
-        bbox_size=40,  
+        bbox_size=10000,  
         bbox_center=[0.0,2,0.0],
         elongation_threshold=7.0,
         scale_threshold=1,
@@ -157,4 +158,4 @@ def main(num_photos=100, dataset_name="Latest_reconstruction", camera=None,Show=
     
 
 if __name__ == "__main__":
-    main(num_photos=50, dataset_name="Plante_test_6", Show=True)
+    main(num_photos=50, dataset_name="Plante_test_3", Show=True)

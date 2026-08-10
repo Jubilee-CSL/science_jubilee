@@ -3,7 +3,7 @@ from plyfile import PlyData, PlyElement
 import open3d as o3d
 import argparse
 from scipy.spatial.transform import Rotation
-import extract_scale_cube
+#import extract_scale_cube
 def rgb_to_hsv(r, g, b):
     max_c = np.maximum(np.maximum(r, g), b)
     min_c = np.minimum(np.minimum(r, g), b)
@@ -56,7 +56,7 @@ def process_and_align(input_ply, output_ply, rot_scale=np.array([+3.2, +0.8, 0.0
     qy = np.array(vertex_data['rot_2'])
     qz = np.array(vertex_data['rot_3'])
     
-    # Scipy attend (x, y, z, w)
+    #format scipy
     quats_scipy = np.vstack((qx, qy, qz, w)).T
     r_splats = Rotation.from_quat(quats_scipy)
     
@@ -81,7 +81,7 @@ def process_and_align(input_ply, output_ply, rot_scale=np.array([+3.2, +0.8, 0.0
     # ==========================================
     # 1. ISOLER LES ARUCO (Turquoise)
     # ==========================================
-    mask_aruco = (h > 150) & (h < 190) & (s > 0.1) & (v > 0.1)
+    mask_aruco = (h > 150) & (h < 195) & (s > 0.1) & (v > 0.1)
     aruco_indices = np.where(mask_aruco)[0]
     
     if len(aruco_indices) < 100:
@@ -117,7 +117,7 @@ def process_and_align(input_ply, output_ply, rot_scale=np.array([+3.2, +0.8, 0.0
         
     print(f"Échelle X calculée : {scale_x:.4f}")
     print(f"Échelle Y calculée : {scale_y:.4f}")
-
+    """
     # ==========================================
     # 2. ISOLER LE CUBE (Bleu Ciel)
     # ==========================================
@@ -125,6 +125,12 @@ def process_and_align(input_ply, output_ply, rot_scale=np.array([+3.2, +0.8, 0.0
     #scale_z = 0.025 / 0.556774 # mesuré à la main
     scale_z=(scale_x+scale_y)/2
     print(f"échelle trouvée en z = {scale_z:.4f}")
+    """
+
+    # ==========================================
+    #2. Scale graçe aux postions des cameras par rapport au tray ( dont le z correspond au centre des arucos)
+    #=========================================
+    scale_z=0.320/np.mean(centroids[:,2])
 
     # ==========================================
     # 3. APPLIQUER LA MISE À L'ÉCHELLE (X, Y, Z séparés)
