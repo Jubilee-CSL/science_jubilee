@@ -32,11 +32,25 @@ def pytest_addoption(parser):
     )
 
 
+_MOCK_DEFAULTS = {
+    "JUBILEE_TRANSPORT": "mock",
+    "JUBILEE_GCODE_LOG": "gcode_logs/latest.gcode",
+    "JUBILEE_EXPERIMENT_DIR": "C:/Users/Alienor/Documents/Projects/Jubilee/science_jubilee/src/science_jubilee/decks/example_deck",
+    "JUBILEE_CAMERA_CALIB": "src/science_jubilee/calibration/camera_params.yaml",
+}
+
+
 def pytest_configure(config):
     """Apply selected profile and options before tests start."""
     root = Path(__file__).resolve().parent.parent
     profile = config.getoption("--jubilee-env")
-    load_env_file(root / f".env.{profile}")
+    env_file = root / f".env.{profile}"
+    load_env_file(env_file)
+
+    # apply built-in mock defaults when no .env.mock file is present
+    if profile == "mock" and not env_file.exists():
+        for key, val in _MOCK_DEFAULTS.items():
+            os.environ.setdefault(key, val)
 
     addr_opt = config.getoption("--jubilee-address")
     if addr_opt:

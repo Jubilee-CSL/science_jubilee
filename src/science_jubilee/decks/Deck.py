@@ -1,9 +1,21 @@
 import json
 import os
 from dataclasses import dataclass, field
+from importlib.metadata import entry_points
 from typing import Dict, Iterator, Optional
 
 from science_jubilee.labware.Labware import Labware, Well
+
+
+def _plugin_labware_dirs() -> list[str]:
+    """Return labware definition directories registered by installed plugins."""
+    dirs = []
+    for ep in entry_points(group="science_jubilee.labware"):
+        try:
+            dirs.append(ep.load())
+        except Exception:
+            pass
+    return dirs
 
 
 @dataclass(slots=True, repr=False)
@@ -228,8 +240,16 @@ class Deck(SlotSet):
         ):
             labware_dir = self.labware_search_path
         else:
-            labware_dir = os.path.join(
-                os.path.dirname(__file__), "..", "labware", "labware_definition"
+            # search plugin-registered directories before falling back to built-in
+            labware_dir = next(
+                (
+                    d
+                    for d in _plugin_labware_dirs()
+                    if os.path.exists(os.path.join(d, fn))
+                ),
+                os.path.join(
+                    os.path.dirname(__file__), "..", "labware", "labware_definition"
+                ),
             )
 
         labware = Labware(labware_filename, order=order, path=labware_dir)

@@ -1,0 +1,61 @@
+{
+  "ordering": [
+    [
+      "A1"
+    ]
+  ],
+  "brand": {
+    "brand": "duckweed",
+    "brandId": [
+      "00"
+    ]
+  },
+  "metadata": {
+    "displayName": "glass of water 250 mL",
+    "displayCategory": "reservoir",
+    "displayVolumeUnits": "µL",
+    "tags": []
+  },
+  "dimensions": {
+    "xDimension": 85.0,
+    "yDimension": 85.0,
+    "zDimension": 90.0
+  },
+  "cornerOffsetFromSlot": {
+    "x": 0,
+    "y": 0,
+    "z": 0
+  },
+  "wells": {
+    "A1": {
+      "depth": 85.0,
+      "shape": "circular",
+      "totalLiquidVolume": 250000.0,
+      "x": 40.0,
+      "y": 40.0,
+      "z": 5.0,
+      "diameter": 75.0
+    }
+  },
+  "groups": [
+    {
+      "metadata": {
+        "wellBottomShape": "flat",
+        "displayName": "glass of water 250 mL"
+      },
+      "wells": [
+        "A1"
+      ]
+    }
+  ],
+  "parameters": {
+    "format": "irregular",
+    "quirks": [],
+    "isTiprack": false,
+    "isMagneticModuleCompatible": false,
+    "loadName": "glass_250ml"
+  },
+  "namespace": "custom_beta",
+  "version": 1,
+  "schemaVersion": 2
+}
