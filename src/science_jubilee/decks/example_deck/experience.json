@@ -1,0 +1,33 @@
+{
+    "name": "experience",
+    "type": "SLAS",
+    "deck_offset": [
+        0.0,
+        0.0
+    ],
+    "slots": {
+        "0": {
+            "coordinates": [
+                186.83,
+                31.83
+            ],
+            "shape": "rectangle",
+            "width": 85.0,
+            "length": 85.0,
+            "has_labware": true,
+            "labware": null
+        },
+        "1": {
+            "coordinates": [
+                140.6,
+                169.79
+            ],
+            "shape": "rectangle",
+            "width": 85.47,
+            "length": 127.76,
+            "has_labware": true,
+            "labware": null
+        }
+    },
+    "tool_slots": {}
+}

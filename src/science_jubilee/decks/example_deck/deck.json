@@ -1,0 +1,28 @@
+{
+    "deck_type": "Lab Automation Deck",
+    "deck_slots": {
+        "total": 2,
+        "type": "SLAS Standard Labware"
+    },
+    "slots": {
+        "0": {
+            "offset": [
+                186.83,
+                31.83
+            ],
+            "has_labware": false,
+            "labware": "glass_250ml.json"
+        },
+        "1": {
+            "offset": [
+                140.6,
+                169.79
+            ],
+            "has_labware": false,
+            "labware": "corning_24_wellplate_3.4ml_flat.json"
+        }
+    },
+    "offset_from": {
+        "corner": "bottom_left"
+    }
+}
