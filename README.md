@@ -181,6 +181,75 @@ The generated files are written to `firmware/sys/` locally and, when `transport`
 
 <!-- pyscaffold-notes -->
 
+## Development
+
+### Setup
+
+```powershell
+pip install -e ".[testing,scripts]"
+pre-commit install        # registers hooks in .git/hooks — run once per clone
+```
+
+### Pre-commit hooks
+
+Every `git commit` automatically runs the following checks on staged files:
+
+| Hook | What it does |
+|---|---|
+| `trailing-whitespace`, `end-of-file-fixer` | Whitespace cleanup |
+| `check-ast` | Validates Python syntax |
+| `check-json` | Validates JSON files |
+| `check-yaml` | Validates YAML files |
+| `debug-statements` | Blocks committed `pdb` / `ipdb` calls |
+| `autoflake` | Removes unused imports |
+| `isort` | Sorts imports (black-compatible profile) |
+| `black` | Formats Python code |
+| `pytest --jubilee-env mock` | Runs the full test suite in mock mode |
+
+Most hooks are **auto-fixers**: they modify files in-place and then block the commit so you can review and re-stage the changes.
+
+### Commit workflow
+
+```powershell
+git add -u                # stage all changes first — important!
+git commit -m "message"   # hooks run automatically
+```
+
+If hooks modify files (black, isort, autoflake), the commit is blocked. Re-stage and retry:
+
+```powershell
+git add -u
+git commit -m "message"   # hooks now pass on the already-formatted files
+```
+
+```
+git commit         →  black modifies file.py  →  commit blocked
+                                ↓
+                    file.py now has unstaged changes
+                                ↓
+git add -u         →  those fixes are now staged
+                                ↓
+git commit         →  hooks pass (file already formatted)  →  committed ✓
+```
+
+> **Tip:** always `git add -u` before committing.
+
+To run hooks manually on all files (useful before a PR):
+
+```powershell
+pre-commit run --all-files
+```
+
+### Running tests
+
+```powershell
+pytest --jubilee-env mock       # mock mode, no hardware needed
+pytest --jubilee-env hardware   # requires a connected Jubilee at JUBILEE_ADDRESS
+pytest -m "not invasive"        # skip tests that move the machine
+```
+
+<!-- pyscaffold-notes -->
+
 ## Note
 
 This project has been set up using PyScaffold 4.5. For details and usage
