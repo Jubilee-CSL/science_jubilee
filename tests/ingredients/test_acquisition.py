@@ -10,6 +10,8 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
+pytest.importorskip("sacred", reason="sacred requires pkg_resources (setuptools)")
+
 from science_jubilee.scripts.ingredients.acquisition import (
     _capture_multi_lighting,
     _pixel_minimum,

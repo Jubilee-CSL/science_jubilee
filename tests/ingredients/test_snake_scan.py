@@ -5,6 +5,8 @@ from unittest.mock import patch
 
 import pytest
 
+pytest.importorskip("sacred", reason="sacred requires pkg_resources (setuptools)")
+
 from science_jubilee.scripts.ingredients.snake_scan import run_scan
 
 _SESSION = "science_jubilee.scripts.ingredients.snake_scan.MachineSession"
