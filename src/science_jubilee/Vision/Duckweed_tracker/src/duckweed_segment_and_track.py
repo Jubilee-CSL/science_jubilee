@@ -115,7 +115,7 @@ def get_float_points(img, min_area_px=250, min_circularity=0.7) -> np.ndarray:
     exb = 2 * b.astype(np.int16) - g.astype(np.int16) - r.astype(np.int16)
     exb = cv2.normalize(exb, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
 
-    _, mask = cv2.threshold(exb, 170, 255, cv2.THRESH_BINARY)
+    _, mask = cv2.threshold(exb, 140, 255, cv2.THRESH_BINARY)
     kernel = np.ones((3, 3), np.uint8)
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
@@ -231,7 +231,7 @@ def main(img, camera, float_radius_mm=25.0):
         # Estimation de la pose (tvec correspond au centre 3D du flotteur)
         tvec = estimate_float_pose(camera, float_img_points, float_radius_mm)
         float_center_3d = tvec # Tableau [X, Y, Z] en millimètres
-        water_level = tvec[2]  # Coordonnée Z
+        water_level = tvec[2] - 1.5 # Coordonnée Z correction car le flotteur est en dessous de la surface de l'eau
         
         # Calcul et affichage du centre 2D en pixels (bleu)
         float_center_2d = np.mean(float_img_points, axis=0).astype(int)

@@ -35,26 +35,24 @@ driver = MotionDriver(transport)
 tool_changer = ToolChanger(transport)
 deck= Deck(os.getenv("JUBILEE_DECK_DEF", "lab_automation_deck_AFL_bolton.json"))
 nav = DeckNavigator(driver, deck=deck)
+"""
 intrinsics= REPO_ROOT/ "science_jubilee/Vision/Camera_calibration/src/camera_params.yaml"
 with open(intrinsics, "r", encoding="utf-8") as handle:
             loaded = yaml.safe_load(handle) or {}
             intrinsics= loaded["camera"]
-
+"""
+offest_sup = (-12,6,18) #supplementary offset spécific to the selected tool
 def deck_clear():
     return True
 
-def main(debug,x_depart=142.0,y_depart=155.0, z_depart= 200.0, well = None):
+def main(debug,x_depart=142.0,y_depart=155.0, z_depart= 190.0, well = None):
     #requests.get(f"{LED_SERVER}/led/255/255/255")
     transport.deck_clear_provider= deck_clear
-    cam = Camera(motion=driver, tool_changer=tool_changer)
-    cam.K=  np.array([
-            [intrinsics["fx"], 0, intrinsics["cx"]],
-            [0, intrinsics["fy"], intrinsics["cy"]],
-            [0, 0, 1]
-        ], dtype=np.float32)
+    cam = ToolheadCam(motion=driver, tool_changer=tool_changer,address="10.0.9.55",calib_file=REPO_ROOT/ "science_jubilee/calibration/camera_params.yaml")
+    #cam.K=  np.array([   [intrinsics["fx"], 0, intrinsics["cx"]],  [0, intrinsics["fy"], intrinsics["cy"]],    [0, 0, 1]  ], dtype=np.float32)
         #Improvement of the model by including the distortion parameters given py the opencv calibration
     
-    cam.dist = np.array(intrinsics["dist"], dtype=np.float32)
+    #cam.dist = np.array(intrinsics["dist"], dtype=np.float32)
     tool_changer.pickup_tool(0)
     tool_offset = np.array(tool_changer.get_tool_offset(0))
     print(cam.offset)
@@ -70,11 +68,11 @@ def main(debug,x_depart=142.0,y_depart=155.0, z_depart= 200.0, well = None):
     if well==None:
         well = Well(
         "A1",
-        depth=70,
+        depth=120,
         totalLiquidVolume=80,
         shape="circular",
-        x=float(x_depart + cam.offset[0] + float_center[0]),
-        y=float(y_depart + cam.offset[1] - float_center[1]),
+        x=float(x_depart + cam.offset[0] + float_center[0]+offest_sup[0]),
+        y=float(y_depart + cam.offset[1] - float_center[1]+offest_sup[1]),
         z=2,
         diameter=37.5*2,
         )
@@ -83,9 +81,9 @@ def main(debug,x_depart=142.0,y_depart=155.0, z_depart= 200.0, well = None):
         print(f"Erreur de détéction du puit à {error} mm ")
     
 
-    x = float(x_depart + cam.offset[0] + duckweed[0])
-    y = float(y_depart + cam.offset[1] - duckweed[1])
-    z = float(z_depart+cam.offset[2]-duckweed[2]  )   
+    x = float(x_depart + cam.offset[0] + duckweed[0]+offest_sup[0])
+    y = float(y_depart + cam.offset[1] - duckweed[1]+offest_sup[1])
+    z = float(z_depart+cam.offset[2]-duckweed[2] +offest_sup[2] )   
      
     print(f"Target choisi: {x,y,z}, veuillez confirmer que c'est bien la cible souhaitée.")
     if debug == True:
@@ -99,23 +97,24 @@ def main(debug,x_depart=142.0,y_depart=155.0, z_depart= 200.0, well = None):
                 return
     logger.info("x = %s, y= %s, z= %s",x,y,z)
     dx , dy =  x - well.x ,  y - well.y
-    nav.move_to_well(well,speed_xy=500,speed_z=700)
+    nav.move_to_well(well,speed_xy=500,speed_z=200)
     
-    nav.move_inside_well(well=well,dx=dx,dy=dy+8,speed_xy=600)
+    nav.move_inside_well(well=well,dx=dx,dy=dy+10,speed_xy=600)
     nav.move_inside_well(well=well,z=z+17,speed_z=200)
 
-    nav.move_inside_well(well=well,z=z+7,speed_z=50)
-    nav.move_inside_well(well=well,dy=-6,speed_xy=200)
+    nav.move_inside_well(well=well,z=z+7,speed_z=30)
+    nav.move_inside_well(well=well,dy=-10,speed_xy=200)
     #petit cercle de recherche de 3 mm
     nav.move_inside_well(well=well,dx=1,speed_xy=50)
     nav.move_inside_well(well=well,dx=-1,dy=1,speed_xy=50)
     nav.move_inside_well(well=well,dy=-1,speed_xy=50)
-    nav.move_inside_well(well=well,dx=+1,dy=-1,speed_xy=50)
+    nav.move_inside_well(well=well,dx=-1,dy=-1,speed_xy=50)
+    nav.move_inside_well(well=well,dy=+1,speed_xy=50)
     
     
-    nav.move_inside_well(well=well,z=z+20,speed_z=40)
-    nav.move_inside_well(well=well,z=z+40,speed_z=800)
-
+    nav.move_inside_well(well=well,z=z+20,speed_z=200)
+    nav.move_inside_well(well=well,z=z+70,speed_z=800)
+"""
 #test transfert
     from science_jubilee.navigation.free_navigation import FreeNavigator
     freenav= FreeNavigator(driver,tool_changer=tool_changer)
@@ -124,5 +123,6 @@ def main(debug,x_depart=142.0,y_depart=155.0, z_depart= 200.0, well = None):
     freenav.move_to(z=15.00,speed=2000)
     freenav.jog(x=+3,y=-3,speed=1000)
     freenav.move_to(z=200,speed=3000)
+"""
 if __name__ == "__main__":
     main(True)
