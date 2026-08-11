@@ -94,7 +94,7 @@ def main(_config, _run):
         # ── 4. Convert to machine frame ──────────────────────────────────
         ox, oy, oz = cam.offset
         x_target = float(source_well.x + ox + duckweed_3d[0])
-        y_target = float(source_well.y - cam.offset[1] - duckweed_3d[1])
+        y_target = float(source_well.y +oy - duckweed_3d[1])
         z_target = float(cfg["z_imaging"] + oz - duckweed_3d[2])
         logging.info(
             "Duckweed target: x=%.2f y=%.2f z=%.2f", x_target, y_target, z_target

@@ -22,6 +22,7 @@ from science_jubilee.hal.tool_changer import ToolChanger
 from science_jubilee.hal.transport.http import HTTPTransport
 from science_jubilee.labware.Labware import Well
 from science_jubilee.navigation.deck_navigation import DeckNavigator
+from science_jubilee.tools.camera.toolheadcam import ToolheadCam
 
 LED_SERVER = "http://10.0.9.55:5001"
 
@@ -39,11 +40,11 @@ with open(intrinsics, "r", encoding="utf-8") as handle:
             loaded = yaml.safe_load(handle) or {}
             intrinsics= loaded["camera"]
 """
-offest_sup = (-12,6,18) #supplementary offset spécific to the selected tool
+offest_sup = (-10,10,18) #supplementary offset spécific to the selected tool
 def deck_clear():
     return True
 
-def main(debug,x_depart=142.0,y_depart=155.0, z_depart= 190.0, well = None):
+def main(debug,x_depart=142.0,y_depart=155.0, z_depart= 186.0, well = None, use_ai=False):
     #requests.get(f"{LED_SERVER}/led/255/255/255")
     transport.deck_clear_provider= deck_clear
     cam = ToolheadCam(motion=driver, tool_changer=tool_changer,address="10.0.9.55",calib_file=REPO_ROOT/ "science_jubilee/calibration/camera_params.yaml")
@@ -61,8 +62,8 @@ def main(debug,x_depart=142.0,y_depart=155.0, z_depart= 190.0, well = None):
     img = cam.get_image()
     img1 = img.copy()
     # img = cam.get_latest_image(folder = Path("dataset_brut"))
-    duckweed, float_center = duckweed_segment_and_track.main(
-        img=img1, camera=cam, float_radius_mm=37.5
+    duckweed, float_center, checkpoints = duckweed_segment_and_track.main(
+        img=img1, camera=cam, float_radius_mm=37.5, use_AI=use_ai
     )
     print(
         f"Target choisi: {duckweed}, veuillez confirmer que c'est bien la cible souhaitée."
@@ -82,11 +83,11 @@ def main(debug,x_depart=142.0,y_depart=155.0, z_depart= 190.0, well = None):
         error = np.linalg.norm(np.array(well.x, well.y) - float_center)
         print(f"Erreur de détéction du puit à {error} mm ")
 
-    x = float(x_depart + cam.offset[0] + duckweed[0]+offest_sup[0])
-    y = float(y_depart + cam.offset[1] - duckweed[1]+offest_sup[1])
-    z = float(z_depart+cam.offset[2]-duckweed[2] +offest_sup[2] )   
+    x_goal = float(x_depart + cam.offset[0] + duckweed[0]+offest_sup[0])
+    y_goal = float(y_depart + cam.offset[1] - duckweed[1]+offest_sup[1])
+    z_goal = float(z_depart+cam.offset[2]-duckweed[2] +offest_sup[2] )   
      
-    print(f"Target choisi: {x,y,z}, veuillez confirmer que c'est bien la cible souhaitée.")
+    print(f"Target choisi: {x_goal,y_goal,z_goal}, veuillez confirmer que c'est bien la cible souhaitée.")
     if debug == True:
         try:
             confirmation = input("Confirmez-vous ce target? (y/n): ")
@@ -96,25 +97,48 @@ def main(debug,x_depart=142.0,y_depart=155.0, z_depart= 190.0, well = None):
         except KeyboardInterrupt:
                 print("\nOpération annulée par l'utilisateur.")
                 return
-    logger.info("x = %s, y= %s, z= %s",x,y,z)
-    dx , dy =  x - well.x ,  y - well.y
+    logger.info("x = %s, y= %s, z= %s",x_goal,y_goal,z_goal)
     nav.move_to_well(well,speed_xy=500,speed_z=200)
     
-    nav.move_inside_well(well=well,dx=dx,dy=dy+10,speed_xy=600)
-    nav.move_inside_well(well=well,z=z+17,speed_z=200)
+    # Try planning a path of checkpoints inside the well and execute it
+    
+    clipped_checkpoints = []
+    for x, y ,z in checkpoints:
+            x=x + x_depart + cam.offset[0]+offest_sup[0]
+            y=-y + y_depart + cam.offset[1]+offest_sup[1]    
+            clipped_checkpoints.append((x, y, z))
 
-    nav.move_inside_well(well=well,z=z+7,speed_z=30)
-    nav.move_inside_well(well=well,dy=-10,speed_xy=200)
+    if len(clipped_checkpoints) == 0:
+            raise RuntimeError("No valid checkpoints generated")
+
+        # 1) Move in XY to the RRT start point (first checkpoint)
+    start_wx, start_wy, start_wz = clipped_checkpoints[0]
+    dx_start = float(start_wx - well.x)
+    dy_start = float(start_wy - well.y)
+    nav.move_inside_well(well=well, dx=dx_start, dy=dy_start, speed_xy=400)
+
+        # 2) Enter water: safe Z then approach Z
+    nav.move_inside_well(well=well, z=z_goal + 17, speed_z=200)
+    nav.move_inside_well(well=well, z=z_goal + 7, speed_z=50)
+
+        # 3) Follow remaining checkpoints by XY moves only
+    prev_wx, prev_wy, prev_wz = clipped_checkpoints[0]
+    for wx, wy, wz in clipped_checkpoints[1:]:
+            dx_step = float(wx - prev_wx)
+            dy_step = float(wy - prev_wy)
+            nav.move_inside_well(well=well, dx=dx_step, dy=dy_step, speed_xy=200)
+            prev_wx, prev_wy, prev_wz = wx, wy, wz
     #petit cercle de recherche de 3 mm
     nav.move_inside_well(well=well,dx=1,speed_xy=50)
     nav.move_inside_well(well=well,dx=-1,dy=1,speed_xy=50)
     nav.move_inside_well(well=well,dy=-1,speed_xy=50)
-    nav.move_inside_well(well=well,dx=-1,dy=-1,speed_xy=50)
+    nav.move_inside_well(well=well,dx=-1,speed_xy=50)
+    nav.move_inside_well(well=well,dx=1,dy=-1,speed_xy=50)
     nav.move_inside_well(well=well,dy=+1,speed_xy=50)
     
     
-    nav.move_inside_well(well=well,z=z+20,speed_z=200)
-    nav.move_inside_well(well=well,z=z+70,speed_z=800)
+    nav.move_inside_well(well=well,z=z_goal+20,speed_z=200)
+    nav.move_inside_well(well=well,z=z_goal+70,speed_z=800)
 """
 #test transfert
     from science_jubilee.navigation.free_navigation import FreeNavigator
