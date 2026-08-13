@@ -57,7 +57,7 @@ class BaseCamera(ABC):
 
     @abstractmethod
     def get_image(self) -> np.ndarray:
-        """Return a BGR image as a numpy array."""
+        """Return a RGB image as a numpy array."""
 
     # ------------------------------------------------------------------
     # Motion

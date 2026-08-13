@@ -13,7 +13,7 @@ def config():
 @segmentation.capture
 def get_img_contour(img, min_area_px, max_area_px, min_circularity, threshold_green):
     """ExG segmentation — returns contours matching area and circularity filters."""
-    b, g, r = cv2.split(img)
+    r, g, b = cv2.split(img)
     exg = 2 * g.astype(np.int16) - r.astype(np.int16) - b.astype(np.int16)
     exg = cv2.normalize(exg, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
 

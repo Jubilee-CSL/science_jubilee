@@ -26,6 +26,7 @@ class ToolheadCam(BaseCamera):
                 np.frombuffer(response.content, np.uint8),
                 cv2.IMREAD_COLOR,
             )
+            img = img[:, :, ::-1]  # Convert BGR to RGB
             if img is None:
                 raise RuntimeError("Could not decode image from camera response.")
             return img

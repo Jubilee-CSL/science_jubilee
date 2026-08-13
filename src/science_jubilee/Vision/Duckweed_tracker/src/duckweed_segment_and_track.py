@@ -23,7 +23,7 @@ SEG_DATASET_DIR.mkdir(parents=True, exist_ok=True)
 def get_img_contour(
     img, min_area_px=10, max_area_px=300, min_circularity=0.5, debug=False
 ):
-    b, g, r = cv2.split(img)
+    r, g, b = cv2.split(img)
     exg = 2 * g.astype(np.int16) - r.astype(np.int16) - b.astype(np.int16)
     exg = cv2.normalize(exg, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
 
@@ -56,7 +56,13 @@ def get_img_contour(
 # ======================================================
 # Détection de la lentille isolée
 # ======================================================
-def detect_isolated_duckweed(img, valid_contours=None, float_points=None, debug=False):
+def detect_isolated_duckweed(
+    img,
+    valid_contours=None,
+    float_points=None,
+    max_distance_ratio=0.8,
+    debug=False,
+):
     if valid_contours is None:
         valid_contours = get_img_contour(img, debug=debug)
 
@@ -75,7 +81,7 @@ def detect_isolated_duckweed(img, valid_contours=None, float_points=None, debug=
             cy = int(M["m01"] / M["m00"])
             duck = np.array([cx, cy])
             dist = np.sqrt(np.sum((duck - float_center_2d) ** 2))
-            if (dist) / circumference <= 0.8:
+            if (dist) / circumference <= max_distance_ratio:
                 centers.append((cx, cy))
 
     if not centers:
@@ -108,7 +114,7 @@ def detect_isolated_duckweed(img, valid_contours=None, float_points=None, debug=
 # Détection du flotteur (Excess Blue)
 # =======================================
 def get_float_points(img, min_area_px=250, min_circularity=0.7) -> np.ndarray:
-    b, g, r = cv2.split(img)
+    r, g, b = cv2.split(img)
     # L'équation que vous utilisiez privilégie le bleu
     exb = 2 * b.astype(np.int16) - g.astype(np.int16) - r.astype(np.int16)
     exb = cv2.normalize(exb, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)

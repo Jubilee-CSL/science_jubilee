@@ -60,7 +60,6 @@ def main(_config, _run):
     dest_wells = nav.get_wells_in_slot(cfg["dest_slot"])
 
     session.tool_changer.pickup_tool(cfg["inoculator_tool"])
-
     for i, dest_well_obj in enumerate(dest_wells):
         logging.info("── Well %d/%d: %s ──", i + 1, len(dest_wells), dest_well_obj.name)
 
@@ -70,9 +69,15 @@ def main(_config, _run):
         )
         time.sleep(cfg["image_settle"])
         img = cam.get_image()
-
         # ── 3. Vision pipeline ───────────────────────────────────────────
-        duckweed_3d, float_center_3d, img_path = run_pipeline(img, cam)
+        duckweed_3d, float_center_3d, img_path = run_pipeline(
+            img,
+            cam,
+            output_dir=cfg["pipeline"]["output_dir"],
+            threshold_blue=cfg["float_detection"]["threshold_blue"],
+            min_area_px=cfg["float_detection"]["min_area_px"],
+            min_circularity=cfg["float_detection"]["min_circularity"],
+        )
         if duckweed_3d is None:
             logging.warning(
                 "No duckweed detected for well %s — skipping.", dest_well_obj.name

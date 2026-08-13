@@ -8,6 +8,7 @@ from .float_detection import float_detection, get_float_points
 from .isolated_duckweed import detect_isolated_duckweed, isolated_duckweed
 from .localization import get_lens_position, localization
 from .pose_estimation import estimate_float_pose, pose_estimation
+from .segmentation import get_img_contour
 
 logger = logging.getLogger(__name__)
 
@@ -19,16 +20,27 @@ pipeline = Ingredient(
 
 @pipeline.config
 def config():
-    pass
+    str(Path(__file__).resolve().parents[1] / "Filtered_images")
 
 
 @pipeline.capture
-def run_pipeline(img, camera, output_dir):
+def run_pipeline(
+    img,
+    camera,
+    output_dir,
+    threshold_blue,
+    min_area_px,
+    min_circularity,
+):
     """Full duckweed tracking pipeline — returns (duckweed_3d, float_center_3d)."""
     output_img = img.copy()
-
     try:
-        float_det = get_float_points(img)
+        float_det = get_float_points(
+            img,
+            threshold_blue=threshold_blue,
+            min_area_px=min_area_px,
+            min_circularity=min_circularity,
+        )
         tvec = estimate_float_pose(camera, float_det.points)
         water_level = tvec[2]
         float_center_3d = tvec
@@ -52,8 +64,18 @@ def run_pipeline(img, camera, output_dir):
         logger.error("Float detection failed: %s", exc)
         return None, None, None
 
-    duckweed_pixel = detect_isolated_duckweed(img, float_points=float_det.points)
+    valid_contours = get_img_contour(img)
+    duckweed_pixel, float_inner_contours = detect_isolated_duckweed(
+        img,
+        float_points=float_det.points,
+        valid_contours=valid_contours,
+        float_contour=float_det.contour,
+        return_filtered_contours=True,
+    )
     duckweed_3d = None
+
+    if float_inner_contours:
+        cv2.drawContours(output_img, float_inner_contours, -1, (0, 255, 0), 1)
 
     if duckweed_pixel:
         duckweed_3d = get_lens_position(camera, duckweed_pixel, water_level)

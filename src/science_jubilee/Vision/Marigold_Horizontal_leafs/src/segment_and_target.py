@@ -60,7 +60,7 @@ def segment_plant_mask(image: np.ndarray, use_ai: bool = True) -> np.ndarray:
     if use_ai and remove is not None and new_session is not None:
         try:
             session = new_session("isnet-general-use")
-            pil_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+            pil_image = Image.fromarray(cv2.cvtColor(image))
             transparent = remove(
                 pil_image,
                 session=session,
