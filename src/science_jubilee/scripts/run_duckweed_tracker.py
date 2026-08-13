@@ -10,7 +10,10 @@ duckweed frond, then drives the inoculator to pick it up and transfer it.
 
 import logging
 import time
+from pathlib import Path
+from typing import Iterable
 
+import imageio.v2 as imageio
 from sacred import Experiment
 from sacred.observers import MongoObserver
 
@@ -33,20 +36,78 @@ ex.observers.append(MongoObserver(db_name="jubilee26"))
 
 @ex.config
 def config():
-    debug = True  # ask for confirmation before moving to target
+    interactive = True  # True -> ask config dialog, False -> run directly from _config
+    hardware = True  # True -> real hardware, False -> mock session + static image
+    session_env_hardware = ".env.hardware"
+    session_env_mock = ".env.mock"
+    mock_image_path = ""  # optional override for mock image path
+    use_ai = False  # True -> Cellpose segmentation, False -> ExG segmentation
     inoculator_tool = 0  # tool index for the inoculator
     # labware slots (must be loaded in deck.json)
     source_slot = "0"  # reservoir slot — duckweed floats here
     dest_slot = "1"  # 24-well plate slot — transfer destination
+    supplementary_offset_xyz = [
+        -10.0,
+        10.0,
+        0,
+    ]  # tool-specific machine-frame XYZ correction (mm)
     z_imaging = 200.0  # Z height for camera above reservoir centre
     image_settle = 3.0  # seconds to wait after moving before capture
 
 
+def _camera_to_machine(base_xyz, cam_offset_xyz, point_xyz, supplementary_xyz):
+    """Convert camera-frame point to machine frame with sign convention used by tracker."""
+    bx, by, bz = base_xyz
+    ox, oy, oz = cam_offset_xyz
+    sx, sy, sz = supplementary_xyz
+    px, py, pz = point_xyz
+    return (
+        float(bx + ox + px + sx),
+        float(by + oy - py + sy),
+        float(bz + oz - pz + sz),
+    )
+
+
+def _to_xyz_tuple(v: Iterable[float]):
+    vals = list(v)
+    if len(vals) != 3:
+        raise ValueError("Expected a 3-value iterable for XYZ offset.")
+    return float(vals[0]), float(vals[1]), float(vals[2])
+
+
+def _resolve_mock_image_path(cfg: dict) -> Path:
+    configured = str(cfg.get("mock_image_path", "")).strip()
+    if configured:
+        return Path(configured)
+    default = (
+        Path(__file__).resolve().parents[1]
+        / "Vision"
+        / "Duckweed_tracker"
+        / "Filtered_images"
+        / "test_duckweed_image.png"
+    )
+    return default
+
+
 @ex.main
 def main(_config, _run):
-    cfg = ask_run_config(_config, title="Duckweed tracker — configure run")
+    cfg = dict(_config)
+    if cfg.get("interactive", True) and cfg.get("hardware", True):
+        try:
+            cfg = ask_run_config(_config, title="Duckweed tracker — configure run")
+        except Exception as exc:
+            logging.warning(
+                "Interactive config unavailable (%s). Falling back to _config.", exc
+            )
+            cfg = dict(_config)
 
-    session = MachineSession.from_env(".env.hardware")
+    if not cfg["hardware"]:
+        logging.info("Mock mode: running with provided config.")
+
+    env_path = (
+        cfg["session_env_hardware"] if cfg["hardware"] else cfg["session_env_mock"]
+    )
+    session = MachineSession.from_env(env_path)
     nav: DeckNavigator = session.navigator
     if nav is None:
         raise RuntimeError(
@@ -62,76 +123,172 @@ def main(_config, _run):
     session.tool_changer.pickup_tool(cfg["inoculator_tool"])
     for i, dest_well_obj in enumerate(dest_wells):
         logging.info("── Well %d/%d: %s ──", i + 1, len(dest_wells), dest_well_obj.name)
+        supplementary_offset = _to_xyz_tuple(cfg["supplementary_offset_xyz"])
 
         # ── 2. Image reservoir (camera is fixed on toolhead) ───────────────
-        cam.move_to_get_image(
-            source_well.x, source_well.y - cam.offset[1], cfg["z_imaging"]
-        )
+        x_imaging = float(source_well.x)
+        y_imaging = float(source_well.y - cam.offset[1])
+        z_imaging = float(cfg["z_imaging"])
+        cam.move_to_get_image(x_imaging, y_imaging, z_imaging)
         time.sleep(cfg["image_settle"])
+        if not cfg["hardware"]:
+            mock_img_path = _resolve_mock_image_path(cfg)
+            mock_img = imageio.imread(str(mock_img_path))
+            if mock_img is None:
+                raise FileNotFoundError(
+                    f"Mock image not found or unreadable: {mock_img_path}"
+                )
+            if getattr(mock_img, "ndim", 0) == 2:
+                mock_img = mock_img[:, :, None]
+            if getattr(mock_img, "shape", (0, 0, 0))[2] == 4:
+                mock_img = mock_img[:, :, :3]
+            cam._image = mock_img
+            logging.info("Mock mode enabled | injected image: %s", mock_img_path)
         img = cam.get_image()
+        logging.info("Image acquired | shape=%s dtype=%s", img.shape, img.dtype)
+
         # ── 3. Vision pipeline ───────────────────────────────────────────
-        duckweed_3d, float_center_3d, img_path = run_pipeline(
-            img,
-            cam,
-            output_dir=cfg["pipeline"]["output_dir"],
-            threshold_blue=cfg["float_detection"]["threshold_blue"],
-            min_area_px=cfg["float_detection"]["min_area_px"],
-            min_circularity=cfg["float_detection"]["min_circularity"],
+        duckweed_3d, float_center_3d, checkpoints_3d, img_path, debug_artifacts = (
+            run_pipeline(
+                img,
+                cam,
+                output_dir=cfg["pipeline"]["output_dir"],
+                threshold_blue=cfg["float_detection"]["threshold_blue"],
+                min_area_px=cfg["float_detection"]["min_area_px"],
+                min_circularity=cfg["float_detection"]["min_circularity"],
+                float_radius_mm=cfg["pose_estimation"]["float_radius_mm"],
+                use_ai=cfg["use_ai"],
+                cellpose_diameter=cfg["segmentation"]["cellpose_diameter"],
+                float_width_mm=cfg["pipeline"]["float_width_mm"],
+                insertion_margin_mm=cfg["pipeline"]["insertion_margin_mm"],
+                target_margin_mm=cfg["pipeline"]["target_margin_mm"],
+                tool_radius_mm=cfg["pipeline"]["tool_radius_mm"],
+                max_offset_px=cfg["insertion_point"]["max_offset_px"],
+                step_size=cfg["rrt"]["step_size"],
+                max_iter=cfg["rrt"]["max_iter"],
+                goal_sample_rate=cfg["rrt"]["goal_sample_rate"],
+                water_level_offset_mm=cfg["pipeline"]["water_level_offset_mm"],
+                debug_capture=cfg["pipeline"]["debug_capture"],
+                debug_breakpoints=cfg["pipeline"]["debug_breakpoints"],
+                debug_dir=cfg["pipeline"]["debug_dir"],
+            )
         )
         if duckweed_3d is None:
             logging.warning(
                 "No duckweed detected for well %s — skipping.", dest_well_obj.name
             )
             continue
-        _run.add_artifact(img_path, name=f"img_{dest_well_obj.name}.png")
+        logging.info(
+            "Pipeline outputs | duckweed_3d=%s float_center_3d=%s checkpoints=%d",
+            duckweed_3d,
+            float_center_3d,
+            len(checkpoints_3d),
+        )
+        if len(checkpoints_3d) > 0:
+            logging.info(
+                "RRT path found successfully | checkpoints=%d",
+                len(checkpoints_3d),
+            )
+        else:
+            logging.warning("RRT path not found by pipeline.")
+        if img_path:
+            _run.add_artifact(img_path, name=f"img_{dest_well_obj.name}.png")
+        for name, path in debug_artifacts.items():
+            if name == "control":
+                continue
+            _run.add_artifact(path, name=f"{name}_{dest_well_obj.name}.png")
 
-        source_well = Well(
+        source_well_tracking = Well(
             "A1",
             depth=70,
             totalLiquidVolume=80,
             shape="circular",
-            x=float(source_well.x + float_center_3d[0]),
-            y=float(source_well.y - float_center_3d[1]),
+            x=float(
+                x_imaging + cam.offset[0] + float_center_3d[0] + supplementary_offset[0]
+            ),
+            y=float(
+                y_imaging + cam.offset[1] - float_center_3d[1] + supplementary_offset[1]
+            ),
             z=2,
             diameter=cfg["pose_estimation"]["float_radius_mm"] * 2,
         )
 
         # ── 4. Convert to machine frame ──────────────────────────────────
-        ox, oy, oz = cam.offset
-        x_target = float(source_well.x + ox + duckweed_3d[0])
-        y_target = float(source_well.y - cam.offset[1] - duckweed_3d[1])
-        z_target = float(cfg["z_imaging"] + oz - duckweed_3d[2])
+        x_target, y_target, z_target = _camera_to_machine(
+            base_xyz=(x_imaging, y_imaging, z_imaging),
+            cam_offset_xyz=cam.offset,
+            point_xyz=duckweed_3d,
+            supplementary_xyz=supplementary_offset,
+        )
         logging.info(
             "Duckweed target: x=%.2f y=%.2f z=%.2f", x_target, y_target, z_target
         )
 
-        # ── 5. Debug confirmation ────────────────────────────────────────
-        if cfg["debug"]:
-            ans = input(
-                f"[{dest_well_obj.name}] Confirm target ({x_target:.1f}, {y_target:.1f}, {z_target:.1f})? [y/n/q]: "
+        # ── 6. Approach and pickup sequence (checkpoint path first) ─────
+        nav.move_to_well(source_well_tracking, speed_xy=500, speed_z=700)
+
+        world_checkpoints = []
+        for cp in checkpoints_3d:
+            wx, wy, wz = _camera_to_machine(
+                base_xyz=(x_imaging, y_imaging, z_imaging),
+                cam_offset_xyz=cam.offset,
+                point_xyz=cp,
+                supplementary_xyz=supplementary_offset,
             )
-            if ans.strip().lower() == "q":
-                raise SystemExit("Aborted by user.")
-            if ans.strip().lower() != "y":
-                logging.info("Skipping well %s.", dest_well_obj.name)
-                continue
+            world_checkpoints.append((wx, wy, wz))
 
-        # ── 6. Approach and pickup sequence ─────────────────────────────
-        dx = x_target - source_well.x
-        dy = y_target - source_well.y
+        if world_checkpoints:
+            logging.info(
+                "Executing checkpoint path with %d points.", len(world_checkpoints)
+            )
+            start_wx, start_wy, _ = world_checkpoints[0]
+            dx_start = float(start_wx - source_well_tracking.x)
+            dy_start = float(start_wy - source_well_tracking.y)
+            nav.move_inside_well(
+                well=source_well_tracking, dx=dx_start, dy=dy_start, speed_xy=400
+            )
+            nav.move_inside_well(
+                well=source_well_tracking, z=z_target + 17, speed_z=200
+            )
+            nav.move_inside_well(well=source_well_tracking, z=z_target + 7, speed_z=100)
 
-        nav.move_to_well(source_well, speed_xy=500, speed_z=700)
-        nav.move_inside_well(well=source_well, dx=dx, dy=dy + 8, speed_xy=600)
-        nav.move_inside_well(well=source_well, z=z_target + 17, speed_z=200)
-        nav.move_inside_well(well=source_well, z=z_target + 7, speed_z=50)
-        nav.move_inside_well(well=source_well, dy=-6, speed_xy=200)
-        # 3 mm search spiral
-        nav.move_inside_well(well=source_well, dx=+1, speed_xy=50)
-        nav.move_inside_well(well=source_well, dx=-1, dy=+1, speed_xy=50)
-        nav.move_inside_well(well=source_well, dy=-1, speed_xy=50)
-        nav.move_inside_well(well=source_well, dx=+1, dy=-1, speed_xy=50)
-        nav.move_inside_well(well=source_well, z=z_target + 20, speed_z=40)
-        nav.move_inside_well(well=source_well, z=z_target + 40, speed_z=800)
+            prev_wx, prev_wy, _ = world_checkpoints[0]
+            for wx, wy, _ in world_checkpoints[1:]:
+                dx_step = float(wx - prev_wx)
+                dy_step = float(wy - prev_wy)
+                nav.move_inside_well(
+                    well=source_well_tracking, dx=dx_step, dy=dy_step, speed_xy=200
+                )
+                prev_wx, prev_wy = wx, wy
+
+            nav.move_inside_well(
+                well=source_well_tracking, z=z_target + 20, speed_z=200
+            )
+            nav.move_inside_well(
+                well=source_well_tracking, z=z_target + 70, speed_z=800
+            )
+        else:
+            logging.warning(
+                "No checkpoints generated; falling back to direct pickup routine."
+            )
+            dx = x_target - source_well_tracking.x
+            dy = y_target - source_well_tracking.y
+            nav.move_inside_well(
+                well=source_well_tracking, dx=dx, dy=dy + 8, speed_xy=600
+            )
+            nav.move_inside_well(
+                well=source_well_tracking, z=z_target + 17, speed_z=200
+            )
+            nav.move_inside_well(well=source_well_tracking, z=z_target + 7, speed_z=50)
+            nav.move_inside_well(well=source_well_tracking, dy=-6, speed_xy=200)
+            nav.move_inside_well(well=source_well_tracking, dx=+1, speed_xy=50)
+            nav.move_inside_well(well=source_well_tracking, dx=-1, dy=+1, speed_xy=50)
+            nav.move_inside_well(well=source_well_tracking, dy=-1, speed_xy=50)
+            nav.move_inside_well(well=source_well_tracking, dx=+1, dy=-1, speed_xy=50)
+            nav.move_inside_well(well=source_well_tracking, z=z_target + 20, speed_z=40)
+            nav.move_inside_well(
+                well=source_well_tracking, z=z_target + 40, speed_z=800
+            )
 
         # ── 7. Deposit in destination well ───────────────────────────────
         nav.move_to_well(dest_well_obj, speed_xy=3000, speed_z=800)
@@ -140,10 +297,10 @@ def main(_config, _run):
         # nav.move_inside_well(well=source_well, dx=-1, dy=+1, speed_xy=50)
         # nav.move_inside_well(well=source_well,        dy=-1,  speed_xy=50)
         # nav.move_inside_well(well=source_well, dx=+1, dy=-1, speed_xy=50)
-        nav.move_inside_well(well=source_well, dz=-2, speed_z=40)
+        nav.move_inside_well(well=dest_well_obj, dz=-2, speed_z=40)
 
-        nav.move_inside_well(well=source_well, dz=+20, speed_z=40)
-        nav.move_inside_well(well=source_well, z=200, speed_z=800)
+        nav.move_inside_well(well=dest_well_obj, dz=+20, speed_z=40)
+        nav.move_inside_well(well=dest_well_obj, z=200, speed_z=800)
 
 
 def run():

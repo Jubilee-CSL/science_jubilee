@@ -13,15 +13,16 @@ isolated_duckweed = Ingredient("isolated_duckweed", ingredients=[segmentation])
 
 @isolated_duckweed.config
 def config():
-    pass
+    max_distance_ratio = 0.75
 
 
 @isolated_duckweed.capture
 def detect_isolated_duckweed(
     img,
     float_points,
+    max_distance_ratio,
+    marge,
     valid_contours=None,
-    max_distance_ratio=0.8,
     float_contour=None,
     return_filtered_contours=False,
 ):
@@ -31,7 +32,7 @@ def detect_isolated_duckweed(
 
     if not valid_contours:
         logger.warning("No duckweed contours detected.")
-        return None
+        return (None, []) if return_filtered_contours else None
 
     float_center_2d = np.mean(float_points, axis=0)
     circumference = np.abs(float_points[0][0] - float_center_2d[0])
@@ -50,30 +51,51 @@ def detect_isolated_duckweed(
                 ):
                     continue
             else:
-                dist = np.sqrt(np.sum((np.array([cx, cy]) - float_center_2d) ** 2))
+                duck = np.array([cx, cy])
+                dist = np.sqrt(np.sum((duck - float_center_2d) ** 2))
                 if dist / circumference > max_distance_ratio:
                     continue
 
+            (_, _), radius = cv2.minEnclosingCircle(cnt)
+            centers.append(((cx, cy), float(radius)))
             filtered_contours.append(cnt)
-            centers.append((cx, cy))
 
     if not centers:
         return (None, filtered_contours) if return_filtered_contours else None
     if len(centers) == 1:
         return (
-            (centers[0], filtered_contours) if return_filtered_contours else centers[0]
+            (centers[0][0], filtered_contours)
+            if return_filtered_contours
+            else centers[0][0]
         )
 
-    # pick the center whose nearest neighbour is farthest away
-    max_min_dist = -1
-    isolated = None
-    for i, c in enumerate(centers):
-        min_d = min(
-            np.linalg.norm(np.array(c) - np.array(o))
-            for j, o in enumerate(centers)
-            if j != i
+    max_min_gap = -float("inf")
+    isolated_lens = None
+
+    for i, (center, radius) in enumerate(centers):
+        min_gap = float("inf")
+        for j, (other, other_radius) in enumerate(centers):
+            if i == j:
+                continue
+            dist = np.linalg.norm(np.array(center) - np.array(other))
+            gap = dist - radius - other_radius
+            if gap < min_gap:
+                min_gap = gap
+
+        if min_gap > max_min_gap:
+            max_min_gap = min_gap
+            isolated_lens = center
+
+    if max_min_gap < marge:
+        logger.warning(
+            "Aucune lentille suffisamment isolée trouvée: meilleur écart %.1f < marge %s",
+            max_min_gap,
+            marge,
         )
-        if min_d > max_min_dist:
-            max_min_dist = min_d
-            isolated = c
-    return (isolated, filtered_contours) if return_filtered_contours else isolated
+        return (None, filtered_contours) if return_filtered_contours else None
+
+    return (
+        (isolated_lens, filtered_contours)
+        if return_filtered_contours
+        else isolated_lens
+    )

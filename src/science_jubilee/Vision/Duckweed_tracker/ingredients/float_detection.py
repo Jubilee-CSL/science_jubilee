@@ -17,7 +17,9 @@ class FloatCircle:
 
 @float_detection.config
 def config():
-    pass
+    threshold_blue = 150
+    min_area_px = 250
+    min_circularity = 0.7
 
 
 @float_detection.capture

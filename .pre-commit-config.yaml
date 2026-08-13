@@ -46,6 +46,8 @@ repos:
       --remove-all-unused-imports,
       --remove-unused-variables,
     ]
+    # Sacred @config functions use local vars via introspection; autoflake would strip them.
+    exclude: ^src/science_jubilee/Vision/Duckweed_tracker/ingredients/.*\.py$|^src/science_jubilee/scripts/run_duckweed_tracker\.py$
 
 - repo: https://github.com/PyCQA/isort
   rev: 5.13.2
@@ -84,6 +86,16 @@ repos:
   - id: pytest-mock
     name: pytest (mock mode)
     entry: python -m pytest --jubilee-env mock -x -v
-    language: system
+    language: python
+    additional_dependencies:
+      - pytest
+      - requests
+      - setuptools<81
+      - sacred
+      - pymongo
+      - opencv-contrib-python
+      - pyyaml
+      - .[testing,scripts,camera]
+      - imageio
     pass_filenames: false
     always_run: true
