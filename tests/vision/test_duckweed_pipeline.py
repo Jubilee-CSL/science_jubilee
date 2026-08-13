@@ -40,7 +40,7 @@ def test_duckweed_pipeline_mock_run():
             "mock_image_path": str(mock_image_path),
             # Use single-well slot in mock to keep this test short.
             "source_slot": "0",
-            "dest_slot": "0",
+            "dest_slot": "1",
             "supplementary_offset_xyz": [-10.0, 10.0, 0.0],
             "image_settle": 0.0,
         }

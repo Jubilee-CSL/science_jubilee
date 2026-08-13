@@ -92,9 +92,9 @@ def generate_tool_gfiles(
         of the written file.
     """
     if output_dir is None:
-        # Default: <repo>/firmware/sys/ relative to this file's location
-        # parents[0]=calibration, [1]=science_jubilee, [2]=src, [3]=repo root
-        output_dir = Path(__file__).parents[3] / "firmware" / "sys"
+        from science_jubilee._paths import jubilee_dir
+
+        output_dir = jubilee_dir() / "firmware" / "sys"
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 

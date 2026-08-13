@@ -1,7 +1,8 @@
 import sys
-from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
+from science_jubilee._paths import jubilee_dir
+
+REPO_ROOT = jubilee_dir()
 SRC_ROOT = REPO_ROOT / "src"
 PACKAGE_ROOT = SRC_ROOT / "science_jubilee"
 DETECTOR_ROOT = PACKAGE_ROOT / "Horizontal_leafs_detector"

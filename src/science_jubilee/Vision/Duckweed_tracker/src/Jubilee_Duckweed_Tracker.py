@@ -2,10 +2,11 @@ import logging
 import os
 import sys
 import time
-from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
-SRC_ROOT = REPO_ROOT
+from science_jubilee._paths import jubilee_dir
+
+REPO_ROOT = jubilee_dir()
+SRC_ROOT = REPO_ROOT / "src"
 
 for path in (SRC_ROOT, REPO_ROOT):
     path_str = str(path)
