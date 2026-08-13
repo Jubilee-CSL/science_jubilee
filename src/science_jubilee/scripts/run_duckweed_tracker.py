@@ -40,7 +40,10 @@ def config():
     hardware = True  # True -> real hardware, False -> mock session + static image
     session_env_hardware = ".env.hardware"
     session_env_mock = ".env.mock"
-    mock_image_path = ""  # optional override for mock image path
+    mock_image_path = (
+        str(Path(__file__).resolve().parents[1])
+        + "/Vision/Duckweed_tracker/Filtered_images/test_duckweed_image.png"
+    )
     use_ai = False  # True -> Cellpose segmentation, False -> ExG segmentation
     inoculator_tool = 0  # tool index for the inoculator
     # labware slots (must be loaded in deck.json)
@@ -73,20 +76,6 @@ def _to_xyz_tuple(v: Iterable[float]):
     if len(vals) != 3:
         raise ValueError("Expected a 3-value iterable for XYZ offset.")
     return float(vals[0]), float(vals[1]), float(vals[2])
-
-
-def _resolve_mock_image_path(cfg: dict) -> Path:
-    configured = str(cfg.get("mock_image_path", "")).strip()
-    if configured:
-        return Path(configured)
-    default = (
-        Path(__file__).resolve().parents[1]
-        / "Vision"
-        / "Duckweed_tracker"
-        / "Filtered_images"
-        / "test_duckweed_image.png"
-    )
-    return default
 
 
 @ex.main
@@ -132,18 +121,13 @@ def main(_config, _run):
         cam.move_to_get_image(x_imaging, y_imaging, z_imaging)
         time.sleep(cfg["image_settle"])
         if not cfg["hardware"]:
-            mock_img_path = _resolve_mock_image_path(cfg)
-            mock_img = imageio.imread(str(mock_img_path))
-            if mock_img is None:
-                raise FileNotFoundError(
-                    f"Mock image not found or unreadable: {mock_img_path}"
-                )
-            if getattr(mock_img, "ndim", 0) == 2:
-                mock_img = mock_img[:, :, None]
-            if getattr(mock_img, "shape", (0, 0, 0))[2] == 4:
+            mock_img = imageio.imread(cfg["mock_image_path"])
+            if mock_img.ndim == 3 and mock_img.shape[2] == 4:
                 mock_img = mock_img[:, :, :3]
             cam._image = mock_img
-            logging.info("Mock mode enabled | injected image: %s", mock_img_path)
+            logging.info(
+                "Mock mode enabled | injected image: %s", cfg["mock_image_path"]
+            )
         img = cam.get_image()
         logging.info("Image acquired | shape=%s dtype=%s", img.shape, img.dtype)
 
