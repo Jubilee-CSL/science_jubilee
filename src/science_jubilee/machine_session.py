@@ -139,7 +139,7 @@ class MachineSession:
     def mock(
         cls,
         deck_def: Optional[str] = None,
-        log_path: str = "gcode_logs/latest.gcode",
+        log_path: Optional[str] = None,
         camera_calib: Optional[str] = None,
         experiment_dir: Optional[Path] = None,
     ) -> "MachineSession":
@@ -168,7 +168,7 @@ class MachineSession:
         cls,
         address: str,
         deck_def: Optional[str] = None,
-        log_path: str = "gcode_logs/latest.gcode",
+        log_path: Optional[str] = None,
         deck_clear_provider: Optional[Callable[[], bool]] = None,
         camera_address: Optional[str] = None,
         led_address: Optional[str] = None,
@@ -246,7 +246,7 @@ class MachineSession:
 
         transport_type = os.getenv("JUBILEE_TRANSPORT", "mock").strip().lower()
         address = os.getenv("JUBILEE_ADDRESS")
-        log_path = os.getenv("JUBILEE_GCODE_LOG", "gcode_logs/latest.gcode")
+        log_path = os.getenv("JUBILEE_GCODE_LOG") or None
 
         if deck_def is None:
             deck_def = os.getenv("JUBILEE_DECK_DEF") or None

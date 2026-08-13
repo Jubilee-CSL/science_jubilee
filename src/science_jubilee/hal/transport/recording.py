@@ -4,15 +4,14 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from science_jubilee._paths import jubilee_dir
+
 from .base import BaseTransport
 
 # Maximum depth for recursive M98 macro expansion (guards against circular includes)
 _MAX_EXPAND_DEPTH = 5
 
-# Default macro directories relative to the repo root.
-# recording.py lives at src/science_jubilee/hal/transport/recording.py so
-# parents[4] is the repo root.
-_REPO_ROOT = Path(__file__).parents[4]
+_REPO_ROOT = jubilee_dir()
 _DEFAULT_SYS_DIR = _REPO_ROOT / "firmware" / "sys"
 _DEFAULT_MACRO_DIR = _REPO_ROOT / "firmware" / "macro"
 
@@ -40,7 +39,10 @@ class RecordingTransport(BaseTransport):
 
         # Default log path can be overridden via env
         if log_path is None:
-            log_path = os.getenv("JUBILEE_GCODE_LOG", "gcode_logs/latest.gcode")
+            log_path = os.getenv(
+                "JUBILEE_GCODE_LOG",
+                str(_REPO_ROOT / "gcode_logs" / "latest.gcode"),
+            )
         self.log_path = Path(log_path)
         self.run_log_path = self._resolve_run_log_path()
         try:

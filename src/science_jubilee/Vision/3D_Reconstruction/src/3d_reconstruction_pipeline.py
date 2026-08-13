@@ -4,8 +4,10 @@ from pathlib import Path
 
 import open3d as o3d
 
-SRC_ROOT = Path(__file__).resolve().parents[4]
-REPO_ROOT = SRC_ROOT.parent
+from science_jubilee._paths import jubilee_dir
+
+REPO_ROOT = jubilee_dir()
+SRC_ROOT = REPO_ROOT / "src"
 
 
 def _windows_to_wsl_path(windows_path: str) -> str:

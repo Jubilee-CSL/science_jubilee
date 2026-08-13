@@ -1,11 +1,12 @@
 import sys
 import time
-from pathlib import Path
 
 import cv2
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
-SRC_ROOT = REPO_ROOT
+from science_jubilee._paths import jubilee_dir
+
+REPO_ROOT = jubilee_dir()
+SRC_ROOT = REPO_ROOT / "src"
 PACKAGE_ROOT = SRC_ROOT / "science_jubilee/Vision"
 DETECTOR_ROOT = PACKAGE_ROOT / "Marigold_Horizontal_leafs"
 
