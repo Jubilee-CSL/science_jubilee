@@ -7,7 +7,7 @@ pose_estimation = Ingredient("pose_estimation")
 
 @pose_estimation.config
 def config():
-    pass
+    float_radius_mm = 37.5
 
 
 @pose_estimation.capture

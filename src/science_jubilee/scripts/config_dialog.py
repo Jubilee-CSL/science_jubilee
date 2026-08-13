@@ -11,6 +11,7 @@ Usage in any experiment::
 """
 
 import ast
+import math
 import tkinter as tk
 from tkinter import ttk
 
@@ -32,12 +33,28 @@ def ask_run_config(
 
     # --- Config fields ---
     entry_vars: dict[str, tk.StringVar] = {}
+    rows_per_column = max(1, math.ceil(len(flat_items) / 2))
+
     for i, (key, value) in enumerate(flat_items):
-        tk.Label(root, text=key).grid(row=i, column=0, sticky="w", padx=12, pady=3)
+        col_group = i // rows_per_column  # 0 (left) or 1 (right)
+        row = i % rows_per_column
+        label_col = col_group * 2
+        entry_col = label_col + 1
+
+        tk.Label(root, text=key).grid(
+            row=row,
+            column=label_col,
+            sticky="w",
+            padx=(12, 6),
+            pady=3,
+        )
         text = repr(value) if isinstance(value, (list, tuple)) else str(value)
         var = tk.StringVar(value=text)
         tk.Entry(root, textvariable=var, width=44).grid(
-            row=i, column=1, padx=12, pady=3
+            row=row,
+            column=entry_col,
+            padx=(6, 12),
+            pady=3,
         )
         entry_vars[key] = var
 
@@ -48,12 +65,12 @@ def ask_run_config(
         cancelled[0] = True
         root.quit()
 
-    sep_row = len(flat_items)
+    sep_row = rows_per_column
     ttk.Separator(root, orient="horizontal").grid(
-        row=sep_row, column=0, columnspan=2, sticky="ew", padx=8, pady=4
+        row=sep_row, column=0, columnspan=4, sticky="ew", padx=8, pady=4
     )
     btn_frame = tk.Frame(root)
-    btn_frame.grid(row=sep_row + 1, column=0, columnspan=2, pady=(0, 12))
+    btn_frame.grid(row=sep_row + 1, column=0, columnspan=4, pady=(0, 12))
     tk.Button(btn_frame, text="Run", width=14, command=root.quit).pack(
         side="left", padx=6
     )
