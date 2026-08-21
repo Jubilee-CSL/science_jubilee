@@ -27,7 +27,7 @@ def create_mesh_with_alpha_shape(
 
     x = points_cam[:, 0]
     y = -points_cam[:, 2]
-    z = -points_cam[:, 1]
+    z = points_cam[:, 1]
 
     coords = np.vstack((x, y, z)).T
 
