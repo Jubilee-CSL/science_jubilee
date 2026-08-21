@@ -18,105 +18,6 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 
-model = SAM("sam2.1_b.pt")
-
-
-def find_rough_plant_bboxes(image_bgr, min_area=400):
-    """
-    Étape 1 : Trouve de multiples bounding boxes pour les plantes (Vert) et les pots (Marron),
-    tout en ignorant le fond et le papier blanc.
-    """
-    hsv = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2HSV)
-
-    # 1. MASQUE VERT (La Plante)
-    # Saturation minimale à 40 : ignore automatiquement le blanc, le gris et le noir.
-    lower_green = np.array([40, 25, 25])
-    upper_green = np.array([80, 200, 200])
-    green_mask = cv2.inRange(hsv, lower_green, upper_green)
-
-    # 2. MASQUE MARRON (Le Pot / Vase)
-    # Le marron en HSV est un "orange sombre". Teinte entre 10 et 25.
-    # Saturation > 50 ignore le blanc. Value < 200 ignore les reflets lumineux forts.
-    lower_brown = np.array([10, 50, 20])
-    upper_brown = np.array([25, 255, 200])
-    brown_mask = cv2.inRange(hsv, lower_brown, upper_brown)
-
-    #3. Masque Blanc(La feuille de papier blanche)
-    lower_white = np.array([0, 0, 80])
-    upper_white = np.array([179, 40, 255])
-    
-    white_mask = cv2.inRange(hsv, lower_white, upper_white)
-
-    # 3. FUSION DES MASQUES
-    # On combine les pixels verts et les pixels marrons.
-    # Le papier blanc (Saturation proche de 0) est ici totalement invisible/ignoré.
-    #combined_mask = cv2.bitwise_or(green_mask, brown_mask)
-    combined_mask = cv2.bitwise_and(green_mask,cv2.bitwise_not(white_mask))
-    # 4. NETTOYAGE
-    kernel_open = np.ones((5, 5), np.uint8)
-    kernel_close = np.ones((15, 15), np.uint8) # Kernel plus grand pour fusionner la plante et son pot s'il y a un petit trou
-    
-    mask_clean = cv2.morphologyEx(combined_mask, cv2.MORPH_OPEN, kernel_open)
-    mask_clean = cv2.morphologyEx(mask_clean, cv2.MORPH_CLOSE, kernel_close)
-
-    # 5. TROUVER DE MULTIPLES CONTOURS
-    contours, _ = cv2.findContours(
-        mask_clean, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-    )
-
-    bboxes = []
-    for cnt in contours:
-        if cv2.contourArea(cnt) > min_area:
-            x, y, w, h = cv2.boundingRect(cnt)
-            # Format attendu par SAM : [x1, y1, x2, y2]
-            bboxes.append([x, y, x + w, y + h])
-
-    return bboxes
-
-
-def segment_plants_fast(image_bgr, device="cuda"):
-    """
-    Étape 2 : Découpe les plantes et leurs pots détectés à l'aide des bboxes.
-    """
-    # Récupère la liste complète des bounding boxes
-    bboxes = find_rough_plant_bboxes(image_bgr)
-
-    # Si rien n'est détecté, on retourne un masque noir vide
-    if not bboxes:
-        return np.zeros(image_bgr.shape[:2], dtype=np.uint8)
-
-    image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
-    hsv = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2HSV)
-    # FastSAM / SAM 2 accepte nativement une liste de bboxes : [[x,y,x,y], [x,y,x,y]]
-    results = model(
-        image_rgb,
-        bboxes=bboxes,
-        device=device,
-        retina_masks=True,
-        verbose=False,
-    )
-
-    h, w = image_bgr.shape[:2]
-    final_mask = np.zeros((h, w), dtype=np.uint8)
-
-    if results and results[0].masks is not None:
-        masks = results[0].masks.data.cpu().numpy()
-
-        for m in masks:
-            # Ajoute le calque de chaque plante/pot au masque principal
-            plant_layer = (m > 0.5).astype(np.uint8) * 255
-            final_mask = cv2.bitwise_or(final_mask, plant_layer)
-            
-    #3. Masque Blanc(La feuille de papier blanche)
-    lower_white = np.array([0, 0, 80])
-    upper_white = np.array([179, 40, 255])
-        
-    white_mask = cv2.inRange(hsv, lower_white, upper_white)
-
-    final_mask= cv2.bitwise_and(final_mask,cv2.bitwise_not(white_mask))
-
-    return final_mask
-      
 def segment_plant_mask(image: np.ndarray,birefnet,transform_image, use_ai: bool = True) -> np.ndarray:
     if use_ai == True:
         try:
@@ -290,7 +191,6 @@ def main(images_path, use_ai=True):
 
         # 1. Générer les 3 masques
         plant_mask = segment_plant_mask(image,birefnet, transform_image, use_ai=use_ai)
-        #plant_mask = segment_plants_fast(image, device="cuda")
         cube_mask = segment_cube_mask(image)
         vase_mask= segment_vase_plant(image)
         tray_mask,aruco_mask = segment_tray_mask(image)
