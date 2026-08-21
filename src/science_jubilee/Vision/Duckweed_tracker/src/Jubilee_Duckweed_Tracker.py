@@ -119,7 +119,7 @@ def main(debug,x_depart=142.0,y_depart=155.0, z_depart= 186.0, well = None, use_
 
         # 2) Enter water: safe Z then approach Z
     nav.move_inside_well(well=well, z=z_goal + 17, speed_z=200)
-    nav.move_inside_well(well=well, z=z_goal + 7, speed_z=50)
+    nav.move_inside_well(well=well, z=z_goal + 7, speed_z=100)
 
         # 3) Follow remaining checkpoints by XY moves only
     prev_wx, prev_wy, prev_wz = clipped_checkpoints[0]
@@ -128,7 +128,11 @@ def main(debug,x_depart=142.0,y_depart=155.0, z_depart= 186.0, well = None, use_
             dy_step = float(wy - prev_wy)
             nav.move_inside_well(well=well, dx=dx_step, dy=dy_step, speed_xy=200)
             prev_wx, prev_wy, prev_wz = wx, wy, wz
-    #petit cercle de recherche de 3 mm
+
+    nav.move_inside_well(well=well,z=z_goal+20,speed_z=200)
+    nav.move_inside_well(well=well,z=z_goal+70,speed_z=800)
+
+"""    #petit cercle de recherche de 3 mm
     nav.move_inside_well(well=well,dx=1,speed_xy=50)
     nav.move_inside_well(well=well,dx=-1,dy=1,speed_xy=50)
     nav.move_inside_well(well=well,dy=-1,speed_xy=50)
@@ -139,7 +143,7 @@ def main(debug,x_depart=142.0,y_depart=155.0, z_depart= 186.0, well = None, use_
     
     nav.move_inside_well(well=well,z=z_goal+20,speed_z=200)
     nav.move_inside_well(well=well,z=z_goal+70,speed_z=800)
-"""
+
 #test transfert
     from science_jubilee.navigation.free_navigation import FreeNavigator
     freenav= FreeNavigator(driver,tool_changer=tool_changer)
@@ -148,6 +152,7 @@ def main(debug,x_depart=142.0,y_depart=155.0, z_depart= 186.0, well = None, use_
     freenav.move_to(z=15.00,speed=2000)
     freenav.jog(x=+3,y=-3,speed=1000)
     freenav.move_to(z=200,speed=3000)
+
 """
 if __name__ == "__main__":
     main(True)

@@ -8,7 +8,8 @@ from .float_detection import float_detection, get_float_points
 from .isolated_duckweed import detect_isolated_duckweed, isolated_duckweed
 from .localization import get_lens_position, localization
 from .pose_estimation import estimate_float_pose, pose_estimation
-
+from .RRT import RRT
+from .insertion_point import get_insertion_point, insertion_point
 logger = logging.getLogger(__name__)
 
 pipeline = Ingredient(

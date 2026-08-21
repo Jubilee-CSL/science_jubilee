@@ -34,3 +34,31 @@ def get_img_contour(img, min_area_px, max_area_px, min_circularity, threshold_gr
         if 4 * np.pi * area / (perimeter**2) >= min_circularity:
             valid.append(cnt)
     return valid
+
+
+def get_img_contour_cellpose(
+    img, diameter=8, min_area_px=10, max_area_px=300, min_circularity=0.5
+):
+    try:
+        from cellpose import models
+    except ImportError:
+        print("Erreur: Le module 'cellpose' n'est pas installé. Exécutez 'pip install cellpose'.")
+        return []
+
+    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    model = models.CellposeModel(gpu=True, model_type='cyto2')
+    masks, flows, styles = model.eval(img_rgb, diameter=diameter, channels=[2, 0])
+
+    valid_contours = []
+    num_cells = masks.max()
+    for i in range(1, num_cells + 1):
+        cell_mask = np.uint8(masks == i) * 255
+        contours, _ = cv2.findContours(cell_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        for cnt in contours:
+            area = cv2.contourArea(cnt)
+            if area < min_area_px or area > max_area_px:
+                continue
+            valid_contours.append(cnt)
+
+    return valid_contours

@@ -110,7 +110,7 @@ def detect_isolated_duckweed(img,marge=10, valid_contours=None, float_points=Non
             cy = int(M["m01"] / M["m00"])
             duck = np.array([cx, cy])
             dist = np.sqrt(np.sum((duck - float_center_2d) ** 2))
-            if (dist) / circumference <= 0.8:
+            if (dist) / circumference <= 0.75:
                 (_, _), radius = cv2.minEnclosingCircle(cnt)
                 centers.append(((cx, cy), float(radius)))
 
@@ -284,7 +284,36 @@ def get_insertion_point(obstacle_mask, duckweed_goal, marge=30):
     # max_loc renvoie les coordonnées (X, Y) du pixel ayant la plus grande distance
     _, _, _, max_loc = cv2.minMaxLoc(dist_transform)
     
-    return max_loc
+    return max_loc,mask_for_insertion
+
+def get_insertion_point_2(obstacle_mask, duckweed_goal, marge=30):
+    """
+    Cherche le point  libre à partir de 1cm de la lentille cible, 
+    """
+    mask_for_insertion = obstacle_mask.copy()
+
+    #On ajoute le masque de la lentille cible 
+    center = (int(duckweed_goal[0]), int(duckweed_goal[1]))
+    radius = int(marge)
+    #on ajoute un masque  inversé de la lentille
+    cv2.circle(mask_for_insertion, center, radius, 255, -1)
+    #On ajoute un masque pour avoir une distance max à laquelle on ne veut pas que l'insertion se fasse
+    max_dist_mask= roi_mask = np.zeros(mask_for_insertion.shape[:2], dtype=np.uint8)
+    cv2.circle(max_dist_mask, center, radius+50, 255, -1)
+    #inversion de ce masque
+    max_dist_mask = cv2.bitwise_not(max_dist_mask)
+    #on combine les deux masques pour ne garder que la zone libre à partir de
+    mask_for_insertion = cv2.bitwise_or(mask_for_insertion, max_dist_mask)
+
+    free_space = cv2.bitwise_not(mask_for_insertion)
+    dist_transform = cv2.distanceTransform(free_space, cv2.DIST_L2, 5)
+    
+    # max_loc renvoie les coordonnées (X, Y) du pixel ayant la plus grande distance
+    _, _, _, max_loc = cv2.minMaxLoc(dist_transform)
+    
+    return max_loc,mask_for_insertion
+    
+    
 
 def rrt_path_planning(start_2d, goal_2d, obstacle_mask, marge, roi_mask, step_size=20, max_iter=3000):
     kernel_size = int(2 * marge + 1)
@@ -366,7 +395,7 @@ def smooth_path(path_2d, obstacle_mask):
 # ======================================================
 # Pipeline Principale
 # ======================================================
-def main(img, camera, float_radius_mm=25.0, tool_radius_px=15, use_AI=False, cellpose_diameter=80):
+def main(img, camera, float_width_mm=5, float_radius_mm=25.0, tool_radius_px=15, use_AI=False, cellpose_diameter=80):
     output_img = img.copy()
     checkpoints_3d = np.empty((0, 3), dtype=np.float32)
 
@@ -392,9 +421,10 @@ def main(img, camera, float_radius_mm=25.0, tool_radius_px=15, use_AI=False, cel
         )
 
         conversion_factor = float_radius_mm / float_radius_px
-        marge_insertion= 10 / conversion_factor  # marge de sécurité de 10mm convertie en pixels
+        marge_insertion= 15 / conversion_factor  # marge de sécurité de 15mm convertie en pixels
         marge_prise=3 / conversion_factor  # marge de sécurité de 3mm convertie en pixels
         tool_radius_px = int(1.27 / conversion_factor)  # rayon de l'outil converti en pixels
+        float_width_px = int(float_width_mm / conversion_factor)  # largeur du flotteur convertie en pixels
     except Exception as e:
         logger.error(f"Erreur flotteur : {e}")
         return None, None, checkpoints_3d
@@ -424,7 +454,7 @@ def main(img, camera, float_radius_mm=25.0, tool_radius_px=15, use_AI=False, cel
 
         # 3. Path Planning Confiné
         roi_mask = np.zeros(img.shape[:2], dtype=np.uint8)
-        cv2.circle(roi_mask, tuple(float_center_2d), float_radius_px, 255, -1)
+        cv2.circle(roi_mask, tuple(float_center_2d), float_radius_px-float_width_px, 255, -1)
         cv2.circle(output_img, tuple(float_center_2d), float_radius_px, (0, 255, 255), 2)
 
         target_cnt = None
@@ -444,7 +474,8 @@ def main(img, camera, float_radius_mm=25.0, tool_radius_px=15, use_AI=False, cel
         outside_roi = cv2.bitwise_not(roi_mask)
         obstacle_mask = cv2.bitwise_or(obstacle_mask, outside_roi)
 
-        insertion_2d = get_insertion_point(obstacle_mask,duckweed_tracked,marge=marge_insertion)
+        #insertion_2d = get_insertion_point(obstacle_mask,duckweed_tracked,marge=marge_insertion)
+        insertion_2d , mask_for_insertion= get_insertion_point_2(obstacle_mask, duckweed_tracked, marge=marge_insertion)
         cv2.circle(output_img, insertion_2d, 6, (255, 255, 0), -1) 
         cv2.putText(output_img, "Insertion", (insertion_2d[0]-30, insertion_2d[1]-10), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 2)
@@ -489,6 +520,14 @@ def main(img, camera, float_radius_mm=25.0, tool_radius_px=15, use_AI=False, cel
 
     filename = SEG_DATASET_DIR / "latest.png"
     cv2.imwrite(str(filename), output_img)
+    filename_obsacle = SEG_DATASET_DIR / "latest_obstacle.png"
+    cv2.imwrite(str(filename_obsacle), obstacle_mask)
+    filename_insertion = SEG_DATASET_DIR / "latest_insertion.png"
+    cv2.imwrite(str(filename_insertion), mask_for_insertion)
+
+    cv2.imshow("Controle Duckweed Tracker", output_img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
     logger.info(f"Image de controle sauvegardee sous : {filename}")
 
     return duckweed_3d, float_center_3d, checkpoints_3d

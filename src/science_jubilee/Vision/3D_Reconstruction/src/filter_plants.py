@@ -12,8 +12,6 @@ def filter_gaussians(
     scale_threshold=0.03,
     white_sat_thresh=0.15,
     white_val_thresh=0.6,
-    ban_hue_min=10,
-    ban_hue_max=50,
     elongation_threshold=2.0,
     bbox_size=100,
     bbox_center=[0.0, 0.0, 0.0],
@@ -107,8 +105,8 @@ def filter_gaussians(
     mask_opacity = true_opacity > opacity_threshold
     mask_scale = s_max < scale_threshold
     is_elongated = elongation_ratio > elongation_threshold
+    is_black_cloud = (value < 0.05)
     is_white_cloud = (saturation < white_sat_thresh) & (value > white_val_thresh)
-    is_orange_artifact = (hue > ban_hue_min) & (hue < ban_hue_max) & (saturation > 0.2)
 
     # Restriction de la boîte englobante (is_inside_bbox)
     valid_mask = (
@@ -116,8 +114,8 @@ def filter_gaussians(
         & mask_opacity
         & mask_scale
         & is_elongated
+        & (~is_black_cloud)
         & (~is_white_cloud)
-        & (~is_orange_artifact)
     )
     filtered_data = vertex_data[valid_mask]
 

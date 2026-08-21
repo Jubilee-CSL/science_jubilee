@@ -37,11 +37,6 @@ echo " Activation de l'environnement Conda (gs_final)..."
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate gaussian_splatting_inria
 
-#Colmap training for sparse points and camera pose estimation
-echo "Step 1/2 : Colmap sparse points"
-cd "$PROJECT_DIR/src/3dgs-mcmc"
-python convert.py -s "$DATASET_PATH"
-
 #3DGS-mcmc training
 cd "$PROJECT_DIR/src/3dgs-mcmc"
 echo "Step 2/2 :Gaussian Splatting training"

@@ -98,6 +98,21 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
         # Loss
         gt_image = viewpoint_cam.original_image.cuda()
+        # --- MASKING ---
+        if gt_image.shape[0] == 4:
+            # Extrait le canal Alpha (le masque)
+            mask = gt_image[3:4, ...] 
+            
+            # Ne garde que les canaux RGB pour la vraie image
+            gt_image = gt_image[:3, ...] 
+            
+            # Multiplie le rendu et la vraie image par le masque
+            # Ainsi, tous les pixels en dehors de la plante deviennent 0 
+            # et le modèle n'a rien à optimiser dans ces zones !
+            image = image * mask
+            gt_image = gt_image * mask
+        # --- MODIFICATION ---
+
         Ll1 = l1_loss(image, gt_image)
         loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image))
 
