@@ -18,10 +18,9 @@ ex.observers.append(MongoObserver(db_name="jubilee26"))
 def config():
     name = ""  # run label stored in Sacred config
     scan = dict(  # noqa: F841
-        start=[144.0, 125.0],
-        stop=[184.0, 145.0],
-        steps=[20, 10],
-        z=320.0,
+        start=[144.0, 125.0, 320.0],
+        stop=[184.0, 145.0, 220.0],
+        steps=[20, 10, 1],
         delay=0.5,
     )
     acquisition = dict(  # noqa: F841
@@ -43,7 +42,6 @@ def main(_config, _run):
         start=scan_cfg["start"],
         stop=scan_cfg["stop"],
         steps=scan_cfg["steps"],
-        z=scan_cfg["z"],
         delay=scan_cfg["delay"],
     )
     for path in saved:
