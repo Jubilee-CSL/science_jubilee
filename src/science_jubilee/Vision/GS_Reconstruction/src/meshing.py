@@ -77,7 +77,7 @@ def create_mesh_with_alpha_shape(
     # Sauvegarde finale
     o3d.io.write_triangle_mesh(output_obj, mesh)
     print(f" Succès ! Maillage sauvegardé sous : {output_obj}")
-
+    return mesh
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

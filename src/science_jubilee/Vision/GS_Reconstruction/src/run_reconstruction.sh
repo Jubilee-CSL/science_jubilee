@@ -3,7 +3,8 @@
 set -e
 
 #Theses are default values of the directories, you must change the Project_dir to your path into 3d_reconstruction folder
-PROJECT_DIR="/mnt/c/Users/Justin/Desktop/Jubilee/science_jubilee/src/science_jubilee/Vision/GS_Reconstruction"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 DATASET_PATH="$PROJECT_DIR/Datasets/latest_dataset"
 OUTPUT_DIR="$PROJECT_DIR/Outputs/latest_dataset_results"
 ITERATIONS=10000
