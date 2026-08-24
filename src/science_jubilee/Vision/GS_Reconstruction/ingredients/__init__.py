@@ -6,6 +6,7 @@ __all__ = [
     "reconstruction",
     "filter_scene",
     "filter_plants",
+    "extract_leafs",
     "scale_by_cameras",
     "meshing",
 ]
