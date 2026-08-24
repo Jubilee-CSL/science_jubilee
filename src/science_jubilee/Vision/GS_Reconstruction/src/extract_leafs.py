@@ -104,11 +104,11 @@ def compute_leaf_normals(leaf_clusters):
 
 def extract_normal_leafs(leaf_clusters, horizontal_threshold=0.8):
     """
-        Estimation de l'horizontalité des clusters graçe à la méthode PCA (estimation du hyperplan le plus proche)
+        Estimation de l'horizontalité en regardant le produit scalaire avec l'axe Z dans le référentiel de la plante
 
     """
     horizontal_leafs = []
-    z_axis = np.array([0.0, 1.0, 0.0])
+    z_axis = np.array([0.0, 1.0, 0.0])  #Pour open 3D il s'agit de l'axe y qui est changé en z dans blender
     normals = compute_leaf_normals(leaf_clusters)
     for i in range(len(leaf_clusters)):
         if not np.any(np.isnan(normals[i])) and abs(np.dot(normals[i], z_axis)) >= horizontal_threshold:
