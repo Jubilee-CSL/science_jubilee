@@ -10,17 +10,17 @@ for p in (SRC_ROOT, REPO_ROOT):
     if p_str not in sys.path:
         sys.path.insert(0, p_str)
 
-import scale_by_cameras
+import src.scale_by_cameras as scale_by_cameras
 
-scale_by_cameras_ing = Ingredient("scaling")
+scaling = Ingredient("scaling")
 
 
-@scale_by_cameras_ing.config
+@scaling.config
 def config():
     cameras_span = None
 
 
-@scale_by_cameras_ing.capture
+@scaling.capture
 def run_scale_by_cameras(input_ply, output_ply, cameras_json_path, cameras_span):
     scale_by_cameras.main(
         input_ply=str(input_ply), output_ply=str(output_ply), cameras_json_path=cameras_json_path, cameras_span=cameras_span

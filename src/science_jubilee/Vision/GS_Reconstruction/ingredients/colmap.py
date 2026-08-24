@@ -16,7 +16,7 @@ def config():
     # path to the run_colmap.sh script (relative to repo)
     colmap_script = str(
         REPO_ROOT
-        / "src/science_jubilee/Vision/3D_Reconstruction/src"
+        / "src/science_jubilee/Vision/GS_Reconstruction/src"
         / "run_colmap.sh"
     )
 
@@ -31,9 +31,9 @@ def _windows_to_wsl_path(windows_path: str) -> str:
 def run_colmap(colmap_script, dataset_path):
     colmap_wsl = _windows_to_wsl_path(colmap_script)
     dataset_wsl = _windows_to_wsl_path(str(Path(dataset_path).resolve()))
-    cmd = f"bash {colmap_wsl} --dataset {dataset_wsl}"
+    cmd = f"start /wait cmd /c bash {colmap_wsl} --dataset {dataset_wsl}"
     # Run inside WSL; keep caller responsible for platform specifics
     res = os.system(cmd)
     if res != 0:
         raise RuntimeError(f"Colmap step failed with exit code {res}")
-    return True
+    return "Colmap succed"

@@ -10,7 +10,7 @@ for p in (SRC_ROOT, REPO_ROOT):
     if p_str not in sys.path:
         sys.path.insert(0, p_str)
 
-import meshing
+import src.meshing as meshing
 
 meshing_ing = Ingredient("meshing")
 

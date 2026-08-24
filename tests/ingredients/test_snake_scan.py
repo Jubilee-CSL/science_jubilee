@@ -106,9 +106,9 @@ def test_run_scan_calls_acquire_for_every_position(patched_session, tmp_path):
         )
 
     assert len(calls) == 3 * 2
-    assert calls[0] == "snake_000_000"
-    assert calls[1] == "snake_000_001"
-    assert calls[2] == "snake_001_001"  # row 1 travels in reverse
+    assert calls[0] == "img_n1_x0_y0_z50"
+    assert calls[1] == "img_n2_x0_y10_z50"
+    assert calls[2] == "img_n3_x5_y10_z50"  # row 1 travels in reverse
 
 
 @pytest.mark.secondary

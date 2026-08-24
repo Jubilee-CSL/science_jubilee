@@ -148,6 +148,8 @@ def filter_gaussians(
     PlyData([new_element], text=False).write(str(output_ply_path))
     print(f"Saved filtered splats to {output_ply_path}")
 
+    return filtered_data
+
 
 if __name__ == "__main__":
     import argparse

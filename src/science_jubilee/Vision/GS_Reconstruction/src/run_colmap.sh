@@ -2,8 +2,9 @@
 
 set -e
 
-#Theses are default values of the directories, you must change the Project_dir to your path into 3d_reconstruction folder
-PROJECT_DIR="/mnt/c/Users/Justin/Desktop/Jubilee/science_jubilee/src/science_jubilee/Vision/gs_reconstruction"
+# Resolve the project directory from this script so the path works on any clone.
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 DATASET_PATH="$PROJECT_DIR/Datasets/latest_dataset"
 
 
@@ -34,6 +35,6 @@ conda activate gaussian_splatting_inria
 #Colmap training for sparse points and camera pose estimation
 echo "Step 1/2 : Colmap sparse points"
 cd "$PROJECT_DIR/src/3dgs-mcmc"
-python convert1.py -s "$DATASET_PATH" 
+python convert.py -s "$DATASET_PATH" 
 
 echo "Colmap trained succesfully"
