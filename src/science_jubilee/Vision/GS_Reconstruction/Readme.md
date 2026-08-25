@@ -86,15 +86,24 @@ Change these values in `src/run_colmap.sh` and `src/run_reconstruction.sh` if Mi
 Indicative environment setup:
 
 ```bash
-conda create -y -n gaussian_splatting_inria python=3.8
-conda activate gaussian_splatting_inria
+conda create -y -n gaussian_splatting_test python=3.7.12 -c conda-forge
+conda activate gaussian_splatting_test
 
 conda install -c conda-forge colmap
 conda install -c conda-forge gxx_linux-64=11
 conda install -c nvidia cuda-nvcc=11.8 cuda-toolkit=11.8
 conda install -c conda-forge libxcrypt
 
+pip install torch==1.12.1+cu116 torchvision==0.13.1+cu116 torchaudio==0.12.1 --extra-index-url [https://download.pytorch.org/whl/cu116](https://download.pytorch.org/whl/cu116)
+
 pip install plyfile tqdm
+
+export CUDA_HOME=$CONDA_PREFIX
+
+export CC=x86_64-conda-linux-gnu-gcc
+
+export CXX=x86_64-conda-linux-gnu-g++
+
 pip install submodules/diff-gaussian-rasterization
 pip install submodules/simple-knn
 ```
