@@ -4,9 +4,9 @@ __all__ = [
     "pipeline",
     "colmap",
     "reconstruction",
-    "filter_scene",
-    "filter_plants",
+    "pre_process",
+    "post_process",
     "extract_leafs",
-    "scale_by_cameras",
+    "scaling",
     "meshing",
 ]

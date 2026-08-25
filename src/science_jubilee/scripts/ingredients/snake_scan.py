@@ -17,7 +17,7 @@ scan = Ingredient("scan", ingredients=[acquisition])
 def scan_config():
     start = [144.0, 125.0, 320.0]  # start corner [X, Y, Z] in mm
     stop = [184.0, 145.0, 220.0]  # stop corner [X, Y, Z] in mm
-    steps = [20, 10, 1]  # grid size [NX, NY, NZ]
+    steps = [20, 10, 2]  # grid size [NX, NY, NZ]
     delay = 0.5  # seconds between captures
 
 
@@ -55,7 +55,7 @@ def run_scan(start, stop, steps, delay, out) -> list[str]:
     img_idx = 0
 
     for h in range(steps[2]):
-        z = start[2] - h * step_z
+        z = start[2] + h * step_z
         nav.move_to(z=z)
         nav.move_to(x=start[0], y=start[1])
         for i in range(steps[0]):

@@ -32,7 +32,7 @@ def _build_pipeline(device: str):
     return torch, device, dtype
 
 
-def infer_depth_and_normals(image_path: str, output_dir: str):
+def infer_depth_and_normals(image_path: str, output_dir: str, steps=30):
     image_path = str(image_path)
     output_dir = str(output_dir)
     os.makedirs(output_dir, exist_ok=True)
@@ -69,9 +69,9 @@ def infer_depth_and_normals(image_path: str, output_dir: str):
 
     def _run_pipeline(pipe, image_rgb):
         try:
-            return pipe(image_rgb, num_inference_steps=20, match_input_res=True)
+            return pipe(image_rgb, num_inference_steps=steps, match_input_res=True)
         except TypeError:
-            return pipe(image_rgb, num_inference_steps=20)
+            return pipe(image_rgb, num_inference_steps=steps)
 
     with torch.inference_mode():
         print("[+] Running depth estimation...")
@@ -99,7 +99,7 @@ def infer_depth_and_normals(image_path: str, output_dir: str):
 
     print(f"[+] Depth saved to: {depth_path}")
     print(f"[+] Normals saved to: {normals_path}")
-    return depth_path, normals_path
+    return depth_output, normal_output
 
 
 if __name__ == "__main__":

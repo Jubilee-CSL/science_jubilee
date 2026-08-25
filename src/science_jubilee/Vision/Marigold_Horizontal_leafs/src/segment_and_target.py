@@ -14,13 +14,6 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-try:
-    from rembg import new_session, remove
-
-except Exception:  # pragma: no cover - optional dependency
-    remove = None
-    new_session = None
-
 from src.inference_marigold import infer_depth_and_normals
 
 
@@ -57,29 +50,6 @@ def depth_to_camera_xyz(
 
 
 def segment_plant_mask(image: np.ndarray, use_ai: bool = True) -> np.ndarray:
-    if use_ai and remove is not None and new_session is not None:
-        try:
-            session = new_session("isnet-general-use")
-            pil_image = Image.fromarray(cv2.cvtColor(image))
-            transparent = remove(
-                pil_image,
-                session=session,
-                alpha_matting=True,
-                alpha_matting_foreground_threshold=240,
-                alpha_matting_background_threshold=10,
-                alpha_matting_erode_size=10,
-            )
-            alpha = np.array(transparent.getchannel("A"))
-            mask = (alpha > 0).astype(np.uint8) * 255
-            kernel = np.ones((3, 3), np.uint8)
-            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-            return mask
-        except Exception as exc:  # model runtime may fail
-            print(
-                f"[!] AI segmentation failed ({exc}), falling back to a HSV-based mask"
-            )
-
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     lower_green = np.array([35, 40, 40], dtype=np.uint8)
     upper_green = np.array([95, 255, 255], dtype=np.uint8)

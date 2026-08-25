@@ -1,21 +1,34 @@
 import logging
 from pathlib import Path
-import time
+import os
+import open3d as o3d
 from sacred import Ingredient
 
-from .colmap import colmap
-from .reconstruction import reconstruction
-from .filter_scene import filter_scene_ing
-from .filter_plants import filter_plants_ing
-from .scale_by_cameras import scale_by_cameras_ing
-from .meshing import meshing_ing
+from science_jubilee.scripts.ingredients.snake_scan import run_scan, scan
+
+from .colmap import run_colmap, colmap
+from .extract_leafs import run_extract_normal_leafs,run_extract_leaf_clusters, extract_leafs
+from .meshing import run_meshing,    meshing_ing
+from .post_process import run_filter_plants,post_process
+from .pre_process import run_filter_scene, pre_process
+from .reconstruction import run_reconstruction, reconstruction
+from .scaling import run_scale_by_cameras, scaling
 
 logger = logging.getLogger(__name__)
 
 
 pipeline = Ingredient(
     "3d_reconstruction_pipeline",
-    ingredients=[colmap, filter_scene_ing, filter_plants_ing, scale_by_cameras_ing, meshing_ing, reconstruction],
+    ingredients=[
+        scan,
+        colmap,
+        pre_process,
+        post_process,
+        scaling,
+        meshing_ing,
+        reconstruction,
+        extract_leafs,
+    ],
 )
 
 
@@ -25,44 +38,84 @@ def config():
     num_photos = 100
     iterations = 7000
     show = True
-    # filter_plants defaults are in its ingredient
-    # meshing defaults are in its ingredient
+    run_capture = True
+    start = [110.0, 80.0, 280.0]
+    stop = [250.0, 200.0, 220.0]
+    steps = [5, 5, 4]
+    delay = 2.0
 
 
 @pipeline.capture
-def run_pipeline(dataset_name, num_photos, iterations, show):
-    REPO_ROOT = Path(__file__).resolve().parents[4].parent
+def run_pipeline(
+    dataset_name,
+    num_photos,
+    iterations,
+    show,
+    run_capture,
+    start,
+    stop,
+    steps,
+    delay,
+):
+    repo_root = Path(__file__).resolve().parents[4].parent
     dataset_path = (
-        REPO_ROOT / "src/science_jubilee/Vision/3D_Reconstruction/Datasets" / dataset_name
+        repo_root
+        / "src/science_jubilee/Vision/GS_Reconstruction/Datasets"
+        / dataset_name
     )
     output_path = (
-        REPO_ROOT / "src/science_jubilee/Vision/3D_Reconstruction/Outputs" / f"{dataset_name}_results"
+        repo_root
+        / "src/science_jubilee/Vision/GS_Reconstruction/Outputs"
+        / f"{dataset_name}_results"
     )
     images_dir = dataset_path / "input"
+    dataset_path.mkdir(parents=True, exist_ok=True)
     output_path.mkdir(parents=True, exist_ok=True)
-
-    debug_artifacts = {}
-    run_tag = time.strftime("%Y%m%d_%H%M%S")
 
     logger.info("Starting 3D reconstruction pipeline for %s", dataset_name)
 
-    # 1. Colmap conversion
-    colmap.run_colmap(dataset_path=str(dataset_path))
+    if run_capture:
+        saved_images = run_scan(
+            start=start,
+            stop=stop,
+            steps=steps,
+            delay=delay,
+            out=str(images_dir),
+        )
 
-    # 2. Filter scene (preprocessing)
-    filter_scene_ing.run_filter_scene(images_path=str(dataset_path / "images"))
+    else:
+        saved_images = sorted(str(path) for path in images_dir.glob("*.jpg"))
+        if not saved_images:
+            raise FileNotFoundError(f"No input images found in {images_dir}")
 
-    # 3. Reconstruction (Gaussian training / reconstruction)
-    reconstruction.run_reconstruction(
-        dataset_path=str(dataset_path), output_path=str(output_path / "3d_reconstruction"), iterations=iterations
+    run_colmap(dataset_path=str(dataset_path))
+    run_filter_scene(
+        images_path=str(dataset_path / "images"),
+        use_ai=True,
     )
 
-    # 4. Filter plants (post-process point cloud)
-    ply_path = output_path / "3d_reconstruction" / f"point_cloud/iteration_{iterations}" / "point_cloud.ply"
-    filtered_ply = output_path / "3d_reconstruction" / "point_cloud/iteration_35000" / "point_cloud.ply"
+    reconstruction_path = output_path / "3d_reconstruction"
+    run_reconstruction(
+        dataset_path=str(dataset_path),
+        output_path=str(reconstruction_path),
+        iterations=iterations,
+    )
+
+    reconstruction_ply = (
+        reconstruction_path
+        / "point_cloud"
+        / f"iteration_{iterations}"
+        / "point_cloud.ply"
+    )
+    filtered_ply = (
+        reconstruction_path
+        / "point_cloud"
+        / "iteration_35000"
+        / "point_cloud.ply"
+    )
     filtered_ply.parent.mkdir(parents=True, exist_ok=True)
-    filter_plants_ing.run_filter_plants(
-        input_ply=str(ply_path),
+    run_filter_plants(
+        input_ply=str(reconstruction_ply),
         output_ply=str(filtered_ply),
         bbox_size=10000,
         bbox_center=[0.0, 2, 0.0],
@@ -75,23 +128,81 @@ def run_pipeline(dataset_name, num_photos, iterations, show):
         white_val_thresh=0.2,
     )
 
-    # 5. Scaling
-    scaled_ply = output_path / "point_cloud_scaled.ply"
-    cameras_json = output_path / "3d_reconstruction" / "cameras.json"
-    scale_by_cameras_ing.run_scale_by_cameras(
-        input_ply=str(filtered_ply), output_ply=str(scaled_ply), cameras_json_path=str(cameras_json), cameras_span=None
+    scaled_ply = (
+        reconstruction_path
+        / "point_cloud"
+        / "iteration_35000"
+        / "point_cloud_scaled.ply"
+    )
+    scaled_ply.parent.mkdir(parents=True, exist_ok=True)
+    run_scale_by_cameras(
+        input_ply=str(filtered_ply),
+        output_ply=str(scaled_ply),
+        cameras_json_path=str(reconstruction_path / "cameras.json"),
+        cameras_span=None,
     )
 
-    # 6. Meshing
     mesh_path = output_path / "mesh.obj"
-    mesh_path.parent.mkdir(parents=True, exist_ok=True)
-    meshing_ing.run_meshing(input_ply=str(scaled_ply), output_obj=str(mesh_path), alpha=0.0038, decimate_ratio=0.8)
+    run_meshing(
+        input_ply=str(scaled_ply),
+        output_obj=str(mesh_path),
+        alpha=0.0038,
+        decimate_ratio=0.8,
+    )
 
-    debug_artifacts["mesh"] = str(mesh_path)
 
-    logger.info("Pipeline finished, mesh at %s", mesh_path)
+    mesh = o3d.io.read_triangle_mesh(str(mesh_path))
+    if not mesh.has_vertices():
+        raise ValueError(f"Mesh has no vertices: {mesh_path}")
+    mesh_pcd = o3d.geometry.PointCloud(mesh.vertices)
+    leaf_clusters = run_extract_leaf_clusters(
+        pcd=mesh_pcd,
+        distance_threshold=0.0092,
+        min_points=20,
+        size_threshold=1e-5,
+        shape_threshold=0.98,
+        height_ratio=0.1,
+    )
+    horizontal_leaf_clusters = run_extract_normal_leafs(
+        leaf_clusters=leaf_clusters,
+        horizontal_threshold=0.90,
+    )
+
+    horizontal_leafs_ply = output_path / "horizontal_leafs.ply"
+    horizontal_pcd = o3d.geometry.PointCloud()
+    if horizontal_leaf_clusters:
+        horizontal_points = [
+            point for leaf in horizontal_leaf_clusters for point in leaf.points
+        ]
+        horizontal_pcd.points = o3d.utility.Vector3dVector(horizontal_points)
+    o3d.io.write_point_cloud(str(horizontal_leafs_ply), horizontal_pcd)
+
+    if show:
+        Viewer_path = (
+            repo_root / "src/science_jubilee/Vision/3D_Reconstruction/Viewer/bin"
+        )
+        # Gaussian Viewer
+        os.system(
+            f"cd {Viewer_path} && SIBR_gaussianViewer_app.exe -m {reconstruction_path }"
+        )
+        # Display the mesh
+        mesh = o3d.io.read_triangle_mesh(str(mesh_path))
+        o3d.visualization.draw_geometries([mesh], mesh_show_back_face=True)
+
+    logger.info(
+        "Pipeline finished: %d leaves, %d horizontal leaves, mesh at %s",
+        len(leaf_clusters),
+        len(horizontal_leaf_clusters),
+        mesh_path,
+    )
     return {
-        "mesh": str(mesh_path),
+        "dataset": str(dataset_path),
+        "images": saved_images,
+        "reconstruction_ply": str(reconstruction_ply),
         "filtered_ply": str(filtered_ply),
         "scaled_ply": str(scaled_ply),
+        "mesh": str(mesh_path),
+        "horizontal_leafs_ply": str(horizontal_leafs_ply),
+        "leaf_count": len(leaf_clusters)-1,
+        "horizontal_leaf_count": len(horizontal_leaf_clusters),
     }
