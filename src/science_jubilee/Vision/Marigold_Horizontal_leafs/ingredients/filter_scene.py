@@ -23,7 +23,7 @@ def segment_tray_mask(image: np.ndarray, margin_padding_px=20) -> np.ndarray:
     )  # We dont need for custom parameters (real width, lenght, etc)
     detector = cv2.aruco.ArucoDetector(aruco_dict, parameters)
 
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     corners, ids, rejected = detector.detectMarkers(gray)
 
     final_mask = np.zeros(image.shape[:2], dtype=np.uint8)
@@ -50,7 +50,7 @@ def segment_tray_mask(image: np.ndarray, margin_padding_px=20) -> np.ndarray:
 
 @filter_scene.capture
 def segment_plant_mask(image: np.ndarray) -> np.ndarray:
-    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
     lower_green = np.array([35, 40, 40], dtype=np.uint8)
     upper_green = np.array([95, 255, 255], dtype=np.uint8)
     mask = cv2.inRange(hsv, lower_green, upper_green)
