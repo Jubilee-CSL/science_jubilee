@@ -12,6 +12,7 @@ import numpy as np
 import cv2
 import ast
 from argparse import ArgumentParser
+from scipy.spatial.transform import Rotation as R
 
 # This Python script is based on the shell converter script provided in the MipNerF 360 repository.
 parser = ArgumentParser("Colmap converter")
@@ -98,44 +99,104 @@ if not args.skip_matching:
         exit(exit_code)
 
     # ==============================================================================
-    # NOUVEAU : ALIGNEMENT PHYSIQUE SUR LES AXES JUBILEE
+    # AJOUT : CONVERSION DU MODÈLE BINAIRE EN TEXTE POUR PYTHON
     # ==============================================================================
-    print("Mise à l'échelle et alignement avec les coordonnées Jubilee...")
-    input_images_path = args.source_path + "/input"
-    image_files = [f for f in os.listdir(input_images_path) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
+    print("Conversion des fichiers binaires COLMAP en fichiers texte...")
+    sparse_0 = args.source_path + "/distorted/sparse/0"
+    converter_cmd = (colmap_command + f" model_converter \
+        --input_path {sparse_0} \
+        --output_path {sparse_0} \
+        --output_type TXT")
+    os.system(converter_cmd)
+    # ==============================================================================
+    # NOUVEAU : TRIANGULATION FORCÉE (ÉCRASEMENT DES POSES PAR JUBILEE)
+    # ==============================================================================
+    print("Écrasement des poses par les coordonnées Jubilee (Triangulation forcée)...")
+    sparse_0 = args.source_path + "/distorted/sparse/0"
+    forced_path = args.source_path + "/distorted/sparse/0_forced"
+    os.makedirs(forced_path, exist_ok=True)
 
-    ref_path = args.source_path + "/distorted/ref_images.txt"
+    # 1. Copier le modèle de caméra
+    shutil.copy2(os.path.join(sparse_0, "cameras.txt"), os.path.join(forced_path, "cameras.txt"))
+
+    # 2. Créer un fichier de points 3D totalement vide
+    with open(os.path.join(forced_path, "points3D.txt"), "w") as f:
+        f.write("# 3D point list with one line of data per point:\n")
+
+    # 3. Réécrire images.txt avec tes poses, MAIS en conservant les points 2D du Mapper !
+    R_c2w = R.from_euler('x', 180, degrees=True).as_matrix()
+
+    with open(os.path.join(sparse_0, "images.txt"), "r") as f_in:
+        lines = f_in.readlines()
+
     valid_images_count = 0
-    with open(ref_path, "w") as f:
-        for filename in image_files:
-            match = re.search(r'img_x(-?\d+)_y(-?\d+)_z(-?\d+)', filename)
-            if match:
-                valid_images_count += 1
-                x_m = float(match.group(1)) / 100.0
-                y_m = float(match.group(2)) / 100.0
-                z_m = float(match.group(3)) / 100.0
-                # Format: image_name X Y Z
-                f.write(f"{filename} {x_m} {y_m} {z_m}\n")
+    with open(os.path.join(forced_path, "images.txt"), "w") as f_out:
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            if line.startswith("#"):
+                f_out.write(line)
+                i += 1
+                continue
 
-    if valid_images_count > 0:
-        # On redresse le modèle "0" fraîchement créé par le mapper
-        sparse_0_path = args.source_path + "/distorted/sparse/0"
-        aligner_cmd = (colmap_command + f" model_aligner \
-            --input_path {sparse_0_path} \
-            --output_path {sparse_0_path} \
-            --ref_images_path {ref_path} \
-            --robust_alignment 1 \
-            --robust_alignment_max_error 0.05")
-        
-        exit_code = os.system(aligner_cmd)
-        if exit_code == 0:
-            print(f"✅ Modèle parfaitement aligné et mis à l'échelle de la machine Jubilee ({valid_images_count} positions utilisées) !")
-        else:
-            print("⚠️ Attention, l'alignement Jubilee a échoué. On garde l'échelle COLMAP par défaut.")
-    else:
-        print("⚠️ Aucune coordonnée xyz trouvée dans les noms des images. Alignement ignoré.")
+            # C'est une ligne de caméra : IMAGE_ID, QW, QX, QY, QZ, TX, TY, TZ, CAMERA_ID, NAME
+            parts = line.strip().split()
+            if len(parts) >= 10:
+                image_id = parts[0]
+                camera_id = parts[8]
+                filename = parts[9]
+
+                # Extraction depuis ton nouveau format img_n1_x...
+                match = re.search(r'img_n\d+_x(-?\d+)_y(-?\d+)_z(-?\d+)', filename)
+                if match:
+                    valid_images_count += 1
+                    x_m = float(match.group(1)) / 100.0
+                    y_m = float(match.group(2)) / 100.0
+                    z_m = float(match.group(3)) / 100.0
+
+                    T_c2w = np.array([x_m, y_m, z_m])
+                    R_w2c = R_c2w.T
+                    T_w2c = -np.dot(R_w2c, T_c2w)
+                    quat_w2c = R.from_matrix(R_w2c).as_quat()
+                    qw, qx, qy, qz = quat_w2c[3], quat_w2c[0], quat_w2c[1], quat_w2c[2]
+
+                    new_line = f"{image_id} {qw} {qx} {qy} {qz} {T_w2c[0]} {T_w2c[1]} {T_w2c[2]} {camera_id} {filename}\n"
+                    f_out.write(new_line)
+                else:
+                    f_out.write(line) # Sécurité si le nom ne matche pas
+
+                # Ligne suivante : Les points 2D qu'il faut garder pour la triangulation
+                i += 1
+                points2d = lines[i].strip().split()
+                
+                # Le format est : X Y POINT3D_ID X Y POINT3D_ID...
+                # On remplace tous les identifiants 3D (chaque 3ème élément) par -1
+                for j in range(2, len(points2d), 3):
+                    points2d[j] = "-1"
+                    
+                # On réécrit la ligne modifiée
+                f_out.write(" ".join(points2d) + "\n")
+            i += 1
+
+    print(f"✅ {valid_images_count} poses écrasées avec succès !")
+
+    # 4. Lancer la triangulation avec les poses parfaites
+    print("Génération du nuage de points 3D définitif...")
+    triangulated_path = args.source_path + "/distorted/sparse/0_final"
+    os.makedirs(triangulated_path, exist_ok=True)
+
+    triangulator_cmd = (colmap_command + f" point_triangulator \
+        --database_path {args.source_path}/distorted/database.db \
+        --image_path {args.source_path}/input \
+        --input_path {forced_path} \
+        --output_path {triangulated_path}")
+    
+    os.system(triangulator_cmd)
+
+    # 5. Remplacer le faux modèle de départ par notre modèle parfait
+    shutil.rmtree(sparse_0)
+    shutil.move(triangulated_path, sparse_0)
     # ==============================================================================
-
 
 ### Image undistortion
 ## We need to undistort our images into ideal pinhole intrinsics.

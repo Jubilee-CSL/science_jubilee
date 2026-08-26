@@ -47,7 +47,7 @@ def segment_plant_mask(image: np.ndarray,birefnet,transform_image, use_ai: bool 
             print(f"[!] AI segmentation failed ({exc}), falling back to a HSV-based mask")
 
     # Fallback HSV
-    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
     lower_green = np.array([35, 40, 40], dtype=np.uint8)
     upper_green = np.array([95, 255, 255], dtype=np.uint8)
     mask = cv2.inRange(hsv, lower_green, upper_green)
@@ -59,7 +59,7 @@ def segment_plant_mask(image: np.ndarray,birefnet,transform_image, use_ai: bool 
 
 def segment_cube_mask(image: np.ndarray) -> np.ndarray:
     """Segmentation du petit cube bleu de référence"""
-    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
     lower_blue = np.array([100, 100, 50], dtype=np.uint8)
     upper_blue = np.array([140, 255, 255], dtype=np.uint8)
     mask = cv2.inRange(hsv, lower_blue, upper_blue)
@@ -69,7 +69,7 @@ def segment_cube_mask(image: np.ndarray) -> np.ndarray:
     return mask
 
 def segment_vase_plant(image:np.ndarray):
-        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
     # 2. MASQUE MARRON (Le Pot / Vase)
         # Le marron en HSV est un "orange sombre". Teinte entre 10 et 25.
         # Saturation > 50 ignore le blanc. Value < 200 ignore les reflets lumineux forts.
@@ -87,7 +87,7 @@ def segment_tray_mask(image: np.ndarray, margin_padding_px=20) -> tuple[np.ndarr
     parameters = cv2.aruco.DetectorParameters() 
     detector = cv2.aruco.ArucoDetector(aruco_dict, parameters)
 
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     corners, ids, rejected = detector.detectMarkers(gray)
 
     H, W = image.shape[:2]
@@ -199,8 +199,8 @@ def main(images_path, use_ai=True):
         final_mask = safe_mask  | aruco_mask
 
         # 3. Créer l'image RGBA (avec transparence pour 3DGS)
-        # Convertir BGR en BGRA (ajoute le canal Alpha)
-        rgba_image = cv2.cvtColor(image, cv2.COLOR_BGR2BGRA)
+        # Convertir RGB en RGBA (ajoute le canal Alpha)
+        rgba_image = cv2.cvtColor(image, cv2.COLOR_RGB2RGBA)
         # Appliquer notre masque combiné sur le canal Alpha (indice 3)
         rgba_image[:, :, 3] = final_mask
 

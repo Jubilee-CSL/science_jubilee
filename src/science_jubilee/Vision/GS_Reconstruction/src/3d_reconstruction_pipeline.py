@@ -43,13 +43,13 @@ def main(num_photos=100, dataset_name="Latest_reconstruction", iterations = 7000
 
     dataset_path = (
         REPO_ROOT
-        / "src/science_jubilee/Vision/3D_Reconstruction/Datasets"
+        / "src/science_jubilee/Vision/GS_Reconstruction/Datasets"
         / dataset_name
     )
     images_dir = dataset_path / "input"
     output_path = (
         REPO_ROOT
-        / "src/science_jubilee/Vision/3D_Reconstruction/Outputs"
+        / "src/science_jubilee/Vision/GS_Reconstruction/Outputs"
         / f"{dataset_name}_results"
     )
 
@@ -122,12 +122,12 @@ def main(num_photos=100, dataset_name="Latest_reconstruction", iterations = 7000
 
                 image_index += 1
     """
-    colmap_wsl_path = REPO_ROOT / "src/science_jubilee/Vision/3D_Reconstruction/src" / "run_colmap.sh"
+    colmap_wsl_path = REPO_ROOT / "src/science_jubilee/Vision/GS_Reconstruction/src" / "run_colmap.sh"
     print(colmap_wsl_path)
     if not colmap_wsl_path.exists():
         raise FileNotFoundError(f"WSL pipeline script not found: {colmap_wsl_path}")
 
-    output_reconstruction = output_path / "3d_reconstruction"
+    output_reconstruction = output_path / "GS_Reconstruction"
 
     colmap_wsl_path_wsl = _windows_to_wsl_path(str(colmap_wsl_path))
     dataset_path_wsl = _windows_to_wsl_path(str(dataset_path))
@@ -143,7 +143,7 @@ def main(num_photos=100, dataset_name="Latest_reconstruction", iterations = 7000
     if result != 0:
        raise RuntimeError(f"Colmap conversion failed with exit code {result}")
 
-    reconstruction_wsl_path = REPO_ROOT / "src/science_jubilee/Vision/3D_Reconstruction/src" / "run_reconstruction.sh"
+    reconstruction_wsl_path = REPO_ROOT / "src/science_jubilee/Vision/GS_Reconstruction/src" / "run_reconstruction.sh"
     print(reconstruction_wsl_path)
     if not reconstruction_wsl_path.exists():
             raise FileNotFoundError(f"WSL pipeline script not found: {reconstruction_wsl_path}")
@@ -163,7 +163,7 @@ def main(num_photos=100, dataset_name="Latest_reconstruction", iterations = 7000
     if result != 0:
             raise RuntimeError(f"WSL reconstruction failed with exit code {result}")
     
-    output_reconstruction = output_path / "3d_reconstruction"
+    output_reconstruction = output_path / "GS_Reconstruction"
 
     ply_path = output_reconstruction / f"point_cloud/iteration_{iterations}" / "point_cloud.ply"
     if not ply_path.exists():
@@ -202,7 +202,7 @@ def main(num_photos=100, dataset_name="Latest_reconstruction", iterations = 7000
 
     if Show:
         Viewer_path = (
-            REPO_ROOT / "src/science_jubilee/Vision/3D_Reconstruction/Viewer/bin"
+            REPO_ROOT / "src/science_jubilee/Vision/GS_Reconstruction/Viewer/bin"
         )
         # Gaussian Viewer
         os.system(
@@ -214,4 +214,4 @@ def main(num_photos=100, dataset_name="Latest_reconstruction", iterations = 7000
 
 
 if __name__ == "__main__":
-    main(num_photos=100, dataset_name="Plante_test_19",iterations=7000, Show=True)
+    main(num_photos=100, dataset_name="Virtual_montserra_3",iterations=7000, Show=True)

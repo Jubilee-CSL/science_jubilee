@@ -11,10 +11,11 @@ scaling = Ingredient("scaling")
 @scaling.config
 def config():
     cameras_span = None
+    rot=[3.2, 0.8, 0.0]
 
 
 @scaling.capture
-def run_scale_by_cameras(input_ply, output_ply, cameras_json_path, cameras_span):
+def run_scale_by_cameras(input_ply, output_ply,rot, cameras_json_path, cameras_span):
     with open(cameras_json_path, "r", encoding="utf-8") as handle:
         cameras = json.load(handle)
     positions = np.asarray([camera["position"] for camera in cameras], dtype=float)
@@ -38,7 +39,7 @@ def run_scale_by_cameras(input_ply, output_ply, cameras_json_path, cameras_span)
     plydata = PlyData.read(str(input_ply))
     vertex_data = plydata.elements[0].data.copy()
     points = np.column_stack([vertex_data[name] for name in ("x", "y", "z")])
-    points = Rotation.from_euler("xyz", [3.2, 0.8, 0.0], degrees=True).apply(points)
+    points = Rotation.from_euler("xyz", rot, degrees=True).apply(points)
     vertex_data["x"], vertex_data["y"], vertex_data["z"] = (points * scales).T
     for name in [
         prop.name for prop in plydata.elements[0].properties if prop.name.startswith("scale_")

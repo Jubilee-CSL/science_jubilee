@@ -31,7 +31,7 @@ def _windows_to_wsl_path(windows_path: str) -> str:
 def run_colmap(colmap_script, dataset_path):
     colmap_wsl = _windows_to_wsl_path(colmap_script)
     dataset_wsl = _windows_to_wsl_path(str(Path(dataset_path).resolve()))
-    cmd = f"start /wait cmd /c bash {colmap_wsl} --dataset {dataset_wsl}"
+    cmd = f"start /wait cmd /k bash {colmap_wsl} --dataset {dataset_wsl}"
     # Run inside WSL; keep caller responsible for platform specifics
     res = os.system(cmd)
     if res != 0:

@@ -140,6 +140,7 @@ def run_pipeline(
         output_ply=str(scaled_ply),
         cameras_json_path=str(reconstruction_path / "cameras.json"),
         cameras_span=None,
+        rot=[3.2, 0.8, 0.0],
     )
 
     mesh_path = output_path / "mesh.obj"
