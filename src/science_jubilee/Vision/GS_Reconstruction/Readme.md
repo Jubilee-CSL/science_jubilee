@@ -86,16 +86,16 @@ Change these values in `src/run_colmap.sh` and `src/run_reconstruction.sh` if Mi
 Indicative environment setup:
 
 ```bash
-conda create -y -n gaussian_splatting_test python=3.7.12 -c conda-forge
-conda activate gaussian_splatting_test
+conda create -y -n gaussian_splatting_inria python=3.7.12 -c conda-forge
+conda activate gaussian_splatting_inria
 
+conda install pip
 conda install -c conda-forge colmap
 conda install -c conda-forge gxx_linux-64=11
 conda install -c nvidia cuda-nvcc=11.8 cuda-toolkit=11.8
 conda install -c conda-forge libxcrypt
 
-pip install torch==1.12.1+cu116 torchvision==0.13.1+cu116 torchaudio==0.12.1 --extra-index-url [https://download.pytorch.org/whl/cu116](https://download.pytorch.org/whl/cu116)
-
+pip install torch==1.12.1+cu116 torchvision==0.13.1+cu116 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu116
 pip install plyfile tqdm
 
 export CUDA_HOME=$CONDA_PREFIX
@@ -104,8 +104,27 @@ export CC=x86_64-conda-linux-gnu-gcc
 
 export CXX=x86_64-conda-linux-gnu-g++
 
+cd src/3dgs-mcmc
+
 pip install submodules/diff-gaussian-rasterization
 pip install submodules/simple-knn
+```
+Or you can install the environement.yaml file on  3dgs-mcmc\ on WSL
+
+```
+conda env create -f environment.yml
+
+```
+
+Another option is by using the .tar.gz environement already compiled for ubuntu 24.02 and miniconda3 
+```
+mkdir -p ~/miniconda3/envs/gaussian_splatting_inria
+
+tar -xzf gaussian_splatting_inria.tar.gz -C ~/miniconda3/envs/gaussian_splatting_inria
+
+conda activate gaussian_splatting_inria
+
+conda-unpack
 ```
 
 PyTorch and CUDA versions must be compatible with the GPU and the compiled extensions. For CUDA errors, first check the active environment and `torch.cuda.is_available()`.

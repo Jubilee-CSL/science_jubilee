@@ -2,16 +2,15 @@ from sacred import Ingredient
 import cv2
 import numpy as np
 
-from ..src import segment_and_target
-
 
 filter_scene = Ingredient("filter_scene")
 
 
 @filter_scene.config
 def config():
-	use_ai = True
-
+     pass
+     
+@filter_scene.capture
 def segment_tray_mask(image: np.ndarray, margin_padding_px=20) -> np.ndarray:
     """
     Construction of the tray mask by searching for the ArUco codes on the corners (see printable aruco_reference.pdf )
@@ -49,7 +48,8 @@ def segment_tray_mask(image: np.ndarray, margin_padding_px=20) -> np.ndarray:
 
     return final_mask
 
-def segment_plant_mask(image: np.ndarray, use_ai: bool = True) -> np.ndarray:
+@filter_scene.capture
+def segment_plant_mask(image: np.ndarray) -> np.ndarray:
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     lower_green = np.array([35, 40, 40], dtype=np.uint8)
     upper_green = np.array([95, 255, 255], dtype=np.uint8)
@@ -61,10 +61,10 @@ def segment_plant_mask(image: np.ndarray, use_ai: bool = True) -> np.ndarray:
 
 
 @filter_scene.capture
-def run_filter_scene(image, use_ai):
+def run_filter_scene(image):
 	image_bgr = np.asarray(image)
 	tray_mask = segment_tray_mask(image_bgr)
-	plant_mask = segment_plant_mask(image_bgr, use_ai=use_ai)
+	plant_mask = segment_plant_mask(image_bgr)
 	return {
 		"image": image_bgr,
 		"tray_mask": tray_mask,

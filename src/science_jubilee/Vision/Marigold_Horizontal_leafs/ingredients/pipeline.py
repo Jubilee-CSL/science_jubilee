@@ -6,10 +6,16 @@ import numpy as np
 import yaml
 from sacred import Ingredient
 
-from .filter_scene import filter_scene
-from .inference_marigold import inference_marigold
-from .reconstruction import reconstruction
-from .target_horizontals import target_horizontals
+from .filter_scene import filter_scene, run_filter_scene
+from .inference_marigold import (
+	inference_marigold,
+	run_infer_depths_and_normals,
+)
+from .reconstruction import reconstruction, run_create_point_cloud
+from .target_horizontals import (
+	run_estimate_horizontal_targets,
+	target_horizontals,
+)
 
 
 pipeline = Ingredient(
@@ -53,8 +59,8 @@ def run_pipeline(
 	with open(config_path, "r", encoding="utf-8") as handle:
 		config_data = yaml.safe_load(handle) or {}
 
-	filtered = filter_scene.run_filter_scene(image=image_bgr, use_ai=use_ai)
-	inference = inference_marigold.run_infer_depths_and_normals(
+	filtered = run_filter_scene(image=image_bgr, use_ai=use_ai)
+	inference = run_infer_depths_and_normals(
 		image=image_bgr,
 		output_dir=str(output_dir),
 		steps=steps,
@@ -62,7 +68,7 @@ def run_pipeline(
 	)
 	depth_map = inference["depth"]
 	normals = inference["normals"]
-	targets = target_horizontals.run_estimate_horizontal_targets(
+	targets = run_estimate_horizontal_targets(
 		image=image_bgr,
 		depth_map=depth_map,
 		normals=normals,
@@ -74,7 +80,7 @@ def run_pipeline(
 
 	point_cloud = None
 	if run_reconstruction:
-		point_cloud = reconstruction.run_create_point_cloud(
+		point_cloud = run_create_point_cloud(
 			image=image_bgr,
 			depth_map=targets["depth_mm"],
 			config=config_data,

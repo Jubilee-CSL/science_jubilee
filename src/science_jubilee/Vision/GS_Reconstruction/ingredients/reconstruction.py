@@ -28,7 +28,7 @@ def run_reconstruction(reconstruction_script, dataset_path, output_path, iterati
     script_wsl = _windows_to_wsl_path(reconstruction_script)
     dataset_wsl = _windows_to_wsl_path(str(Path(dataset_path).resolve()))
     output_wsl = _windows_to_wsl_path(str(Path(output_path).resolve()))
-    cmd = f"start /wait cmd /c bash {script_wsl} --dataset {dataset_wsl} --output {output_wsl} --iterations {iterations}"
+    cmd = f"start /wait cmd /k bash {script_wsl} --dataset {dataset_wsl} --output {output_wsl} --iterations {iterations}"
     res = os.system(cmd)
     if res != 0:
         raise RuntimeError(f"Reconstruction step failed with exit code {res}")
