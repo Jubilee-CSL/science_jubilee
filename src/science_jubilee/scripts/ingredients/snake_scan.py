@@ -5,7 +5,6 @@ from pathlib import Path
 from sacred import Ingredient
 
 from science_jubilee.machine_session import MachineSession
-from science_jubilee.navigation.free_navigation import FreeNavigator
 from science_jubilee.scripts.ingredients.acquisition import acquire, acquisition
 
 logger = logging.getLogger(__name__)
@@ -35,7 +34,7 @@ def run_scan(start, stop, steps, delay, out) -> list[str]:
     folder.mkdir(parents=True, exist_ok=True)
 
     session = MachineSession.from_env(env_file=".env.hardware")
-    nav = FreeNavigator(session.motion, session.tool_changer)
+    nav = session.free_navigator
     cam = session.camera
     light = session.light
 

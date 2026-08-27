@@ -402,6 +402,54 @@ class HTTPTransport(BaseTransport):
             pass
         return offsets
 
+    @staticmethod
+    def _parse_park_position(content: str) -> list:
+        """Extract [X, Y, Z] from a tpost{n}.g file by reading G53 lines."""
+        import re
+
+        pos = [0.0, 0.0, 0.0]
+        for line in content.splitlines():
+            stripped = line.strip()
+            if not stripped.upper().startswith("G53"):
+                continue
+            for letter, idx in (("X", 0), ("Y", 1), ("Z", 2)):
+                m = re.search(rf"(?<![A-Z]){letter}(-?[\d.]+)", stripped, re.IGNORECASE)
+                if m:
+                    pos[idx] = float(m.group(1))
+        return pos
+
+    def download_sys_file(self, filename: str, timeout: float = 5.0) -> str:
+        """Download a file from 0:/sys/ on the Duet and return its text content."""
+        try:
+            resp = self.session.get(
+                f"http://{self.address}/machine/file/0:/sys/{filename}",
+                timeout=timeout,
+            )
+            if resp.ok:
+                return resp.text
+        except Exception:
+            pass
+        resp = self.session.get(
+            f"http://{self.address}/rr_download",
+            params={"name": f"0:/sys/{filename}"},
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        return resp.text
+
+    def get_tool_parking_positions(
+        self, num_tools: int = 4, timeout: float = 5.0
+    ) -> dict:
+        """Return {tool_idx: [X, Y, Z]} by downloading and parsing tpost{n}.g files."""
+        parks: dict[int, list[float]] = {}
+        for idx in range(num_tools):
+            try:
+                content = self.download_sys_file(f"tpost{idx}.g", timeout=timeout)
+                parks[idx] = self._parse_park_position(content)
+            except Exception:
+                pass
+        return parks
+
     # ---- File upload ----------------------------------------------------
 
     #: Accepted destination aliases -> Duet filesystem paths

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import wraps
+from typing import ClassVar, Optional
 
 # ======================================================================
 # Exceptions
@@ -67,6 +68,11 @@ class Tool:
     This class is intended to be inherited by all
     runtime tools.
     """
+
+    # Plugin discovery key: must match both the entry-point name in the
+    # plugin's pyproject.toml and the Duet ``M563 S"<key>"`` string.
+    # ``None`` on the base class means "generic fallback, no registration".
+    TOOL_KEY: ClassVar[Optional[str]] = None
 
     index: int
     name: str

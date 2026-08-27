@@ -296,9 +296,11 @@ class MachineSession:
     @property
     def free_navigator(self):
         """A FreeNavigator wired to this session's motion and tool changer."""
-        from science_jubilee.navigation.free_navigation import FreeNavigator
+        if not hasattr(self, "_free_navigator"):
+            from science_jubilee.navigation.free_navigation import FreeNavigator
 
-        return FreeNavigator(self.motion, self.tool_changer)
+            self._free_navigator = FreeNavigator(self.motion, self.tool_changer)
+        return self._free_navigator
 
     # ------------------------------------------------------------------
     # Context manager

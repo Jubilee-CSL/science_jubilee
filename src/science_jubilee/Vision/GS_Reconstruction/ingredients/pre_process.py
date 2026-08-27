@@ -1,15 +1,11 @@
+import sys
 from pathlib import Path
+
 from sacred import Ingredient
 
-import sys
-
-SRC_ROOT = Path(__file__).resolve().parents[4]
-REPO_ROOT = SRC_ROOT.parent
-
-for p in (SRC_ROOT, REPO_ROOT):
-    p_str = str(p)
-    if p_str not in sys.path:
-        sys.path.insert(0, p_str)
+_GS_ROOT = Path(__file__).resolve().parents[1]  # GS_Reconstruction/
+if str(_GS_ROOT) not in sys.path:
+    sys.path.insert(0, str(_GS_ROOT))
 
 import src.filter_scene as filter_scene
 
@@ -18,7 +14,7 @@ pre_process = Ingredient("pre_process")
 
 @pre_process.config
 def config():
-    use_ai = True
+    pass
 
 
 @pre_process.capture

@@ -65,6 +65,23 @@ To avoid multiple people working on the same thing, we use the issue to discuss 
             :expand:
 
             Tool Contribution Guidelines
+
+    .. grid-item-card::  Writing a Tool Plugin
+        :class-card: intro-card
+        :shadow: md
+
+        Step-by-step guide to packaging a new tool as a standalone Python plugin,
+        covering naming rules, repo layout, entry points, Duet macros, and digital-twin assets.
+
+        +++
+
+        .. button-ref:: tool-plugin-guide
+            :ref-type: ref
+            :click-parent:
+            :color: secondary
+            :expand:
+
+            Tool Plugin Guide
 ```
 
 ```{toctree}
@@ -72,4 +89,5 @@ To avoid multiple people working on the same thing, we use the issue to discuss 
 contributing_code
 contributing_docs
 contributing_tools
+tool_plugin
 ```

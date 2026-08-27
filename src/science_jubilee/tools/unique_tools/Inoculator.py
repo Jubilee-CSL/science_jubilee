@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import ClassVar
 
 from science_jubilee.labware.Labware import Well
 from science_jubilee.navigation.deck_navigation import DeckNavigator
@@ -12,6 +13,8 @@ class Inoculator(Tool):
     :param Tool: The base tool class
     :type Tool: :class:`Tool`
     """
+
+    TOOL_KEY: ClassVar[str] = "inoculator"
 
     @requires_active_tool
     def transfer(

@@ -1,39 +1,43 @@
-import os
-import sys
-from pathlib import Path
 import subprocess
+from pathlib import Path
+
 from sacred import Ingredient
 
-SRC_ROOT = Path(__file__).resolve().parents[4]
-REPO_ROOT = SRC_ROOT.parent
-
+_GS_ROOT = Path(__file__).resolve().parents[1]  # GS_Reconstruction/
+_COMPOSE_FILE = str(_GS_ROOT / "docker-compose.yml")
+_DATASETS_IN_COLMAP = "/datasets"  # mount point defined in docker-compose.yml
 
 colmap = Ingredient("colmap")
 
 
 @colmap.config
 def config():
-    # path to the run_colmap.sh script (relative to repo)
-    colmap_script = str(
-        REPO_ROOT
-        / "src/science_jubilee/Vision/GS_Reconstruction/src"
-        / "run_colmap.sh"
-    )
+    pass
 
 
-def _windows_to_wsl_path(windows_path: str) -> str:
-    path = Path(windows_path).resolve()
-    drive_letter = path.drive.rstrip(":").lower()
-    return "/mnt/" + drive_letter + path.as_posix()[2:]
+def _host_to_colmap_path(host_path) -> str:
+    scene = Path(host_path).resolve().relative_to((_GS_ROOT / "Datasets").resolve())
+    return f"{_DATASETS_IN_COLMAP}/{scene.as_posix()}"
 
 
-@colmap.capture
-def run_colmap(colmap_script, dataset_path):
-    colmap_wsl = _windows_to_wsl_path(colmap_script)
-    dataset_wsl = _windows_to_wsl_path(str(Path(dataset_path).resolve()))
-    cmd = f"start /wait cmd /c bash {colmap_wsl} --dataset {dataset_wsl}"
-    # Run inside WSL; keep caller responsible for platform specifics
-    res = os.system(cmd)
+def run_colmap(dataset_path):
+    container_path = _host_to_colmap_path(dataset_path)
+    res = subprocess.run(
+        [
+            "docker",
+            "compose",
+            "-f",
+            _COMPOSE_FILE,
+            "run",
+            "--rm",
+            "colmap",
+            "python3",
+            "/convert.py",
+            "-s",
+            container_path,
+        ],
+        check=False,
+    ).returncode
     if res != 0:
-        raise RuntimeError(f"Colmap step failed with exit code {res}")
-    return "Colmap succed"
+        raise RuntimeError(f"COLMAP step failed (exit {res})")
+    return "COLMAP succeeded"

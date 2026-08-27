@@ -1,3 +1,5 @@
+import pytest
+
 from science_jubilee.hal.transport.mock import MockTransport
 from science_jubilee.hal.transport.recording import RecordingTransport
 
@@ -44,3 +46,49 @@ def test_recording_transport_uses_explicit_copy_path_when_set(tmp_path, monkeypa
     assert copy_path.exists()
     assert "M400" in latest.read_text(encoding="utf-8")
     assert "M400" in copy_path.read_text(encoding="utf-8")
+
+
+def test_recording_transport_saves_machine_state(tmp_path):
+    import json
+
+    latest = tmp_path / "gcode_logs" / "latest.gcode"
+
+    RecordingTransport(MockTransport(), log_path=str(latest))
+
+    state_file = tmp_path / "gcode_logs" / "machine_state.json"
+    assert state_file.exists(), "machine_state.json was not written"
+    state = json.loads(state_file.read_text())
+    for key in ("transport", "positions", "active_tool", "tools", "tool_parks"):
+        assert key in state, f"missing key '{key}' in machine_state.json"
+
+
+def test_http_transport_parse_park_position():
+    from science_jubilee.hal.transport.http import HTTPTransport
+
+    tpost = """
+; tpost0.g
+G90
+G53 G1 X290.5 F6000  ; move to pickup
+G53 G1 Y338.5 F6000
+M98 P"/macros/tool_lock.g"
+"""
+    result = HTTPTransport._parse_park_position(tpost)
+    assert result == pytest.approx([290.5, 338.5, 0.0])
+
+
+def test_recording_transport_warns_when_summary_fails(tmp_path):
+    import warnings
+    from unittest.mock import patch
+
+    latest = tmp_path / "gcode_logs" / "latest.gcode"
+    inner = MockTransport()
+
+    with patch.object(
+        type(inner), "get_machine_summary", side_effect=RuntimeError("boom")
+    ):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            RecordingTransport(inner, log_path=str(latest))
+
+    assert caught, "expected a UserWarning when get_machine_summary raises"
+    assert any("machine_state" in str(w.message).lower() for w in caught)

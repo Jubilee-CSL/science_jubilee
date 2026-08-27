@@ -10,6 +10,9 @@ class BaseTransport(ABC):
     Higher layers never build G-code strings.
     """
 
+    # True for in-memory/simulated transports; used to select mock tool classes
+    is_mock: bool = False
+
     @abstractmethod
     def send_gcode(
         self,
@@ -93,6 +96,10 @@ class BaseTransport(ABC):
         """Return {number: [X, Y, Z]} offsets for all tools."""
 
     # ---- Homing ----------------------------------------------------------
+    def get_tool_parking_positions(self) -> dict:
+        """Return {tool_idx: [X, Y, Z]} parking positions. Override in transports that support file download."""
+        return {}
+
     def get_axes_homed(self) -> list:
         """Return list of homed booleans in firmware axis order."""
         obj = self.send_gcode_json('M409 K"move.axes[].homed"')
@@ -168,6 +175,10 @@ class BaseTransport(ABC):
             summary["tool_offsets"] = self.get_tool_offsets() or {}
         except Exception:
             summary["tool_offsets"] = {}
+        try:
+            summary["tool_parks"] = self.get_tool_parking_positions() or {}
+        except Exception:
+            summary["tool_parks"] = {}
         return summary
 
     def format_machine_summary(self) -> str:

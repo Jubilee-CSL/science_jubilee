@@ -37,10 +37,9 @@ def test_run_scan_creates_output_folder(patched_session, tmp_path):
     out = tmp_path / "grid"
     with patch(_ACQUIRE, side_effect=_fake_acquire):
         run_scan(
-            start=[0.0, 0.0],
-            stop=[10.0, 10.0],
-            steps=[2, 2],
-            z=50.0,
+            start=[0.0, 0.0, 50.0],
+            stop=[10.0, 10.0, 50.0],
+            steps=[2, 2, 1],
             delay=0.0,
             out=str(out),
         )
@@ -56,10 +55,9 @@ def test_run_scan_creates_output_folder(patched_session, tmp_path):
 def test_run_scan_returns_one_path_per_step(patched_session, tmp_path):
     with patch(_ACQUIRE, side_effect=_fake_acquire):
         saved = run_scan(
-            start=[0.0, 0.0],
-            stop=[20.0, 10.0],
-            steps=[3, 4],
-            z=50.0,
+            start=[0.0, 0.0, 50.0],
+            stop=[20.0, 10.0, 50.0],
+            steps=[3, 4, 1],
             delay=0.0,
             out=str(tmp_path),
         )
@@ -70,10 +68,9 @@ def test_run_scan_returns_one_path_per_step(patched_session, tmp_path):
 def test_run_scan_returned_paths_exist(patched_session, tmp_path):
     with patch(_ACQUIRE, side_effect=_fake_acquire):
         saved = run_scan(
-            start=[0.0, 0.0],
-            stop=[10.0, 10.0],
-            steps=[2, 3],
-            z=50.0,
+            start=[0.0, 0.0, 50.0],
+            stop=[10.0, 10.0, 50.0],
+            steps=[2, 3, 1],
             delay=0.0,
             out=str(tmp_path),
         )
@@ -97,10 +94,9 @@ def test_run_scan_calls_acquire_for_every_position(patched_session, tmp_path):
 
     with patch(_ACQUIRE, side_effect=counting_acquire):
         run_scan(
-            start=[0.0, 0.0],
-            stop=[10.0, 10.0],
-            steps=[3, 2],
-            z=50.0,
+            start=[0.0, 0.0, 50.0],
+            stop=[10.0, 10.0, 50.0],
+            steps=[3, 2, 1],
             delay=0.0,
             out=str(tmp_path),
         )
@@ -115,10 +111,9 @@ def test_run_scan_calls_acquire_for_every_position(patched_session, tmp_path):
 def test_run_scan_1x1_grid_calls_acquire_once(patched_session, tmp_path):
     with patch(_ACQUIRE, side_effect=_fake_acquire) as mock_acq:
         run_scan(
-            start=[5.0, 5.0],
-            stop=[5.0, 5.0],
-            steps=[1, 1],
-            z=50.0,
+            start=[5.0, 5.0, 50.0],
+            stop=[5.0, 5.0, 50.0],
+            steps=[1, 1, 1],
             delay=0.0,
             out=str(tmp_path),
         )

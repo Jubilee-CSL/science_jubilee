@@ -23,6 +23,10 @@ class RecordingTransport(BaseTransport):
     (tfree, tpre, tpost). M98 calls are expanded recursively.
     """
 
+    @property
+    def is_mock(self) -> bool:  # type: ignore[override]
+        return getattr(self._inner, "is_mock", False)
+
     def __init__(
         self,
         inner: BaseTransport,
@@ -65,6 +69,20 @@ class RecordingTransport(BaseTransport):
         except Exception:
             # Logging should never break transport use
             pass
+
+        # Snapshot machine state for the digital twin fallback
+        try:
+            import json as _json
+
+            _state = self._inner.get_machine_summary()
+            _state_path = self.log_path.parent / "machine_state.json"
+            _state_path.write_text(_json.dumps(_state, indent=2), encoding="utf-8")
+        except Exception as _exc:
+            import warnings
+
+            warnings.warn(
+                f"RecordingTransport: could not save machine_state.json: {_exc}"
+            )
 
     def _iter_log_paths(self) -> list[Path]:
         paths = [self.log_path]

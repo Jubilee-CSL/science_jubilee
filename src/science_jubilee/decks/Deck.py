@@ -32,6 +32,29 @@ def _plugin_deck_dirs() -> list[str]:
     return dirs
 
 
+def _find_json_in_dirs(filename: str, search_dirs: list[str]) -> str | None:
+    """Return the first directory in search_dirs that contains filename,
+    also checking one level of dated subdirs (newest first)."""
+    for d in search_dirs:
+        if os.path.exists(os.path.join(d, filename)):
+            return d
+        try:
+            sub = next(
+                (
+                    os.path.join(d, s)
+                    for s in sorted(os.listdir(d), reverse=True)
+                    if os.path.isdir(os.path.join(d, s))
+                    and os.path.exists(os.path.join(d, s, filename))
+                ),
+                None,
+            )
+            if sub is not None:
+                return sub
+        except OSError:
+            pass
+    return None
+
+
 _BUILTIN_DECK_PATH: str = os.path.join(os.path.dirname(__file__), "example_deck")
 _BUILTIN_LABWARE_PATH: str = os.path.join(
     os.path.dirname(__file__), "..", "labware", "labware_definition"
@@ -177,34 +200,13 @@ class Deck(SlotSet):
         search_dirs.extend(_plugin_deck_dirs())
         search_dirs.append(_BUILTIN_DECK_PATH)
 
-        for d in search_dirs:
-            if os.path.exists(os.path.join(d, filename)):
-                self.path = d
-                break
-            # Search one level of subdirectories, newest first (handles dated
-            # experiment dirs like YYYY-MM-DD_<name>/ from jubilee-interface).
-            try:
-                sub = next(
-                    (
-                        os.path.join(d, s)
-                        for s in sorted(os.listdir(d), reverse=True)
-                        if os.path.isdir(os.path.join(d, s))
-                        and os.path.exists(os.path.join(d, s, filename))
-                    ),
-                    None,
-                )
-                if sub is not None:
-                    self.path = sub
-                    break
-            except OSError:
-                pass
-
-        if self.path is None:
-            searched = ", ".join(search_dirs)
+        found = _find_json_in_dirs(filename, search_dirs)
+        if found is None:
             raise FileNotFoundError(
-                f"Could not find '{filename}' in any of: {searched}. "
+                f"Could not find '{filename}' in any of: {', '.join(search_dirs)}. "
                 "Set JUBILEE_EXPERIMENT_DIR or install a science_jubilee.deck plugin."
             )
+        self.path = found
 
         self.config_path = os.path.join(self.path, filename)
         logger.debug("Deck config loaded from: %s", self.config_path)
@@ -289,15 +291,15 @@ class Deck(SlotSet):
         ):
             labware_dir = self.labware_search_path
         else:
-            # priority: plugin dirs > built-in labware_definition/
-            labware_dir = next(
-                (
-                    d
-                    for d in _plugin_labware_dirs()
-                    if os.path.exists(os.path.join(d, fn))
-                ),
-                _BUILTIN_LABWARE_PATH,
-            )
+            # Mirror the deck search: plugin deck dirs also contain labware JSONs
+            # (and their newest dated subdirs, e.g. experiment_deck/2026-08-25_*/glass.json)
+            # priority: plugin labware dirs > plugin deck dirs (+ newest subdir) > example_deck/ > labware_definition/
+            labware_dirs = [
+                *_plugin_labware_dirs(),
+                *_plugin_deck_dirs(),
+                _BUILTIN_DECK_PATH,
+            ]
+            labware_dir = _find_json_in_dirs(fn, labware_dirs) or _BUILTIN_LABWARE_PATH
 
         labware = Labware(labware_filename, order=order, path=labware_dir)
         labware.add_slot(slot_id)

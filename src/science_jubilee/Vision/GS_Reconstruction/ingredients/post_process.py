@@ -1,14 +1,11 @@
-from pathlib import Path
-from sacred import Ingredient
 import sys
+from pathlib import Path
 
-SRC_ROOT = Path(__file__).resolve().parents[4]
-REPO_ROOT = SRC_ROOT.parent
+from sacred import Ingredient
 
-for p in (SRC_ROOT, REPO_ROOT):
-    p_str = str(p)
-    if p_str not in sys.path:
-        sys.path.insert(0, p_str)
+_GS_ROOT = Path(__file__).resolve().parents[1]  # GS_Reconstruction/
+if str(_GS_ROOT) not in sys.path:
+    sys.path.insert(0, str(_GS_ROOT))
 
 import src.filter_plants as filter_plants
 
@@ -17,15 +14,7 @@ post_process = Ingredient("post_process")
 
 @post_process.config
 def config():
-    bbox_size = 10000
-    bbox_center = [0.0, 2, 0.0]
-    elongation_threshold = 7.0
-    scale_threshold = 1
-    std_ratio = 3
-    opacity_threshold = 0.07
-    nb_neighbors = 60
-    white_sat_thresh = 0.55
-    white_val_thresh = 0.2
+    pass
 
 
 @post_process.capture

@@ -1,29 +1,20 @@
-from sacred import Ingredient
-
 import sys
 from pathlib import Path
 
-SRC_ROOT = Path(__file__).resolve().parents[4]
-REPO_ROOT = SRC_ROOT.parent
+from sacred import Ingredient
 
-for path in (SRC_ROOT, REPO_ROOT):
-    path_str = str(path)
-    if path_str not in sys.path:
-        sys.path.insert(0, path_str)
+_GS_ROOT = Path(__file__).resolve().parents[1]  # GS_Reconstruction/
+if str(_GS_ROOT) not in sys.path:
+    sys.path.insert(0, str(_GS_ROOT))
 
 import src.extract_leafs as extract_leafs_src
-
 
 extract_leafs = Ingredient("extract_leafs")
 
 
 @extract_leafs.config
 def config():
-    distance_threshold = 0.01
-    min_points = 50
-    size_threshold = 0.005
-    shape_threshold = 0.85
-    height_ratio = 0.2
+    pass
 
 
 @extract_leafs.capture

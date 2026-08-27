@@ -29,12 +29,12 @@ echo "=========================================="
 
 # 1. Conda environement activation; You can change this if you are not using miniconda3 and if you have call the wsl environement differently
 echo " Activation de l'environnement Conda (gs_final)..."
-source ~/miniconda3/etc/profile.d/conda.sh
+source C:/Users/Alienor/anaconda3/etc/profile.d/conda.sh
 conda activate gaussian_splatting_inria
 
 #Colmap training for sparse points and camera pose estimation
 echo "Step 1/2 : Colmap sparse points"
 cd "$PROJECT_DIR/src/3dgs-mcmc"
-python convert.py -s "$DATASET_PATH" 
+python convert.py -s "$DATASET_PATH"
 
 echo "Colmap trained succesfully"

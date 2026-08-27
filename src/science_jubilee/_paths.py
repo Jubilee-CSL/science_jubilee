@@ -9,3 +9,8 @@ def jubilee_dir() -> Path:
     """
     # src/science_jubilee/_paths.py → parents: [0] science_jubilee/, [1] src/, [2] repo root
     return Path(__file__).parents[2]
+
+
+def camera_params_yaml() -> Path:
+    """Return the path to the camera calibration YAML shipped with the package."""
+    return Path(__file__).parent / "calibration" / "camera_params.yaml"

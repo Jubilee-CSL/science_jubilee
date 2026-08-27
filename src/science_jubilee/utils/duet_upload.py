@@ -18,10 +18,13 @@ Example
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import Union
 
 from science_jubilee.hal.transport.http import HTTPTransport
+
+logger = logging.getLogger(__name__)
 
 
 def _get_transport(transport_or_address) -> HTTPTransport:

@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import logging
 from typing import Dict, Optional
 
+from science_jubilee.tools import registry as tool_registry
 from science_jubilee.tools.Tool import Tool
+
+logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------
 # Exceptions
@@ -46,15 +50,25 @@ class ToolChanger:
             2: None,
             3: None,
         }
+        mock = bool(getattr(transport, "is_mock", False))
         duet_tools = transport.get_tools()
         for i in range(4):
             tool_name = duet_tools[i]["name"]
-            """
-            if tool_name == "Inoculator":
-                self.tools[i] = Inoculator(i,tool_name)
-            """
-            if tool_name != "None":
-                self.tools[i] = Tool(i, tool_name)
+            if tool_name == "None":
+                continue
+
+            tool_cls = tool_registry.get_tool_class(tool_name, mock=mock)
+            if tool_cls is None:
+                logger.warning(
+                    "No plugin registered for tool %r in slot %d; using base Tool. "
+                    "Install the matching plugin or check the Duet M563 name.",
+                    tool_name,
+                    i,
+                )
+                tool_cls = Tool
+
+            self.tools[i] = tool_cls(index=i, name=tool_name)
+            self.tools[i].post_load()
 
     # ------------------------------------------------------------------
     # Tool actuation

@@ -61,6 +61,9 @@ def rrt_path_planning(
     h, w = obstacle_mask.shape
     nodes = [{"pos": start_2d, "parent": -1}]
 
+    if not check_collision(obstacle_mask, start_2d, goal_2d):
+        return [start_2d, goal_2d]
+
     for _ in range(max_iter):
         if random.random() < goal_sample_rate:
             sample = goal_2d

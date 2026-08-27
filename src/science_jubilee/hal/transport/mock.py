@@ -10,6 +10,8 @@ from .base import BaseTransport
 class MockTransport(BaseTransport):
     """Stateful in-memory transport for tests and simulation."""
 
+    is_mock: bool = True
+
     def __init__(self, deck_clear: bool = True):
         # Machine state
         self._deck_clear = deck_clear
@@ -28,15 +30,15 @@ class MockTransport(BaseTransport):
         # No tools configured by default
         self.tools: Dict[int, dict] = {
             0: {
-                "name": "Inoculator",
+                "name": "inoculator",
                 "offsets": [0.0, 16.0, -78.0],
             },
             1: {
-                "name": "Syringe",
+                "name": "syringe",
                 "offsets": [0.0, 20, -80.0],
             },
             2: {
-                "name": "Tool_without_offset",
+                "name": "no_offset_tool",
                 "offsets": [0.0, 0.0, -400.0],
             },
             3: {
