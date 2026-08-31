@@ -31,11 +31,6 @@ physical:
   camera_z_offset_mm: 0.0
 
 filtering:
-  min_area_px: 20000
-
-  max_extent_ratio: 8.0
-  min_border_margin_px: 8
-  min_normal_z: 0.85
-  min_normal_confidence: 0.90
-  depth_consistency_max_std_mm: 30.0
-  depth_consistency_radius_px: 3
+  min_area_px: 500
+  min_normal_z: 0.94
+  depth_consistency_max_std_mm: 1.4

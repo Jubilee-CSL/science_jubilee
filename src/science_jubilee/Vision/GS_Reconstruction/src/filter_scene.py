@@ -77,16 +77,18 @@ def segment_vase_plant(image:np.ndarray):
         upper_brown = np.array([25, 255, 170])
         brown_mask = cv2.inRange(hsv, lower_brown, upper_brown)
         return brown_mask
+
 def segment_tray_mask(image: np.ndarray, margin_padding_px=20) -> tuple[np.ndarray, np.ndarray]:
     """
-    Détecte les codes ArUco et retourne deux masques :
-    1. tray_mask : La zone délimitée par les codes (le plateau complet).
-    2. aruco_mask : Uniquement l'emplacement exact des codes (avec padding).
+    Détecte les codes ArUco (0=Haut-Gauche, 1=Haut-Droite, 2=Bas-Gauche, 3=Bas-Droite).
+    Utilise l'orientation interne des codes pour déduire la géométrie du plateau, 
+    même si la caméra est à l'envers ou tournée.
     """
     aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
     parameters = cv2.aruco.DetectorParameters() 
     detector = cv2.aruco.ArucoDetector(aruco_dict, parameters)
 
+    # Note: cv2.cvtColor(image, cv2.COLOR_RGB2GRAY) car votre image semble déjà être en RGB d'après votre main()
     gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     corners, ids, rejected = detector.detectMarkers(gray)
 
@@ -94,72 +96,86 @@ def segment_tray_mask(image: np.ndarray, margin_padding_px=20) -> tuple[np.ndarr
     tray_mask = np.zeros((H, W), dtype=np.uint8)
     aruco_mask = np.zeros((H, W), dtype=np.uint8)
 
+    # 1. Vérification basique
     if ids is None or len(corners) == 0:
-        print("Aucun code ArUco détecté.")
-        tray_mask = np.ones((H, W), dtype=np.uint8)*255
+        print("Aucun code ArUco détecté. On conserve toute l'image.")
+        tray_mask = np.ones((H, W), dtype=np.uint8) * 255
         return tray_mask, aruco_mask
 
-    # 1. Construction du masque des codes ArUco (avec padding)
+    # 2. Filtrer pour ne garder QUE les codes du plateau (0, 1, 2, 3)
+    ids = ids.flatten()
+    valid_indices = [i for i, x in enumerate(ids) if x in [0, 1, 2, 3]]
+    
+    if not valid_indices:
+        print("Aucun code ArUco du plateau (0-3) détecté. On conserve l'image.")
+        tray_mask = np.ones((H, W), dtype=np.uint8) * 255
+        return tray_mask, aruco_mask
+
+    valid_corners = [corners[i] for i in valid_indices]
+    valid_ids = [ids[i] for i in valid_indices]
+
+    # 3. Dessiner le masque des ArUcos
     all_pts = []
-    for marker_corners in corners:
-        pts = np.int32(marker_corners[0]) 
-        all_pts.extend(pts) # On stocke tous les points pour la géométrie du plateau
-        cv2.drawContours(aruco_mask, [pts], 0, 255, thickness=cv2.FILLED)
+    vx, vy = np.array([0.0, 0.0]), np.array([0.0, 0.0])
+
+    for pts in valid_corners:
+        points = pts[0]
+        all_pts.extend(points)
+        cv2.drawContours(aruco_mask, [np.int32(points)], 0, 255, thickness=cv2.FILLED)
+        
+        # Extraire les vecteurs d'orientation du code ArUco actuel
+        # p0=Top-Left, p1=Top-Right, p2=Bottom-Right, p3=Bottom-Left du code
+        p0, p1, p2, p3 = points
+        
+        # Vecteur X (vers la droite du plateau) et Vecteur Y (vers le bas du plateau)
+        vx += (p1 - p0) + (p2 - p3)
+        vy += (p3 - p0) + (p2 - p1)
 
     if margin_padding_px > 0:
         kernel = np.ones((margin_padding_px, margin_padding_px), np.uint8)
         aruco_mask = cv2.dilate(aruco_mask, kernel, iterations=1)
 
-    # 2. Construction du masque d'acceptation du plateau (Tray Mask)
+    # 4. Normaliser les vecteurs directeurs du plateau (Axes X et Y locaux)
+    vx = vx / np.linalg.norm(vx)
+    vy = vy / np.linalg.norm(vy)
+
+    # 5. Calculer le centre de gravité des points détectés
     all_pts = np.array(all_pts)
-    x_min, y_min = np.min(all_pts, axis=0)
-    x_max, y_max = np.max(all_pts, axis=0)
+    center = np.mean(all_pts, axis=0)
+
+    # 6. Projeter les points sur les axes locaux pour trouver les limites actuelles (u, v)
+    rel_pts = all_pts - center
+    u_vals = np.dot(rel_pts, vx)
+    v_vals = np.dot(rel_pts, vy)
+
+    u_min, u_max = np.min(u_vals), np.max(u_vals)
+    v_min, v_max = np.min(v_vals), np.max(v_vals)
+
+    # 7. Vérifier quels côtés du plateau sont présents
+    has_left = (0 in valid_ids) or (2 in valid_ids)
+    has_right = (1 in valid_ids) or (3 in valid_ids)
+    has_top = (0 in valid_ids) or (1 in valid_ids)
+    has_bottom = (2 in valid_ids) or (3 in valid_ids)
+
+    # 8. Étendre les limites vers l'infini pour les côtés manquants
+    # Une distance de 3 fois la taille de l'image est suffisante pour aller "à l'infini"
+    INF = max(W, H) * 3 
+
+    if not has_left:   u_min -= INF
+    if not has_right:  u_max += INF
+    if not has_top:    v_min -= INF
+    if not has_bottom: v_max += INF
+
+    # 9. Reconstruire le polygone final du plateau dans les coordonnées de l'image
+    c1 = center + u_min * vx + v_min * vy
+    c2 = center + u_max * vx + v_min * vy
+    c3 = center + u_max * vx + v_max * vy
+    c4 = center + u_min * vx + v_max * vy
+
+    poly = np.array([c1, c2, c3, c4], dtype=np.int32)
     
-    # Centre de gravité des codes détectés
-    cx = (x_min + x_max) / 2
-    cy = (y_min + y_max) / 2
-    
-    num_markers = len(corners)
-
-    # RÈGLE 1 : 3 ou 4 codes -> On relie tous les codes pour former un polygone (Convex Hull)
-    if num_markers >= 3:
-        width_span = x_max - x_min
-        height_span = y_max - y_min
-        cv2.rectangle(tray_mask, (int(x_min), int(y_min)), (int(x_max), int(y_max)), 255, cv2.FILLED)
-
-    # RÈGLE 2 : 2 codes -> On détermine s'ils forment un axe vertical ou horizontal, et on l'étend
-    elif num_markers == 2:
-        width_span = x_max - x_min
-        height_span = y_max - y_min
-        
-        if width_span < height_span:
-            # Alignement vertical (ex: les deux codes sont sur le bord gauche)
-            if cx < W / 2:
-                x_max = W  # Étendre vers la droite
-            else:
-                x_min = 0  # Étendre vers la gauche
-        else:
-            # Alignement horizontal (ex: les deux codes sont sur le bord haut)
-            if cy < H / 2:
-                y_max = H  # Étendre vers le bas
-            else:
-                y_min = 0  # Étendre vers le haut
-                
-        cv2.rectangle(tray_mask, (int(x_min), int(y_min)), (int(x_max), int(y_max)), 255, cv2.FILLED)
-
-    # RÈGLE 3 : 1 code -> On étend dans les directions opposées à son cadran
-    elif num_markers == 1:
-        if cx < W / 2:
-            x_max = W  # Le code est à gauche, on étend jusqu'à droite
-        else:
-            x_min = 0  # Le code est à droite, on étend jusqu'à gauche
-            
-        if cy < H / 2:
-            y_max = H  # Le code est en haut, on étend jusqu'en bas
-        else:
-            y_min = 0  # Le code est en bas, on étend jusqu'en haut
-            
-        cv2.rectangle(tray_mask, (int(x_min), int(y_min)), (int(x_max), int(y_max)), 255, cv2.FILLED)
+    # Remplir le masque
+    cv2.fillPoly(tray_mask, [poly], 255)
 
     return tray_mask, aruco_mask
 
@@ -180,11 +196,11 @@ def main(images_path, use_ai=True):
     images_path = Path(images_path)
     if not images_path.exists():
         raise FileNotFoundError(images_path)
-
+    #On suppose que colmap a pris et traité des images .jpg
     for image_file in images_path.glob("*.jpg"):
         print(f"Processing {image_file}...")
         image = cv2.imread(str(image_file))
-        
+        image=cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
         if image is None:
             print(f"Erreur de lecture de l'image {image_file}")
             continue
@@ -195,7 +211,8 @@ def main(images_path, use_ai=True):
         vase_mask= segment_vase_plant(image)
         tray_mask,aruco_mask = segment_tray_mask(image)
 
-        safe_mask=(plant_mask | vase_mask) & tray_mask
+        #safe_mask=(plant_mask | vase_mask) & tray_mask
+        safe_mask= plant_mask& tray_mask
         final_mask = safe_mask  | aruco_mask
 
         # 3. Créer l'image RGBA (avec transparence pour 3DGS)

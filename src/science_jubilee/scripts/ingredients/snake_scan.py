@@ -68,7 +68,7 @@ def run_scan(start, stop, steps, delay, out) -> list[str]:
                 current_x = start[0] + i * step_x
                 current_y = start[1] + j_idx * step_y
                 img_name = f"img_n{img_idx}_x{current_x:g}_y{current_y:g}_z{z:g}"
-                path = acquire(cam=cam, light=light, save_dir=folder, name=img_name)
+                path = acquire(cam=cam, light=light, save_dir=folder, name=img_name,mode="simple",nb_leds=8,debug=False,led_r=100,led_g=100,led_b=100)
                 saved.append(path)
                 logger.info("Captured %s", img_name)
                 if j < steps[1] - 1:

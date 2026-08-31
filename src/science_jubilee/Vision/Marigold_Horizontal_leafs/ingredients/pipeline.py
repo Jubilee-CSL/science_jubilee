@@ -45,21 +45,20 @@ def _add_artifact(run, output_dir, filename, writer):
 
 @pipeline.capture
 def run_pipeline(
-	image,
 	image_name,
 	output_dir,
 	config_path,
 	steps,
-	use_ai,
 	run_reconstruction,
 	_run=None,
 ):
+	
 	image_bgr = np.asarray(image)
 	output_dir = Path(output_dir)
 	with open(config_path, "r", encoding="utf-8") as handle:
 		config_data = yaml.safe_load(handle) or {}
 
-	filtered = run_filter_scene(image=image_bgr, use_ai=use_ai)
+	filtered = run_filter_scene(image=image_bgr)
 	inference = run_infer_depths_and_normals(
 		image=image_bgr,
 		output_dir=str(output_dir),
@@ -73,7 +72,6 @@ def run_pipeline(
 		depth_map=depth_map,
 		normals=normals,
 		config=config_data,
-		use_ai=use_ai,
 		output_dir=str(output_dir),
 		image_name=image_name,
 	)

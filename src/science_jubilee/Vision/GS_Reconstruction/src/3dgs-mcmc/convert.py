@@ -85,7 +85,7 @@ for file in files:
         continue
     source_file = os.path.join(args.source_path, "sparse", file)
     destination_file = os.path.join(args.source_path, "sparse", "0", file)
-    shutil.move(source_file, destination_file)
+    shutil.copy2(source_file, destination_file)
 
 if(args.resize):
     print("Copying and resizing...")
@@ -120,5 +120,32 @@ if(args.resize):
         if exit_code != 0:
             logging.error(f"12.5% resize failed with code {exit_code}. Exiting.")
             exit(exit_code)
+    # ==============================================================================
+    # MVS with Colmap
+    # ==============================================================================
+workspace_path = args.source_path
+
+    # 1. Patch Match Stereo
+patch_match_cmd = (colmap_command + f" patch_match_stereo \
+        --workspace_path {workspace_path} \
+        --workspace_format COLMAP \
+        --PatchMatchStereo.geom_consistency true")
+exit_code = os.system(patch_match_cmd)
+if exit_code != 0:
+        logging.error(f"Patch Match Stereo failed with code {exit_code}. Exiting.")
+        exit(exit_code)
+
+    # 2. Stereo Fusion
+stereo_fusion_cmd = (colmap_command + f" stereo_fusion \
+        --workspace_path {workspace_path} \
+        --workspace_format COLMAP \
+        --input_type geometric \
+        --output_path {workspace_path}/dense_point_cloud.ply")
+exit_code = os.system(stereo_fusion_cmd)
+if exit_code != 0:
+        logging.error(f"Stereo Fusion failed with code {exit_code}. Exiting.")
+        exit(exit_code)
+
+
 
 print("Done.")

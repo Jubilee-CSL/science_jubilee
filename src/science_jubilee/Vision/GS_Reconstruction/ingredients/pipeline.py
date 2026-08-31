@@ -3,7 +3,7 @@ from pathlib import Path
 import os
 import open3d as o3d
 from sacred import Ingredient
-
+import shutil
 from science_jubilee.scripts.ingredients.snake_scan import run_scan, scan
 
 from .colmap import run_colmap, colmap
@@ -43,7 +43,8 @@ def config():
     stop = [250.0, 200.0, 220.0]
     steps = [5, 5, 4]
     delay = 2.0
-
+    pre_segment=True
+    post_segment=True
 
 @pipeline.capture
 def run_pipeline(
@@ -56,6 +57,8 @@ def run_pipeline(
     stop,
     steps,
     delay,
+    pre_segment,
+    post_segment,
 ):
     repo_root = Path(__file__).resolve().parents[4].parent
     dataset_path = (
@@ -88,12 +91,30 @@ def run_pipeline(
         if not saved_images:
             raise FileNotFoundError(f"No input images found in {images_dir}")
 
-    run_colmap(dataset_path=str(dataset_path))
-    run_filter_scene(
-        images_path=str(dataset_path / "images"),
-        use_ai=True,
-    )
+    if  pre_segment:
+        input_raw= dataset_path/"input_raw"
+        input_raw.mkdir(parents=True,exist_ok=True)
+        shutil.copy(dataset_path/"input",dataset_path/"input_raw")
+        run_filter_scene(
+                        images_path=str(dataset_path / "images"),
+                        use_ai=True,remove=True
+                    )
 
+
+    run_colmap(dataset_path=str(dataset_path))
+   
+    if post_segment:
+        if pre_segment:
+            run_filter_scene(
+                images_path=str(dataset_path / "images"),
+                use_ai=True,remove=False
+            )
+        else:
+            run_filter_scene(
+                            images_path=str(dataset_path / "images"),
+                            use_ai=True,remove=True
+                        )
+        
     reconstruction_path = output_path / "3d_reconstruction"
     run_reconstruction(
         dataset_path=str(dataset_path),

@@ -14,7 +14,14 @@ Or calibrate from images you already have:
 After calibration, set in .env.hardware:
     JUBILEE_CAMERA_CALIB=calibration/camera_params.yaml
 """
+import sys
+from pathlib import Path
 
+SRC_ROOT = Path(__file__).resolve().parents[2]
+
+# Add 'src' to Python's path so it can find the science_jubilee package
+if str(SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(SRC_ROOT))
 import argparse
 import glob
 import os
@@ -38,7 +45,7 @@ def collect_images(images_folder: str) -> None:
     limits = session.motion.get_axis_limits()
     BED_CX = sum(limits["X"]) / 2
     BED_CY = sum(limits["Y"]) / 2
-    BED_Z = limits["Z"][1] - 15
+    BED_Z = limits["Z"][1] -1
 
     print("Checking homing state...")
     if not session.motion.get_axes_homed() or not all(session.motion.get_axes_homed()):
@@ -147,6 +154,7 @@ def save_params(mtx: np.ndarray, dist: np.ndarray, out_path: str) -> None:
             "offset": [0, -20, 0],
         }
     }
+    print(config)
     os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
     with open(out_path, "w") as f:
         yaml.dump(config, f, default_flow_style=False)
@@ -167,7 +175,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--out",
-        default="src/science_jubilee/calibration/camera_params.yaml",
+        default=SRC_ROOT / "science_jubilee/calibration/camera_params.yaml",
         help="Output YAML path.",
     )
     parser.add_argument(

@@ -95,4 +95,5 @@ class BaseCamera(ABC):
             img = self.get_image()
         if save_name is None:
             save_name = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        cv2.imwrite(str(save_dir / f"{save_name}.jpg"), img)
+        img_out = cv2.cvtColor(img,cv2.COLOR_BGR2RGB)
+        cv2.imwrite(str(save_dir / f"{save_name}.jpg"), img_out)
