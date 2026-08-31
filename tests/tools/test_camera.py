@@ -60,7 +60,6 @@ def test_acquire_image_at_two_positions(camera, tmp_path):
         img = camera.get_image()
         assert img.ndim == 3
         camera.save_image(img=img, save_dir=tmp_path, save_name=f"pos_{idx}")
-        logger.info("Position %d: T_camera=%s", idx, camera.T_machine_camera)
 
     saved = sorted(tmp_path.glob("*.jpg"))
     assert len(saved) == 2

@@ -8,8 +8,8 @@
 
 G90                        ; Ensure the machine is in absolute mode before issuing movements.
 
-G53 G1 X290.5 F6000           ; Move to the pickup position with tool-1.
-G53 G1 Y338.5 F6000
+G53 G1 X274.0 F6000           ; Move to the pickup position with tool-1.
+G53 G1 Y329.0 F6000
 M98 P"/macros/tool_lock.g" ; Lock the tool
 
 G1 R2 Z0                   ; Restore prior Z position before tool change was initiated.

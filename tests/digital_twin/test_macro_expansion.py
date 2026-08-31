@@ -59,10 +59,10 @@ def test_tool_change_from_no_active_tool_expands_tpre_and_tpost(request):
 
     content = _log_content(log)
     assert "; === tool change: T0 ===" in content
-    # tpre0 content (real firmware: G0 X350.5 Y270 F20000)
-    assert "G0 X350.5 Y270 F20000" in content
-    # tpost0 content (real firmware: G53 G1 X290.5 F6000)
-    assert "G53 G1 X290.5 F6000" in content
+    # tpre0 expanded: G60 S0 is its unique save-position command
+    assert "G60 S0" in content
+    # tpost0 expanded: G1 R2 Z0 is its unique restore-Z command
+    assert "G1 R2 Z0" in content
     # tool_lock.g (nested M98) content
     assert "G1 U80 F1500" in content
     # no tfree since no prior active tool
@@ -149,7 +149,7 @@ def test_select_tool_produces_same_expansion_as_send_gcode(request):
 
     # Both logs should contain identical macro expansion content
     assert "; === tool change: T0 ===" in sel_content
-    assert "G0 X350.5 Y270 F20000" in sel_content
+    assert "G60 S0" in sel_content
     assert "G1 U80 F1500" in sel_content
     # Expansion content matches reference
     assert ref_content == sel_content
@@ -235,8 +235,8 @@ def test_missing_tfree_logs_not_found_comment(request):
 
     content = _log_content(log)
     assert "(macro not found: tfree99.g)" in content
-    # tpre0 still expands normally with real firmware content
-    assert "G0 X350.5 Y270 F20000" in content
+    # tpre0 still expands normally
+    assert "G60 S0" in content
 
 
 def test_no_macro_dirs_does_not_raise(request):

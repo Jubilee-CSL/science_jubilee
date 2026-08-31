@@ -130,6 +130,10 @@ class FreeNavigator:
         """Return the list of axis letters available on this machine."""
         return self.driver.get_available_axes()
 
+    @property
+    def axis_limits(self) -> dict[str, tuple[float, float]]:
+        return dict(self.driver._axis_limits)
+
     # ------------------------------------------------------------------
     # G-code file execution
     # ------------------------------------------------------------------

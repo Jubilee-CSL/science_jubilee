@@ -1,1 +1,17 @@
+# Enforce LF line endings for all text files regardless of core.autocrlf
+* text=auto eol=lf
+
+# Explicitly binary — never touch line endings
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.zip binary
+*.gz binary
+*.tar binary
+*.ply binary
+*.obj binary
+*.stl binary
+*.whl binary
 *.blend !text !filter !merge !diff

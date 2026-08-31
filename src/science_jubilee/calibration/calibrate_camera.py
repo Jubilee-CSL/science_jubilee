@@ -144,7 +144,7 @@ def save_params(mtx: np.ndarray, dist: np.ndarray, out_path: str) -> None:
             "cy": float(mtx[1, 2]),
             "dist": dist.flatten().tolist(),
             # Physical offset (mm) from tool tip to camera centre — measure and adjust.
-            "offset": [0, -20, 0],
+            "offset": [5, -6, 0],
         }
     }
     os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)

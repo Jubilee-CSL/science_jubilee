@@ -1,0 +1,8 @@
+# cuda 12.6 — compatible with driver 566.07 (CUDA 12.7); latest requires 12.9
+FROM colmap/colmap:20250530.2938
+RUN apt-get update && apt-get install -y --no-install-recommends python3 \
+    && rm -rf /var/lib/apt/lists/*
+# convert.py only uses stdlib — no extra pip packages needed
+COPY src/science_jubilee/Vision/GS_Reconstruction/src/3dgs-mcmc/convert.py /convert.py
+ENTRYPOINT []
+CMD ["bash"]

@@ -1,121 +1,100 @@
-# GS_Reconstruction — Docker setup
+# GS Reconstruction
 
-This container **replaces WSL only**. Nothing about the pipeline itself
-changes: same `gaussian_splatting_inria` conda env name, same
-`run_colmap.sh` / `run_reconstruction.sh`, same `test_pipeline.ipynb`,
-same Sacred ingredients. If you were previously running everything
-through WSL, you now run it through this container instead — the
-commands you type inside it are the same ones the README already
-described.
+3D Gaussian Splatting pipeline for plant reconstruction on the Jubilee machine.
 
-The only actual code change is one line: `run_colmap.sh` and
-`run_reconstruction.sh` hardcode `source C:/Users/Alienor/anaconda3/...`
-to find conda, which only made sense inside WSL talking to a Windows
-install. The Dockerfile patches that one line to point at conda's
-location inside the container. Everything else is untouched.
+## Architecture
 
-## Why there are two conda environments inside one container
+| Where | What runs there |
+|-------|----------------|
+| **Host** (pixi env) | JupyterLab, Sacred ingredients, `run_colmap` / `run_filter_scene` / `run_reconstruction` |
+| **`colmap` container** | COLMAP feature extraction, matching, mapping, undistortion |
+| **`gs` container** | BiRefNet background removal (`gs_preprocess` env), 3DGS-MCMC training (`gaussian_splatting_inria` env) |
 
-`filter_scene.py`'s AI segmentation step loads a BiRefNet model via
-`transformers`. BiRefNet's own `requirements.txt` requires `torch>=2.5.0`.
-PyTorch stopped publishing Python 3.8 wheels at torch 2.5. But Python 3.8
-is what the `colmap` / `gxx_linux-64` combo in the README needs. Those two
-requirements can't both be satisfied in one environment — not because of
-Docker, but because of that one version fact. So:
+The host notebook calls `docker compose run --rm <service> ...` for each GPU step — no shell scripts, no WSL.
 
-- `gaussian_splatting_inria` (Python 3.8) — COLMAP, the compiled CUDA
-  extensions, `train.py`. Exactly as the README's section 2.2 describes.
-- `gs_preprocess` (Python 3.10) — everything else: the notebook kernel,
-  `filter_scene.py`, `filter_plants.py`, `scale_by_cameras.py`, `meshing.py`.
+## Two Docker services
 
-You'll mostly work inside `gs_preprocess` (it's what Jupyter uses by
-default). `gaussian_splatting_inria` gets activated automatically by the
-bash scripts when they run COLMAP/training — you don't need to think
-about it unless you're debugging that stage directly.
+### `colmap`
+- Base: `colmap/colmap:20250530.2938` (CUDA 12.6, compatible with driver ≥ 520)
+- Only runs `convert.py` (stdlib only, no pip packages)
 
-## Where this harvests an existing image instead of building from scratch
+### `gs`
+- Base: `nvidia/cuda:11.7.1-devel-ubuntu20.04` (provides nvcc + headers at `/usr/local/cuda`)
+- `gaussian_splatting_inria` env (Python 3.8): torch 1.13.1+cu117, CUDA extensions (`diff-gaussian-rasterization`, `simple-knn`), 3DGS-MCMC training
+- `gs_preprocess` env (Python 3.10): torch 2.5.1+cu118, BiRefNet, open3d, Sacred ingredients
 
-The base image is `colmap/colmap:latest` — the COLMAP project's own
-official image — rather than a bare `nvidia/cuda` image with `colmap`
-installed via conda. Their build compiles COLMAP for
-`CUDA_ARCHITECTURES=all-major`, so the COLMAP binary itself is already
-portable across GPUs, and it skips conda-forge's colmap resolution
-(Boost, Ceres-Solver, Qt, CGAL — a slow, occasionally fragile solve) in
-favor of a binary that's already compiled and tested upstream.
+## Prerequisites
 
-The trade-off: their current image is built on Ubuntu 24.04, not 22.04.
-I haven't been able to build-test this myself (no Docker or network
-access in my own tool environment — see below), so if the build behaves
-unexpectedly, an Ubuntu-version-related apt package mismatch is the
-first thing to suspect. Our own CUDA toolkit for the extensions is
-self-contained via conda regardless (installed separately, matching the
-README's own approach), so it doesn't depend on anything the base image
-provides beyond a working `colmap` binary and normal apt access.
+- Docker Desktop with GPU passthrough enabled
+- NVIDIA driver ≥ 520 (CUDA 12.6 runtime)
+- `nvidia-container-toolkit` installed
 
-## 1. One-time host setup
-
-- Docker Desktop → Settings → General → "Use the WSL 2 based engine"
-- Docker Desktop → Settings → Resources → WSL Integration → enable your distro
-- Confirm GPU passthrough works:
-  ```
-  docker run --rm --gpus all nvidia/cuda:11.8.0-base-ubuntu22.04 nvidia-smi
-  ```
-  You should see whatever GPU is in that machine listed, not an error.
-
-## 2. Build the image
-
-Build context must be the `GS_Reconstruction` folder itself (containing
-`src/`, `ingredients/`, `test_pipeline.ipynb`), with submodules checked out:
+Verify GPU access:
+```powershell
+docker run --rm --gpus all nvidia/cuda:11.7.1-base-ubuntu20.04 nvidia-smi
 ```
-cd GS_Reconstruction
-git submodule update --init --recursive
-```
-Put the `Dockerfile` in that folder, then:
-```
-docker build -t gs-reconstruction .
-```
-Expect 20–40 minutes the first time — COLMAP, the CUDA toolkit, two CUDA
-extension builds, and the ML packages all get built/installed.
 
-## 3. Run the container
+## 1. Build images (once)
+
+From the repo root:
+```powershell
+cd src\science_jubilee\Vision\GS_Reconstruction
+docker compose build
+```
+Expect 30–60 min on first build (CUDA extensions compile from source).
+
+## 2. Install host dependencies
+
+```powershell
+pip install -r src/science_jubilee/Vision/GS_Reconstruction/requirements.txt
+```
+
+## 3. Prepare your dataset
+
+Place input images in:
+```
+GS_Reconstruction/Datasets/<scene_name>/input/
+```
+
+## 4. Run the pipeline
+
+Open `test_pipeline.ipynb` in JupyterLab on the host and run cells in order:
+
+| Cell | What it does | Runs in |
+|------|-------------|---------|
+| Config | Set `dataset_name`, `iterations` | host |
+| Build | `docker compose build` | host → Docker |
+| COLMAP | Feature extraction, matching, sparse reconstruction | `colmap` container |
+| Filter scene | BiRefNet background removal | `gs` container |
+| Train | 3DGS-MCMC Gaussian splatting | `gs` container |
+| Filter Gaussians | Remove non-plant points | host |
+| Scale & align | Camera-based scale recovery | host |
+| Meshing | Alpha-shape mesh from point cloud | host |
+
+## 5. Outputs
 
 ```
-docker run --rm -it --gpus all ^
-  -v "%cd%\Datasets:/workspace/GS_Reconstruction/Datasets" ^
-  -v "%cd%\Outputs:/workspace/GS_Reconstruction/Outputs" ^
-  -p 8888:8888 ^
-  gs-reconstruction
+GS_Reconstruction/
+├── Datasets/<scene>/
+│   ├── input/          ← your source images
+│   ├── images/         ← undistorted images (after COLMAP)
+│   └── sparse/0/       ← COLMAP sparse reconstruction
+└── Outputs/<scene>_results/
+    └── 3d_reconstruction/
+        └── point_cloud/iteration_<N>/
+            ├── point_cloud.ply         ← raw Gaussians
+            ├── point_cloud_scaled.ply  ← scaled + filtered
+            └── mesh.obj                ← final mesh
 ```
-(`^` is cmd's line-continuation character; drop it and put everything on
-one line if you're using PowerShell.)
 
-Your `Datasets/` and `Outputs/` folders are the only things that cross
-the container boundary — everything you produce lands back on your disk
-exactly where you'd expect, same as it did through WSL.
+## Troubleshooting
 
-## 4. Test before running anything real
+**COLMAP registers only a few images** — increase scan overlap, or check `distorted/sparse/` for multiple sub-reconstructions. The pipeline automatically picks the largest one.
 
-These catch the two things most likely to go wrong, before you spend
-20 minutes on an actual reconstruction only to have it fail at the end.
+**OOM during `docker compose build`** — increase Docker Desktop memory (Settings → Resources). The build cleans pip/conda caches inside each layer to reduce peak usage.
 
-**Training env — torch sees the GPU, and the compiled extensions load:**
-```
-docker run --rm --gpus all gs-reconstruction \
-  conda run -n gaussian_splatting_inria python -c \
-  "import torch; print(torch.__version__, torch.version.cuda, torch.cuda.is_available())"
-```
-Expect `2.0.1 11.8 True`.
-```
-docker run --rm --gpus all gs-reconstruction \
-  conda run -n gaussian_splatting_inria python -c \
-  "from diff_gaussian_rasterization import _C; print('extension OK')"
-```
-If this raises `no kernel image is available for execution on the
-device`, the build's `TORCH_CUDA_ARCH_LIST` doesn't cover whatever GPU
-is actually in the machine running the container. The Dockerfile default
-covers Pascal through Ada (GTX 10-series through RTX 40-series) plus a
-PTX fallback for anything newer — broad on purpose, since this image
-isn't necessarily built and run on the same machine. If you know the
+**`torch not compiled with CUDA`** — you ran a GPU step on the host; it must run inside the `gs` container via `docker compose run`.
+
 exact target GPU, you can rebuild faster with e.g.
 `docker build --build-arg TORCH_CUDA_ARCH_LIST="8.9" -t gs-reconstruction .`
 — but the default should work regardless without needing to know that

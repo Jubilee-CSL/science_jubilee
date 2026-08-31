@@ -14,7 +14,8 @@ meshing_ing = Ingredient("meshing")
 
 @meshing_ing.config
 def config():
-    pass
+    alpha = 0.0038
+    decimate_ratio = 0.8
 
 
 @meshing_ing.capture

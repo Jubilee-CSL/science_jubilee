@@ -261,15 +261,22 @@ def _configs_json(tool_key: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def scaffold(tool_key: str, display: str, output_dir: Path) -> Path:
+def scaffold(
+    tool_key: str, display: str, output_dir: Path, *, force: bool = False
+) -> Path:
     pkg = f"{tool_key}_tool"
     dist = tool_key.replace("_", "-") + "-tool"
     root = output_dir / dist
     src = root / "src" / pkg
 
     if root.exists():
-        print(f"Directory {root} already exists — aborting.")
-        sys.exit(1)
+        if not force:
+            print(f"Directory {root} already exists — use --force to overwrite.")
+            sys.exit(1)
+        shutil.rmtree(root)
+    zip_path_existing = output_dir / (dist + ".zip")
+    if zip_path_existing.exists() and force:
+        zip_path_existing.unlink()
 
     # directory tree
     for d in [
@@ -307,12 +314,25 @@ def scaffold(tool_key: str, display: str, output_dir: Path) -> Path:
         if src_t.exists():
             shutil.copy(src_t, root / f"{name}.template")
 
+    _CALIB_SRC = Path(__file__).parent.parent / "calibration"
+
     # Copy the XY alignment calibration notebook
-    alignment_nb = (
-        Path(__file__).parent.parent / "calibration" / "ToolAlignmentXY.ipynb"
-    )
+    alignment_nb = _CALIB_SRC / "ToolAlignmentXY.ipynb"
     if alignment_nb.exists():
         shutil.copy(alignment_nb, root / "ToolAlignmentXY.ipynb")
+
+    # Copy the parking-position setup notebook
+    parking_nb = _CALIB_SRC / "SetToolParkingPositions.ipynb"
+    if parking_nb.exists():
+        shutil.copy(parking_nb, root / "SetToolParkingPositions.ipynb")
+
+    # Copy calibration helpers the notebooks depend on
+    calib_out = root / "calibration"
+    calib_out.mkdir()
+    for name in ("CalibrationControlPanel.py", "CalibrationJoystick.py"):
+        src_f = _CALIB_SRC / name
+        if src_f.exists():
+            shutil.copy(src_f, calib_out / name)
 
     # zip contents directly so extracting doesn't create a double-nested folder
     zip_path = output_dir / dist
@@ -337,6 +357,12 @@ def run() -> None:
     parser.add_argument(
         "--out", default=".", help="Parent directory for the new repo (default: .)"
     )
+    parser.add_argument(
+        "--force",
+        "-f",
+        action="store_true",
+        help="Overwrite an existing plugin directory and zip.",
+    )
     args = parser.parse_args()
 
     print("science-jubilee tool plugin scaffolder")
@@ -355,7 +381,7 @@ def run() -> None:
 
     output_dir = Path(args.out).expanduser().resolve()
 
-    root = scaffold(tool_key, display, output_dir)
+    root = scaffold(tool_key, display, output_dir, force=args.force)
 
     pkg = f"{tool_key}_tool"
     dist = tool_key.replace("_", "-") + "-tool"

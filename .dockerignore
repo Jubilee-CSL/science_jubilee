@@ -1,0 +1,15 @@
+# Keep the image lean — exclude data, caches, and editor noise.
+.git
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.pytest_cache
+**/*.egg-info
+dist/
+build/
+.tox/
+.env*
+
+# Large GS pipeline data — mount these as volumes at runtime instead.
+src/science_jubilee/Vision/GS_Reconstruction/Datasets/
+src/science_jubilee/Vision/GS_Reconstruction/Outputs/

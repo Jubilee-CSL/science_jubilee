@@ -102,17 +102,14 @@ def joystick_event(event, step=1):
 
 # Function to assess movement range
 def assess_movement_range(m, xPos, yPos, zPos, dx, dy, dz):
-    # Get machine axis limits
-    lim = m.axis_limits
-    xMin, xMax = lim[0]
-    yMin, yMax = lim[1]
-    zMin, zMax = lim[2]
-    # Calculate requested positions
+    lim = m.axis_limits  # {"X": (min, max), "Y": (min, max), "Z": (min, max)}
+    xMin, xMax = lim.get("X", (-float("inf"), float("inf")))
+    yMin, yMax = lim.get("Y", (-float("inf"), float("inf")))
+    zMin, zMax = lim.get("Z", (-float("inf"), float("inf")))
     xReq = dx + xPos
     yReq = dy + yPos
     zReq = dz + zPos
 
-    # Check if requested positions exceed machine max/min
     if xReq < xMin:
         dx = 0
         xReq = xMin
@@ -121,22 +118,18 @@ def assess_movement_range(m, xPos, yPos, zPos, dx, dy, dz):
         dx = 0
         xReq = xMax
         print("Unsafe x move")
-
     if yReq < yMin:
         dy = 0
         yReq = yMin
         print("Unsafe y move")
-
     if yReq > yMax:
         dy = 0
         yReq = yMax
         print("Unsafe y move")
-
     if zReq < zMin:
         dz = 0
-        yReq = yMin
+        zReq = zMin
         print("Unsafe z move")
-
     if zReq > zMax:
         dz = 0
         zReq = zMax
@@ -153,19 +146,11 @@ def new_record(filename):
 
 # Function to record position
 def record_pos(m, filename):
-    # Get current position
-    dictPos = m.position
-    xPos = dictPos[0]
-    yPos = dictPos[1]
-    zPos = dictPos[2]
-    xReq = xPos
-    yReq = yPos
-    zReq = zPos
-    # Write position to file
+    pos = m.get_position()
+    xPos, yPos, zPos = pos["X"], pos["Y"], pos["Z"]
     with open(filename, "a") as file:
         file.write("%d,%d,%d\n" % (xPos, yPos, zPos))
-        file.close()
-    return xReq, yReq, zReq
+    return xPos, yPos, zPos
 
 
 # Function to make PS4 control
@@ -179,8 +164,9 @@ def make_PS4_control(m, filename):
     print(joysticks[0].get_name())
 
     # Get initial positions
-    xPos, yPos, zPos = m.position
-    xReq, yReq, zReq = m.position
+    _pos = m.get_position()
+    xPos, yPos, zPos = _pos["X"], _pos["Y"], _pos["Z"]
+    xReq, yReq, zReq = xPos, yPos, zPos
 
     done = False
 
@@ -206,11 +192,12 @@ def make_PS4_control(m, filename):
                 dx, dy, dz = button_event(event, step=10)
                 while len(pygame.event.get()) == 0:
                     # keep moving while the button is still pressed
-                    xPos, yPos, zPos = m.position
+                    _pos = m.get_position()
+                    xPos, yPos, zPos = _pos["X"], _pos["Y"], _pos["Z"]
                     xReq, yReq, zReq, dx, dy, dz = assess_movement_range(
                         m, xPos, yPos, zPos, dx, dy, dz
                     )
-                    m.move(dx=dx, dy=dy, dz=dz)
+                    m.jog(x=dx, y=dy, z=dz)
 
             if event.type == pygame.JOYBUTTONUP:
                 pass
@@ -218,11 +205,12 @@ def make_PS4_control(m, filename):
             if event.type == pygame.JOYAXISMOTION:
                 if abs(event.value) > 0.5:
                     dx, dy, dz = joystick_event(event, step=1)
-                    xPos, yPos, zPos = m.position
+                    _pos = m.get_position()
+                    xPos, yPos, zPos = _pos["X"], _pos["Y"], _pos["Z"]
                     xReq, yReq, zReq, dx, dy, dz = assess_movement_range(
                         m, xPos, yPos, zPos, dx, dy, dz
                     )
-                    m.move(dx=dx, dy=dy, dz=dz)
+                    m.jog(x=dx, y=dy, z=dz)
 
             if (
                 event.type == pygame.JOYBUTTONDOWN
@@ -237,14 +225,17 @@ def make_PS4_control(m, filename):
                 if event.button == 0:
                     print("X button pressed: recording clear tool position.")
                     m.y_clear = float(m.get_position()["Y"])
+                    print(f"y_clear = {m.y_clear}")
 
             if (
                 event.type == pygame.JOYBUTTONDOWN
             ):  # interrput when pressing the PS button
                 if event.button == 2:
                     print("square button pressed: recording parked tool position.")
-                    m.x_park = float(m.get_position()["X"])
-                    m.y_park = float(m.get_position()["Y"])
+                    _park = m.get_position()
+                    m.x_park = float(_park["X"])
+                    m.y_park = float(_park["Y"])
+                    print(f"x_park = {m.x_park}, y_park = {m.y_park}")
 
             if (
                 event.type == pygame.JOYBUTTONDOWN

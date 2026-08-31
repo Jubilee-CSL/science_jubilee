@@ -14,7 +14,7 @@ scaling = Ingredient("scaling")
 
 @scaling.config
 def config():
-    pass
+    cameras_span = None
 
 
 @scaling.capture

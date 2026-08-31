@@ -6,12 +6,12 @@ G1 X0.10 Y0.00 E0.10 F600
 ; === tool change: T0 ===
 ; tpre0.g
 G90                   ; Ensure the machine is in absolute mode before issuing movements.
-G0 X350.5 Y270 F20000 ; Rapid to the approach position without any current tool.
+G0 X334.0 Y259.0 F20000 ; Rapid to the approach position without any current tool.
 G60 S0                ; Save this position as the reference point from which to later apply new tool offsets.
 ; tpost0.g
 G90                        ; Ensure the machine is in absolute mode before issuing movements.
-G53 G1 X290.5 F6000           ; Move to the pickup position with tool-1.
-G53 G1 Y338.5 F6000
+G53 G1 X274.0 F6000           ; Move to the pickup position with tool-1.
+G53 G1 Y329.0 F6000
 ; M98 P"/macros/tool_lock.g" ; Lock the tool
 G91                   ; relative mode
 G1 U10 F5000 H0        ; back off slightly

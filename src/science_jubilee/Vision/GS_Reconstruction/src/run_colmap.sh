@@ -29,7 +29,7 @@ echo "=========================================="
 
 # 1. Conda environement activation; You can change this if you are not using miniconda3 and if you have call the wsl environement differently
 echo " Activation de l'environnement Conda (gs_final)..."
-source C:/Users/Alienor/anaconda3/etc/profile.d/conda.sh
+source ~/miniconda3/etc/profile.d/conda.sh
 conda activate gaussian_splatting_inria
 
 #Colmap training for sparse points and camera pose estimation

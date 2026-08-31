@@ -27,7 +27,6 @@ class BaseCamera(ABC):
         self.dist: Optional[np.ndarray] = None
         self.offset: tuple = (0, 0, 0)
         self.R_machine_camera = np.eye(3, dtype=np.float64)
-        self.T_machine_camera = np.zeros(3, dtype=np.float64)
 
         if calib_file is not None:
             self._load_calibration(calib_file)
@@ -70,21 +69,13 @@ class BaseCamera(ABC):
         else:
             active_tool_offset = self.tool_changer.get_tool_offset(active_tool)
 
-        x = x_depart + active_tool_offset[0]
-        y = y_depart + active_tool_offset[1]
-        z = z_depart + active_tool_offset[2]
+        x = x_depart + active_tool_offset[0] + self.offset[0]
+        y = y_depart + active_tool_offset[1] + self.offset[1]
+        z = z_depart + active_tool_offset[2] + self.offset[2]
         self.driver.move_to({"Z": float(z)}, s=600)
         self.driver.move_to({"X": float(x), "Y": float(y)}, s=800)
 
-        position = self.driver.get_positions()
-        self.T_machine_camera = np.array(
-            [
-                position["X"] - active_tool_offset[0] - self.offset[0],
-                position["Y"] - active_tool_offset[1] - self.offset[1],
-                -position["Z"] - active_tool_offset[2] - self.offset[2],
-            ],
-            dtype=np.float64,
-        )
+        self.driver.get_positions()
 
     # ------------------------------------------------------------------
     # Capture
