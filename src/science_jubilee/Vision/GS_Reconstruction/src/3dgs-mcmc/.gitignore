@@ -1,9 +1,0 @@
-*.pyc
-.vscode
-output
-build
-diff_rasterization/diff_rast.egg-info
-diff_rasterization/dist
-tensorboard_3d
-screenshots
-cuda-repo-ubuntu2204-11-8-local_11.8.0-520.61.05-1_amd64.deb

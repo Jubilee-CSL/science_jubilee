@@ -38,6 +38,10 @@ junit*.xml
 coverage.xml
 .pytest_cache/
 
+# Generated raw-image test fixtures (JUBILEE_RAW_DIR default) — never commit
+tests/dataset_brut/
+tests/dataset_brut_led/
+
 # Build and docs folder/files
 build/*
 dist/*

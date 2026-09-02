@@ -14,55 +14,148 @@
 
 <p align="center"><img src="./docs/_static/pipetting.gif" width="800"/></p>
 
-This repository hosts files to build and control a [Jubilee](https://jubilee3d.com/index.php?title=Main_Page) for scientific applications. The core of the software is a Python interface for Jubilee to navigate labware installed in the machine. We currently provide assembly instructions, control software, and examples for various tools including OT-2 pipettes, syringes, and cameras. While these tools might cater exactly to your planned use case, they most likely will not! We share these files as a starting point rather than an endpoint: we also provide instructions for developing new tools and associated software for controlling them. We hope you will build new tools for your application and contribute them back to the community for others to use and extend 🛠️
+This repository hosts the core software to build and control a [Jubilee](https://jubilee3d.com/index.php?title=Main_Page) for scientific applications: a Python interface for motion, tool-changing, and navigating labware. Concrete hardware tools, lab decks, digital-twin viewers, and vision/analysis pipelines are **not** bundled here — they ship as independent plugin packages (see "Architecture: core + plugins" below) discovered at runtime. `tool_library/` in this repo only keeps a `template/` for scaffolding new tool hardware and an `old/` archive of pre-plugin tool designs; browse the [tool-plugin repos](#developing-a-plugin) for ready-to-use tools like OT-2 pipettes, syringes, and cameras. We hope you will build new tools/decks/pipelines for your application and contribute them back to the community for others to use and extend 🛠️
 
 _Check out the [Documentation](https://science-jubilee.readthedocs.io/en/latest/index.html) to get started!_
 
 
+## Architecture: core + plugins
+
+`science-jubilee` itself is a **small core**: motion control, the tool-changer,
+deck/labware navigation, and `MachineSession`. Everything experiment- or
+hardware-specific — a physical tool, a lab deck, a digital twin, a vision
+pipeline — ships as a **separate, independently-installable plugin package**
+that the core discovers at runtime via Python
+[entry points](https://packaging.python.org/en/latest/specifications/entry-points/)
+(`importlib.metadata`). Nothing in core imports a plugin by name; plugins
+register themselves, core looks them up by key.
+
+### Core (`src/science_jubilee/`)
+
+| Module | Responsibility |
+|---|---|
+| `hal/` | `motion_driver.py` (G-code motion), `tool_changer.py`, `transport/` (`http`, `mock`, `recording`) |
+| `navigation/` | `DeckNavigator` (well-addressed moves), `FreeNavigator` (raw XYZ) |
+| `decks/Deck.py`, `labware/Labware.py` | Base classes + built-in fallback definitions |
+| `tools/Tool.py`, `tools/registry.py` | Base `Tool` class + entry-point discovery for hardware tools |
+| `machine_session.py` | `MachineSession` — wires transport → motion → tool-changer → navigator → camera → light |
+| `calibration/` | Tool g-code generation (`tool_gfiles.py`), camera calibration |
+| `_paths.py` | `jubilee_dir()`, `camera_params_yaml()` — path helpers used as plugin fallbacks |
+| `tests/` | Core test suite only (motion, tool-changer, macro expansion, digital-twin connection, deck/labware) |
+
+### Plugins (installed separately, discovered by entry point)
+
+| Domain | Entry-point group(s) | Fallback when nothing is installed |
+|---|---|---|
+| Hardware tools | `science_jubilee.tools`, `.tools.mocks`, `.tools.configs`, `.tools.twin_assets` | none — `ToolChanger` raises if a configured tool key has no registered class |
+| Labware definitions | `science_jubilee.labware` | built-in `labware/labware_definition/` |
+| Deck definitions | `science_jubilee.deck` | built-in `decks/example_deck/` |
+| Digital twin (Blender interface) | `science_jubilee.digital_twin` | none — `launch_twin()` raises `RuntimeError` if not installed and no `search_dir` is passed |
+| Computer vision | *(plain pip dependency, no entry point)* | n/a — install a vision package directly, e.g. `vision-measure-plant`, `vision-duckweed-tracking` |
+
+A tool plugin declares itself like this in its `pyproject.toml`:
+
+```toml
+[project.entry-points."science_jubilee.tools"]
+csl_fluo_tool = "csl_fluo_tool:FluorescenceTool"
+
+[project.entry-points."science_jubilee.tools.mocks"]
+csl_fluo_tool = "csl_fluo_tool:FluorescenceToolMock"
+
+[project.entry-points."science_jubilee.tools.configs"]
+csl_fluo_tool = "csl_fluo_tool.configs:__path__"
+
+[project.entry-points."science_jubilee.tools.twin_assets"]
+csl_fluo_tool = "csl_fluo_tool.twin_assets:__path__"
+```
+
+The entry-point *name* (`csl_fluo_tool` above) is the `TOOL_KEY` used
+everywhere: in `M563 S"..."` on the Duet, when looking up mocks/configs/twin
+assets, and as the identifier reported by `ToolChanger`. Keys must be
+lowercase `[a-z][a-z0-9_]*`, ≤15 characters (RepRapFirmware's `M563 S` limit),
+and can't collide with a small set of names reserved for the core repo
+(`camera`, `light`, `neopixel`, `toolhead_cam`, `inoculator` — namespace yours,
+e.g. `csl_camera`).
+
+Deck and labware plugins are simpler: register a `science_jubilee.deck` or
+`science_jubilee.labware` entry point whose callable returns a directory path
+containing the JSON definitions — no base class to subclass.
+
+Vision/analysis plugins need no entry point at all: they're just pip packages
+that depend on `science-jubilee` and import its HAL/navigation APIs directly
+(see `vision-measure-plant` and `vision-duckweed-tracking` for reference
+implementations of this pattern).
+
+## Path discovery & fallback
+
+Everything path-related follows the same priority order: **explicit
+path/env var → installed plugin → built-in default**.
+
+- **Deck JSON**: `Deck.__post_init__` searches `path=` (if given) → every
+  directory registered under the `science_jubilee.deck` entry-point group →
+  `decks/example_deck/` (built-in). Raises `FileNotFoundError` naming all
+  searched directories if nothing matches.
+- **Labware JSON**: same priority, ending in `labware/labware_definition/`.
+- **Camera calibration**: pass `calib_file=` explicitly, or set
+  `JUBILEE_CAMERA_CALIB` (resolved relative to the `.env` file's directory);
+  falls back to `science_jubilee._paths.camera_params_yaml()` (the core repo's
+  shipped `calibration/camera_params.yaml`) if omitted.
+- **Digital twin**: `launch_twin(script_name, search_dir=None)` — if
+  `search_dir` is omitted, looks up the `science_jubilee.digital_twin` entry
+  point (installed via `jubilee-blender-twin`); raises if neither is available.
+- **Experiment files** (deck.json, labware JSONs, gcode logs): driven entirely
+  by env vars read by `MachineSession.from_env()` — see `JUBILEE_*` in the
+  "MachineSession" section below. There is no built-in fallback for these;
+  they're expected to live in your own experiment folder, not in this repo.
+
+## Installing
+
+```powershell
+pip install science-jubilee
+# or, for a checked-out copy:
+pip install -e .
+```
+
+Optional extras (see `setup.cfg` for the full list):
+
+```powershell
+pip install "science-jubilee[camera]"        # opencv, matplotlib, picamera (RPi)
+pip install "science-jubilee[scripts]"       # sacred-based experiment scripts
+pip install "science-jubilee[testing]"       # pytest, pre-commit, tox, sphinx
+```
+
+Then install whatever plugins your setup needs, independently:
+
+```powershell
+pip install -e path/to/your-tool-plugin          # hardware tool (science_jubilee.tools entry point)
+pip install -e path/to/vision-measure-plant       # vision/analysis pipeline (plain dependency)
+pip install jubilee-blender-twin                  # digital twin viewer
+```
+
 ## Overview
-### Hardware
-This repository is designed to be used with the Jubilee platform, outfitted with tools for laboratory automation. Jubilee an open-source & extensible multi-tool motion platform—if that doesn't mean much to you, you can think of it as a 3D printer that can change its tools. You can read about [Jubilee](https://jubilee3d.com/index.php?title=Main_Page) more generally at the project page.
 
-### Software
-The software here is intended to control Jubilee from Python scripts or Jupyter notebooks to design and run experiments. The folders are organized as follows:
-```
-calibration/                 # notebooks to support machine & tool setup/calibration
-tool_library/                # design files, assembly instructions, & configuration info for all tools & plates
-src/
-└── science_jubilee/
-    ├── Machine.py               # jubilee machine driver
-    ├── tools/
-    │   ├── configs/             # all tool configs are here
-    │   ├── Tool.py              # base tool class
-    │   └── ...                  # all tool modules are here
-    ├── decks/
-    │   ├── configs/             # all deck configs are here
-    │   ├── Deck.py              # base deck class
-    │   └── ...                  # all deck modules are here
-    └── labware/
-        ├── labware_definitions/ # all labware definitions are here
-        └── Labware.py           # base labware class
-```
-
-### Labware and Wetware
-The basic functionality supported by this software is intended to be used with a custom deck which accommodates up to 6 standard sized microplates.
+Jubilee is an open-source & extensible multi-tool motion platform — if that doesn't mean much to you, you can think of it as a 3D printer that can change its tools. You can read about [Jubilee](https://jubilee3d.com/index.php?title=Main_Page) more generally at the project page. This repository is designed to be used with the Jubilee platform outfitted with tools for laboratory automation.
 
 ### Using science_jubilee
-You can import and use `science_jubilee` modules by importing the modules you need at the top of your python file/notebook. For example, if we want to pipette using a lab automation deck, we might write:
+Import the HAL/navigation pieces you need and wire them up yourself, or use
+`MachineSession` (recommended, see below) to do it in one call. For example,
+using the HAL layer directly with an `Inoculator` tool:
 ```python
-from science_jubilee.Machine import Machine                             # import machine driver
-from science_jubilee.decks.LabAutomationDeck import LabAutomationDeck   # import lab automation deck module
-from science_jubilee.tools.Pipette import Pipette                       # import pipette module
-...                                                                     # you can import other decks/tools here, or make your own!
-```
-We can then make use of these modules in our code:
-```python
-m = Machine()                                                  # connect to your jubilee
-deck = m.load_deck(deck_config_name)                           # setup your deck
-tip_rack = deck.load_labware(opentrons_96_tiprack_300ul, 0)    # install an opentrons tip rack in slot 0 of the deck
-pipette = Pipette(<index>, <name>, <tip_rack>, <config_file>)  # instantiate your pipette tool
-m.load_tool(pipette)                                           # configure the pipette for use on the machine
-...
+from science_jubilee.hal.transport.http import HTTPTransport
+from science_jubilee.hal.motion_driver import MotionDriver
+from science_jubilee.hal.tool_changer import ToolChanger
+from science_jubilee.navigation.deck_navigation import DeckNavigator
+from science_jubilee.decks.Deck import Deck
+from science_jubilee.tools.unique_tools.Inoculator import Inoculator
+
+transport = HTTPTransport(address="192.168.1.2")
+driver = MotionDriver(transport)
+tool_changer = ToolChanger(transport)
+deck = Deck("deck", path="my_experiment/")             # your deck.json + labware JSONs
+nav = DeckNavigator(driver=driver, deck=deck)
+
+tool_changer.pickup_tool(0)                            # tool index from your M563 config
+nav.move_to_well(slot="0", well="A1")
 ```
 
 ### MachineSession (recommended entry point)
@@ -176,8 +269,69 @@ generate_tool_gfiles(
 
 The generated files are written to `firmware/sys/` locally and, when `transport` is provided, uploaded directly to `0:/sys/` on the Duet — no copy-paste into DWC required.
 
+## Developing a plugin
 
+- **Hardware tool**: run the scaffolder — `create-tool-plugin` (installed via
+  the `scripts` extra) prompts for a `TOOL_KEY` and display name and produces a
+  ready-to-edit plugin repo, zipped up, containing:
 
+  ```
+  <dist-name>/
+  ├── pyproject.toml            # the four science_jubilee.tools.* entry points, pre-filled
+  ├── README.md                 # install + usage stub, ready to fill in
+  ├── .gitignore
+  ├── src/<pkg>/
+  │   ├── __init__.py           # exports {Tool, ToolMock}
+  │   ├── tool.py                # Tool subclass stub — implement run()
+  │   ├── mock.py                # Mock subclass stub
+  │   ├── _paths.py              # get_twin_assets_dir() helper
+  │   └── configs/<tool_key>.json
+  ├── tests/test_tool.py         # TOOL_KEY / subclass / mock-key assertions, generated
+  ├── templates/                 # tpre/tpost/tfree .g.template files to fill in with
+  │                               # parking-post coordinates, + wedge_plate.blend, park_post_47.blend
+  ├── calibration/                # copied straight from this repo's calibration/ folder:
+  │   ├── ToolAlignmentXY.ipynb          # jog + record XY tool offset against a reference pin
+  │   ├── SetToolParkingPositions.ipynb  # jog + record parking-post X/Y/clear coordinates
+  │   ├── CalibrationControlPanel.py     # Jupyter widget control panel used by the notebooks
+  │   └── CalibrationJoystick.py         # PS4-controller jog input, alternative to widget sliders
+  └── twin_assets/                # empty — drop 3D assets for the digital twin here
+  ```
+
+  Unzip it, `cd` in, `pip install -e .`, run `pytest`, then work through the two
+  calibration notebooks before writing `tool.py`'s `run()` method. The notebooks
+  are the actual calibration workflow — they're not optional boilerplate, they're
+  how you get the `tpre`/`tpost`/`tfree` parking coordinates and XY offset that
+  go into `templates/` and get uploaded to `0:/sys/` on the Duet.
+
+- **Deck / labware**: no scaffolder needed — just register a
+  `science_jubilee.deck` or `science_jubilee.labware` entry point pointing at
+  a directory of JSON definitions.
+- **Digital twin**: register a `science_jubilee.digital_twin` entry point
+  returning the directory to search for twin scripts (see
+  `jubilee-blender-twin`).
+- **Vision / analysis pipeline**: no entry point, no naming rules — just a
+  regular package depending on `science-jubilee` that imports `HAL`,
+  `navigation`, and `machine_session` directly. `vision-measure-plant`
+  (Gaussian-splatting reconstruction + Marigold depth pipelines) and
+  `vision-duckweed-tracking` (frond detection + RRT pickup planning) are
+  reference implementations of this pattern.
+
+## Repository contents
+
+```
+docs/                         # Sphinx documentation source
+firmware/                     # Duet/RepRapFirmware sys + macro files
+gcode_logs/                   # sample/recorded g-code logs
+images/                       # calibration & sample images
+tool_library/                 # template/ for scaffolding new tool hardware, old/ pre-plugin archive
+src/science_jubilee/          # core package — see table above
+tests/                        # core test suite — see "Running tests" below for the folder breakdown
+```
+
+Vision pipelines, extra tool plugins, and the digital twin live in their own
+repositories (`vision-measure-plant`, `vision-duckweed-tracking`,
+`jubilee-blender-twin`, individual tool-plugin repos) — install them
+alongside `science-jubilee`, don't vendor them into this repo.
 
 <!-- pyscaffold-notes -->
 
@@ -242,11 +396,31 @@ pre-commit run --all-files
 
 ### Running tests
 
+`tests/` mirrors the layout of `src/science_jubilee/` and is core-only — no
+plugin, tool, or vision code is tested from here (each plugin ships its own
+`tests/`, e.g. the `test_tool.py` generated by `create-tool-plugin`).
+
+```
+tests/
+├── conftest.py           # jubilee_env/transport/motion/tool_changer/navigator/camera/light fixtures
+├── README.md             # full fixture table, markers, and troubleshooting guide
+├── machine_basic/        # connectivity: connect, available_axes, positions, http requests, machine_summary
+├── machine_movement/     # homing, deck navigation, corners path, tool-changer API
+├── tools/                # camera, light, tool registry/discovery
+├── digital_twin/         # mock-only: recording transport, macro expansion, blender connection
+├── ingredients/          # snake-scan and acquisition-test Sacred pipelines
+└── utils/                # currently empty — no tests here yet
+```
+
 ```powershell
 pytest --jubilee-env mock       # mock mode, no hardware needed
 pytest --jubilee-env hardware   # requires a connected Jubilee at JUBILEE_ADDRESS
 pytest -m "not invasive"        # skip tests that move the machine
+pytest -m primary                # connectivity checks only
 ```
+
+See `tests/README.md` for the full fixture reference, the `primary` /
+`secondary` / `invasive` marker meanings, and hardware troubleshooting tips.
 
 <!-- pyscaffold-notes -->
 
