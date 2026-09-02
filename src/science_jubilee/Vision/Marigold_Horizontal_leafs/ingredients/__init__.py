@@ -5,5 +5,7 @@ __all__ = [
     "inference_marigold",
     "filter_scene",
     "target_horizontals",
+    "inference_MoGe",
+    "extract_leafs",
     "reconstruction",
 ]

@@ -4,6 +4,8 @@ import numpy as np
 from pathlib import Path
 from sklearn.cluster import DBSCAN
 
+from science_jubilee.Vision.GS_Reconstruction.src.filter_scene import segment_cube_mask
+
 # Assurez-vous que ces imports correspondent à l'emplacement de vos fonctions
 from .filter_scene import segment_plant_mask, segment_tray_mask
 
@@ -64,6 +66,7 @@ def estimate_horizontal_targets(
     cluster_eps_normal:float,
     camera,
     plant_height=None,
+    scale_cube=None,
 ):
     print("\n" + "=" * 50)
     print("[DEBUG] START TARGET ESTIMATION PIPELINE")
@@ -79,6 +82,7 @@ def estimate_horizontal_targets(
 
     tray_mask_raw = segment_tray_mask(image)
     plant_mask = segment_plant_mask(image)
+    cube_mask=segment_cube_mask(image)
     tray_mask = tray_mask_raw - plant_mask
 
     # -------------------------------------------------------------
@@ -99,8 +103,18 @@ def estimate_horizontal_targets(
 
     depth_mm = depth_map * (tray_z_mm / max_tray_depth)
     if plant_height != None:
-        depth_mm= (depth_map - np.min(depth_map) )*plant_height/(max_tray_depth-np.min(depth_mm)) + (tray_z_mm-plant_height)
-
+        depth_mm= ((depth_map - np.min(depth_map) )*plant_height/(max_tray_depth-np.min(depth_map))) + (tray_z_mm-plant_height)
+    if scale_cube!=None:
+        cube_depth = depth_map[cube_mask > 0]
+        if cube_depth.size == 0 or np.isclose(np.max(cube_depth), 0.0):
+            print("[!] Warning: Cube mask is empty or max depth is 0!")
+        else:
+            print(
+                f"[+] Cube depth values: {cube_depth.size} pixels, "
+                f"min={np.min(cube_depth) if cube_depth.size > 0 else 0:.2f}, "
+                f"max={np.max(cube_depth):.2f}"
+            )
+            depth_mm= (depth_map - np.min(cube_depth) )*scale_cube/(max_tray_depth-np.min(cube_depth)) + (tray_z_mm-scale_cube)
     depth_mm[np.isinf(depth_mm)] = 400.0
     depth_mm[np.isnan(depth_mm)] = 400.0
 
@@ -227,9 +241,6 @@ def estimate_horizontal_targets(
     # -------------------------------------------------------------
     # 5. Target Extraction
     # -------------------------------------------------------------
-    # -------------------------------------------------------------
-    # 5. Target Extraction
-    # -------------------------------------------------------------
     # Extraction des focales et du centre optique depuis la matrice K (3x3)
     intrinsics = {
         "fx": float(camera.K[0, 0]),
@@ -299,6 +310,7 @@ def run_estimate_horizontal_targets(
     cluster_eps_normal,
     camera,
     plant_height,
+    scale_cube,
     output_dir,
     image_name="image.jpg",
 ):
@@ -328,6 +340,7 @@ def run_estimate_horizontal_targets(
         cluster_eps_normal,
         camera,
         plant_height,
+        scale_cube
     )
 
     overlay = image_bgr.copy()
@@ -336,8 +349,8 @@ def run_estimate_horizontal_targets(
         left, top, width, height = target["bbox"]
         
         # Draw bounding box and marker
-        cv2.rectangle(overlay, (left, top), (left + width, top + height), (0, 255, 0), 2)
-        cv2.circle(overlay, (u, v), 6, (0, 0, 255), -1)
+        cv2.rectangle(overlay, (left, top), (left + width, top + height), (255, 255, 0), 2)
+        cv2.circle(overlay, (u, v), 6, (255, 0, 255), -1)
         
         # Draw ID and Z info
         z_mm = target["xyz_mm"][2]
@@ -347,7 +360,7 @@ def run_estimate_horizontal_targets(
             (left, max(15, top - 5)),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5,
-            (0, 255, 0),
+            (255, 255, 0),
             1,
             cv2.LINE_AA,
         )

@@ -1,4 +1,5 @@
 # Horizontal leafs detector
+# OLD PIPELINE NEEDS TO BE CHANGED, Use the notebook test_piepline for sacred integration 
 
 This project estimates depth and surface normals from a camera image, isolates the printer tray, detects plant/leaf regions, and exports camera-relative XYZ positions for likely horizontal surfaces.
 

@@ -9,11 +9,11 @@ extract_leafs = Ingredient("extract_leafs")
 
 @extract_leafs.config
 def config():
-    distance_threshold = 0.01
-    min_points = 50
-    size_threshold = 0.005
-    shape_threshold = 0.85
-    height_ratio = 0.2
+    distance_threshold = 0.0092
+    min_points = 20
+    size_threshold = 1e-5
+    shape_threshold = 0.98
+    height_ratio = 0.1
 
 
 @extract_leafs.capture

@@ -11,6 +11,7 @@ inference_MoGe = Ingredient("inference_MoGe")
 def config():
     image_path = "/images.latest.png"
     output_path = "/output"
+    resolution_level = 9
 
 def _load_MoGe_modules():
     try:
@@ -30,7 +31,7 @@ def _load_MoGe_modules():
 
     return torch, model, device
 
-def infer_depth_and_normals(image_path: str, output_dir: str, steps: int = 30):
+def infer_depth_and_normals(image_path: str, output_dir: str, resolution_level: int = 9):
     image_path = str(image_path)
     output_dir = str(output_dir)
     os.makedirs(output_dir, exist_ok=True)
@@ -46,7 +47,7 @@ def infer_depth_and_normals(image_path: str, output_dir: str, steps: int = 30):
     image_tensor = torch.tensor(image_rgb / 255.0, dtype=torch.float32, device=device).permute(2, 0, 1)   
     
     with torch.no_grad():
-        output = model.infer(image_tensor,resolution_level=9)
+        output = model.infer(image_tensor,resolution_level=resolution_level)
         
     return output
 
@@ -58,7 +59,7 @@ def to_numpy(tensor):
 
 @inference_MoGe.capture
 def run_infer_depths_and_normals(
-    image, output_dir: str, image_name: str = "image.jpg"
+    image, output_dir: str, image_name: str = "image.jpg", resolution_level: int = 9
 ):
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
@@ -67,7 +68,7 @@ def run_infer_depths_and_normals(
     cv2.imwrite(str(image_path), np.asarray(image))
     
     predict = infer_depth_and_normals(
-        str(image_path), str(output_path)
+        str(image_path), str(output_path), resolution_level=resolution_level
     )
 
     return {

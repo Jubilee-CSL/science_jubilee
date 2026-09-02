@@ -21,15 +21,23 @@ def config():
     camera=None
 
 
-def create_point_cloud_from_depth(rgb: np.ndarray, depth_mm: np.ndarray, config: dict, camera):
+def create_point_cloud_from_depth(rgb: np.ndarray, depth_mm: np.ndarray, camera):
     print("[3D] Génération du nuage de points en mémoire...")
 
-    if rgb.shape[:2] != depth.shape[:2]:
-        depth = cv2.resize(
-            depth, (rgb.shape[1], rgb.shape[0]), interpolation=cv2.INTER_NEAREST
+    rgb = np.asarray(rgb)
+    depth_mm = np.asarray(depth_mm, dtype=np.float32)
+
+    if rgb.ndim == 2:
+        rgb = cv2.cvtColor(rgb, cv2.COLOR_GRAY2RGB)
+    elif rgb.shape[-1] == 4:
+        rgb = rgb[..., :3]
+
+    if rgb.shape[:2] != depth_mm.shape[:2]:
+        rgb = cv2.resize(
+            rgb, (depth_mm.shape[1], depth_mm.shape[0]), interpolation=cv2.INTER_LINEAR
         )
 
-    h, w = depth.shape[:2]
+    h, w = depth_mm.shape[:2]
 
     # Utilisation directe des attributs K et dist de l'objet camera
     K = np.array(camera.K, dtype=np.float32)
@@ -50,20 +58,20 @@ def create_point_cloud_from_depth(rgb: np.ndarray, depth_mm: np.ndarray, config:
 
     # 3. Filtrage des pixels valides (profondeur > 0)
     valid = depth_mm_flat > 0
-    z = depth_mm_flat[valid] / 1000.0  # Conversion mm -> mètres pour Open3D
+    valid_rgb = valid.reshape(-1)
+    z = depth_mm_flat[valid_rgb] / 1000.0  # Conversion mm -> mètres pour Open3D
 
     # Reprojection 3D
-    x = x_norm[valid] * z
-    y = y_norm[valid] * z
+    x = x_norm[valid_rgb] * z
+    y = y_norm[valid_rgb] * z
 
-    # Changement d'axe pour s'adapter au repère standard (Y vers le haut, Z vers l'avant)
     y = -y
     z = -z
 
     points = np.vstack((x, y, z)).T
-    
-    # Extraction et normalisation des couleurs (Open3D attend des valeurs entre 0 et 1)
-    colors = rgb.reshape(-1, 3)[valid] / 255.0
+
+    rgb_flat = rgb.reshape(-1, rgb.shape[-1])
+    colors = rgb_flat[valid_rgb] / 255.0
 
     print(f"[3D] Nuage brut généré avec {len(points)} points.")
     pcd = o3d.geometry.PointCloud()
@@ -76,11 +84,31 @@ def create_point_cloud_from_depth(rgb: np.ndarray, depth_mm: np.ndarray, config:
 
     return pcd
 
+def meshing(pcd, alpha=0.005, decimate_ratio=0.5):
+    # Mesh creation from alpha shape method
+    mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(pcd, alpha)
+    # Cleaning
+    mesh.compute_vertex_normals()
+    mesh.remove_degenerate_triangles()
+    mesh.remove_unreferenced_vertices()
+    print(f"Triangles generated : {len(mesh.triangles):,}".replace(",", " "))
+
+    # Simple Quadratic decimation to prevent  heavy files
+    if decimate_ratio < 1.0:
+        target_faces = int(len(mesh.triangles) * decimate_ratio)
+        print(
+            f" Quadratic decimation, keeping only {target_faces:,} faces.".replace(
+                ",", " "
+            )
+        )
+        mesh = mesh.simplify_quadric_decimation(target_number_of_triangles=target_faces)
+        mesh.compute_vertex_normals()  # Recalcul des normales après la déformation
+    return mesh
 
 @reconstruction.capture
 def run_create_point_cloud(
     image: np.ndarray, 
-    depth_map: np.ndarray, 
+    depth_mm: np.ndarray, 
     camera,                
     alpha: float,
     decimate_ratio: float,
@@ -100,10 +128,10 @@ def run_create_point_cloud(
     # Sauvegarde des données brutes
     image_bgr = cv2.cvtColor(np.asarray(image), cv2.COLOR_RGB2BGR)
     cv2.imwrite(str(image_file), image_bgr)
-    np.save(depth_file, np.asarray(depth_map))
+    np.save(depth_file, np.asarray(depth_mm))
 
     # 1. Pipeline Nuage de points (passage de l'objet camera)
-    point_cloud = create_point_cloud_from_depth(np.asarray(image), np.asarray(depth_map), config, camera)
+    point_cloud = create_point_cloud_from_depth(np.asarray(image), np.asarray(depth_mm), camera)
     o3d.io.write_point_cloud(str(pcd_file), point_cloud)
     print(f"[+] Nuage de points sauvegardé : {pcd_file}")
 
