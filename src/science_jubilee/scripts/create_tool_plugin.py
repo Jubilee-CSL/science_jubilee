@@ -11,6 +11,7 @@ from __future__ import annotations
 import re
 import shutil
 import sys
+import warnings
 from pathlib import Path
 
 _KEY_REGEX = re.compile(r"^[a-z][a-z0-9_]*$")
@@ -33,7 +34,13 @@ def _validate_key(key: str) -> str:
 
 
 def _to_class_name(tool_key: str) -> str:
-    return "".join(p.capitalize() for p in tool_key.split("_")) + "Tool"
+    # strip leading "tool_" then CamelCase the remaining name_org segments
+    return "".join(p.capitalize() for p in tool_key.removeprefix("tool_").split("_"))
+
+
+def _make_names(tool_key: str) -> tuple[str, str]:
+    """Return (pkg, dist); tool_key is already in tool_name_org format."""
+    return tool_key, tool_key.replace("_", "-")
 
 
 def _prompt(message: str, default: str | None = None, validator=None) -> str:
@@ -168,41 +175,6 @@ def test_mock_key_matches():
 """
 
 
-def _setup_duet_py(tool_key: str) -> str:
-    return f"""\
-\"\"\"Generate and upload tpre/tpost/tfree firmware files for {tool_key}.
-
-Edit the values below, then run:
-    python setup_duet.py
-\"\"\"
-
-from science_jubilee.calibration.tool_gfiles import generate_tool_gfiles
-
-# ---- fill these in after physically calibrating the parking post ----
-TOOL_NUMBER = 0       # slot index in config.g (P0, P1, ...)
-X_PARK      = 0.0    # X coordinate of the parking post
-Y_PARK      = 0.0    # Y coordinate (tool locked / fully docked)
-Y_CLEAR     = 0.0    # Y coordinate safely clear of all parking posts
-
-# Optional: pass transport="<duet-ip>" to upload directly instead of printing
-generate_tool_gfiles(
-    tool_number=TOOL_NUMBER,
-    x_park=X_PARK,
-    y_park=Y_PARK,
-    y_clear=Y_CLEAR,
-    # transport="192.168.1.2",
-)
-
-print()
-print("Next steps:")
-print(f"  1. Upload tpre{{TOOL_NUMBER}}.g / tpost{{TOOL_NUMBER}}.g / tfree{{TOOL_NUMBER}}.g to 0:/sys/ on the Duet.")
-print(f"  2. Run Tool Alignment XY calibration to get X/Y/Z offsets.")
-print(f'  3. Add to toffsets.g:  G10 P{{TOOL_NUMBER}} X<X> Y<Y> Z<Z>  ; {tool_key}')
-print(f'  4. Add to config.g:    M563 P{{TOOL_NUMBER}} S"{tool_key}"')
-print( "  5. M999 to restart the Duet.")
-"""
-
-
 def _readme(tool_key: str, dist: str, pkg: str, display: str) -> str:
     cls = _to_class_name(tool_key)
     return f"""\
@@ -222,8 +194,8 @@ to the science-jubilee source are needed.
 
 ## Duet firmware setup (once per machine)
 
-Edit and run `setup_duet.py` to generate the parking macro files, then follow
-the printed instructions to complete the firmware configuration.
+Fill in the parking-post coordinates in the `.g.template` files under `templates/`,
+then upload `tpre{{N}}.g`, `tpost{{N}}.g`, and `tfree{{N}}.g` to `0:/sys/` on the Duet.
 
 ## Usage
 
@@ -264,8 +236,7 @@ def _configs_json(tool_key: str) -> str:
 def scaffold(
     tool_key: str, display: str, output_dir: Path, *, force: bool = False
 ) -> Path:
-    pkg = f"{tool_key}_tool"
-    dist = tool_key.replace("_", "-") + "-tool"
+    pkg, dist = _make_names(tool_key)
     root = output_dir / dist
     src = root / "src" / pkg
 
@@ -305,34 +276,53 @@ def scaffold(
     (root / "pyproject.toml").write_text(_pyproject(tool_key, pkg, dist, display))
     (root / "README.md").write_text(_readme(tool_key, dist, pkg, display))
     (root / ".gitignore").write_text(_gitignore())
-    (root / "setup_duet.py").write_text(_setup_duet_py(tool_key))
 
-    # Copy Jinja2 firmware templates alongside setup_duet.py for reference
-    templates_src = Path(__file__).parent.parent / "calibration" / "templates"
+    _CALIB_SRC = Path(__file__).parent.parent / "calibration"
+    templates_src = _CALIB_SRC / "templates"
+
+    tmpl_out = root / "templates"
+    tmpl_out.mkdir()
+
     for name in ("tpre.g", "tpost.g", "tfree.g"):
         src_t = templates_src / name
         if src_t.exists():
-            shutil.copy(src_t, root / f"{name}.template")
+            shutil.copy(src_t, tmpl_out / f"{name}.template")
+        else:
+            warnings.warn(f"Template not found, skipping: {src_t}")
 
-    _CALIB_SRC = Path(__file__).parent.parent / "calibration"
+    wedge = templates_src / "wedge_plate.blend"
+    if wedge.exists():
+        shutil.copy(wedge, tmpl_out / "wedge_plate.blend")
+    else:
+        warnings.warn(f"Wedge plate asset not found, skipping: {wedge}")
 
-    # Copy the XY alignment calibration notebook
-    alignment_nb = _CALIB_SRC / "ToolAlignmentXY.ipynb"
-    if alignment_nb.exists():
-        shutil.copy(alignment_nb, root / "ToolAlignmentXY.ipynb")
+    park_post = templates_src / "park_post_47.blend"
+    if park_post.exists():
+        shutil.copy(park_post, tmpl_out / "park_post_47.blend")
+    else:
+        warnings.warn(f"Park post asset not found, skipping: {park_post}")
 
-    # Copy the parking-position setup notebook
-    parking_nb = _CALIB_SRC / "SetToolParkingPositions.ipynb"
-    if parking_nb.exists():
-        shutil.copy(parking_nb, root / "SetToolParkingPositions.ipynb")
-
-    # Copy calibration helpers the notebooks depend on
     calib_out = root / "calibration"
     calib_out.mkdir()
+
+    alignment_nb = _CALIB_SRC / "ToolAlignmentXY.ipynb"
+    if alignment_nb.exists():
+        shutil.copy(alignment_nb, calib_out / "ToolAlignmentXY.ipynb")
+    else:
+        warnings.warn(f"Calibration notebook not found, skipping: {alignment_nb}")
+
+    parking_nb = _CALIB_SRC / "SetToolParkingPositions.ipynb"
+    if parking_nb.exists():
+        shutil.copy(parking_nb, calib_out / "SetToolParkingPositions.ipynb")
+    else:
+        warnings.warn(f"Calibration notebook not found, skipping: {parking_nb}")
+
     for name in ("CalibrationControlPanel.py", "CalibrationJoystick.py"):
         src_f = _CALIB_SRC / name
         if src_f.exists():
             shutil.copy(src_f, calib_out / name)
+        else:
+            warnings.warn(f"Calibration helper not found, skipping: {src_f}")
 
     # zip contents directly so extracting doesn't create a double-nested folder
     zip_path = output_dir / dist
@@ -352,7 +342,7 @@ def run() -> None:
     parser = argparse.ArgumentParser(
         description="Scaffold a science-jubilee tool plugin repo."
     )
-    parser.add_argument("--key", help="TOOL_KEY (e.g. csl_fluo)")
+    parser.add_argument("--key", help="TOOL_KEY (e.g. tool_fluo_csl)")
     parser.add_argument("--name", help='Display name (e.g. "Fluorescence Imager")')
     parser.add_argument(
         "--out", default=".", help="Parent directory for the new repo (default: .)"
@@ -369,7 +359,7 @@ def run() -> None:
     print("--------------------------------------")
 
     tool_key = args.key or _prompt(
-        "Tool key (lowercase, underscores, max 15 chars, e.g. csl_fluo)",
+        "Tool key (lowercase, underscores, max 15 chars, e.g. tool_fluo_csl)",
         validator=_validate_key,
     )
     _validate_key(tool_key)  # also validate if passed via --key
@@ -383,8 +373,7 @@ def run() -> None:
 
     root = scaffold(tool_key, display, output_dir, force=args.force)
 
-    pkg = f"{tool_key}_tool"
-    dist = tool_key.replace("_", "-") + "-tool"
+    pkg, dist = _make_names(tool_key)
 
     print(f"\nCreated {root}")
     print(f"  TOOL_KEY   : {tool_key}")
@@ -405,4 +394,4 @@ def run() -> None:
     print(f'  pixi add --pypi --editable "{dist} @ ./{dist}"')
     print()
     print("  pytest")
-    print("  # then edit src/, run setup_duet.py, and fill in README.md")
+    print("  # then edit src/ and fill in README.md")
