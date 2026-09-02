@@ -19,6 +19,7 @@ def config():
     alpha = 0.005
     decimate_ratio = 0.5
     camera=None
+    meshing = True
 
 
 def create_point_cloud_from_depth(rgb: np.ndarray, depth_mm: np.ndarray, camera):
@@ -113,7 +114,8 @@ def run_create_point_cloud(
     alpha: float,
     decimate_ratio: float,
     output_dir: str, 
-    image_name: str = "image.jpg"
+    image_name: str = "image.jpg",
+    meshing: bool = True
 ):
     # Préparation des dossiers et chemins
     output_path = Path(output_dir)
@@ -134,11 +136,12 @@ def run_create_point_cloud(
     point_cloud = create_point_cloud_from_depth(np.asarray(image), np.asarray(depth_mm), camera)
     o3d.io.write_point_cloud(str(pcd_file), point_cloud)
     print(f"[+] Nuage de points sauvegardé : {pcd_file}")
-
+    mesh=None  # Initialisation de la variable mesh pour éviter les erreurs si meshing est False
     # 2. Pipeline Maillage
-    mesh = meshing(point_cloud, alpha=alpha, decimate_ratio=decimate_ratio)
-    o3d.io.write_triangle_mesh(str(mesh_file), mesh)
-    print(f"[+] Maillage sauvegardé : {mesh_file}")
+    if meshing:
+        mesh = meshing(point_cloud, alpha=alpha, decimate_ratio=decimate_ratio)
+        o3d.io.write_triangle_mesh(str(mesh_file), mesh)
+        print(f"[+] Maillage sauvegardé : {mesh_file}")
 
     return {
         "point_cloud": point_cloud,
