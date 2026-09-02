@@ -106,6 +106,19 @@ def estimate_horizontal_targets(
         depth_mm= ((depth_map - np.min(depth_map) )*plant_height/(max_tray_depth-np.min(depth_map))) + (tray_z_mm-plant_height)
     if scale_cube!=None:
         cube_depth = depth_map[cube_mask > 0]
+
+        cube_depth = cube_depth[np.isfinite(cube_depth)]
+        if cube_depth.size >= 4:
+            first_quartile, third_quartile = np.percentile(cube_depth, [25, 75])
+            interquartile_range = third_quartile - first_quartile
+            lower_bound = first_quartile - 1.5 * interquartile_range
+            upper_bound = third_quartile + 1.5 * interquartile_range
+            filtered_cube_depth = cube_depth[
+                (cube_depth >= lower_bound) & (cube_depth <= upper_bound)
+            ]
+            if filtered_cube_depth.size > 0:
+                cube_depth = filtered_cube_depth
+
         if cube_depth.size == 0 or np.isclose(np.max(cube_depth), 0.0):
             print("[!] Warning: Cube mask is empty or max depth is 0!")
         else:

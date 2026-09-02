@@ -16,12 +16,12 @@ def config():
 def _load_MoGe_modules():
     try:
         import torch
-        from moge.model.v3 import MoGeModel 
+        from moge.model.v2 import MoGeModel 
 
         device = torch.device("cuda")
 
         # Load the model
-        model = MoGeModel.from_pretrained("Ruicheng/moge-3-vitl").to(device)
+        model = MoGeModel.from_pretrained("Ruicheng/moge-2-vitl-normal").to(device)
         model.eval() 
         
     except Exception as exc:  # pragma: no cover - environment dependent

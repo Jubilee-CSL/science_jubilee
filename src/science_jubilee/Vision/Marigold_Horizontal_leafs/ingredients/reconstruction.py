@@ -22,7 +22,7 @@ def config():
     meshing = True
 
 
-def create_point_cloud_from_depth(rgb: np.ndarray, depth_mm: np.ndarray, camera):
+def run_create_point_cloud(rgb: np.ndarray, depth_mm: np.ndarray, camera):
     print("[3D] Génération du nuage de points en mémoire...")
 
     rgb = np.asarray(rgb)
@@ -85,7 +85,7 @@ def create_point_cloud_from_depth(rgb: np.ndarray, depth_mm: np.ndarray, camera)
 
     return pcd
 
-def meshing(pcd, alpha=0.005, decimate_ratio=0.5):
+def run_meshing(pcd, alpha=0.005, decimate_ratio=0.5):
     # Mesh creation from alpha shape method
     mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(pcd, alpha)
     # Cleaning
@@ -107,7 +107,7 @@ def meshing(pcd, alpha=0.005, decimate_ratio=0.5):
     return mesh
 
 @reconstruction.capture
-def run_create_point_cloud(
+def run_reconstruction(
     image: np.ndarray, 
     depth_mm: np.ndarray, 
     camera,                
@@ -133,13 +133,13 @@ def run_create_point_cloud(
     np.save(depth_file, np.asarray(depth_mm))
 
     # 1. Pipeline Nuage de points (passage de l'objet camera)
-    point_cloud = create_point_cloud_from_depth(np.asarray(image), np.asarray(depth_mm), camera)
+    point_cloud = run_create_point_cloud(np.asarray(image), np.asarray(depth_mm), camera)
     o3d.io.write_point_cloud(str(pcd_file), point_cloud)
     print(f"[+] Nuage de points sauvegardé : {pcd_file}")
     mesh=None  # Initialisation de la variable mesh pour éviter les erreurs si meshing est False
     # 2. Pipeline Maillage
     if meshing:
-        mesh = meshing(point_cloud, alpha=alpha, decimate_ratio=decimate_ratio)
+        mesh = run_meshing(point_cloud, alpha=alpha, decimate_ratio=decimate_ratio)
         o3d.io.write_triangle_mesh(str(mesh_file), mesh)
         print(f"[+] Maillage sauvegardé : {mesh_file}")
 

@@ -51,8 +51,8 @@ def segment_tray_mask(image: np.ndarray, margin_padding_px=20) -> np.ndarray:
 @filter_scene.capture
 def segment_cube_mask(image: np.ndarray) -> np.ndarray:
     hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
-    lower_blue = np.array([100, 100, 50], dtype=np.uint8)
-    upper_blue = np.array([140, 255, 255], dtype=np.uint8)
+    lower_blue = np.array([100, 100, 100], dtype=np.uint8)
+    upper_blue = np.array([105, 255, 255], dtype=np.uint8)
     mask = cv2.inRange(hsv, lower_blue, upper_blue)
     kernel = np.ones((5, 5), np.uint8)
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
