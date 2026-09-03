@@ -15,10 +15,11 @@ Marigold_Horizontal_leafs/
 ├── ingredients/
 │   ├── filter_scene.py                 # ArUco tray and HSV plant/cube masks
 │   ├── inference_marigold.py           # Marigold depth and normal inference
-│   ├── inference_MoGe.py               # optional MoGe depth and normal inference
-│   ├── target_horizontals.py            # Sacred target-detection ingredient
-│   ├── extract_leafs.py                # Open3D plant/leaf clustering helpers
-│   ├── reconstruction.py               # optional point-cloud/mesh generation
+│   ├── inference_MoGe.py               # MoGe depth and normal inference
+│   ├── depth_scaling.py                # tray/cube/plant depth calibration
+│   ├── target_horizontals.py            # Sacred double-DBSCAN target ingredient
+│   ├── extract_leafs.py                # Open3D leaf clustering and OpenCV masks
+│   ├── reconstruction.py               # point-cloud/mesh generation
 │   └── pipeline.py                     # NOT FINISHED Sacred orchestration
 ├── src/
 │   ├── segment_and_target.py            # legacy command-line pipeline
@@ -115,8 +116,8 @@ and the image is saved as `input/latest.jpg`. With hardware disabled, the notebo
 `run_filter_scene` returns `tray_mask`, `plant_mask`, and `cube_mask`.
 
 - The tray is the rectangle defined by detected `DICT_4X4_50` ArUco markers, dilated with a 20-pixel kernel.
-- The plant mask uses HSV hue `35..95`, saturation/value at least `40`, and a `5x5` open/close morphology operation.
-- The optional blue cube mask uses HSV hue `100..105`, saturation/value at least `100`, and the same morphology operation.
+- The plant mask uses standard HSV coordinates: hue `70..190` degrees and saturation/value `16..100` percent. The segmentation function converts these values to OpenCV's HSV scale before applying the mask.
+- The optional blue cube mask uses standard HSV coordinates: hue `200..210` degrees and saturation/value `39..100` percent. The same conversion and `5x5` open/close morphology are applied.
 
 The current ingredient uses HSV segmentation. The older `rembg` fallback statement is not accurate for the current implementation.
 
@@ -152,28 +153,31 @@ normals = inference["normals"]
 
 `resolution_level` controls MoGe inference resolution. Its function default is `9`; the notebook example uses `10`. MoGe also returns `3d_points`. Run one inference route at a time so `depth_map` and `normals` come from the same model.
 
-### Step 5 - Detect horizontal targets
+### Step 5 - Process depth, point cloud, leaves, and targets
 
-The target stage performs depth scaling, normal masking, morphology, spatial DBSCAN in 3D, a second DBSCAN on `normal_z`, area filtering, and projection of selected centroids into `xyz_mm`.
+The notebook separates target detection into four inspectable cells:
+
+1. `run_scale_depth` calibrates relative depth with the tray reference and, optionally, plant height or a blue cube. It returns `depth_mm`, the filtered `tray_depth` and `cube_depth`, calibration diagnostics, and a preview image.
+2. `run_reconstruction(..., meshing=False)` creates the point cloud with the same camera reprojection and statistical outlier filtering used by reconstruction. The notebook displays its point count and bounds, then opens it with Open3D.
+3. `run_extract_leaf_clusters` finds 3D leaf clusters. `run_leaf_clusters_to_opencv` projects each cluster to OpenCV contours, labels, and masks. The notebook displays only masks having pixels in `plant_mask`.
+4. `run_estimate_horizontal_targets` receives the already-built point cloud and leaf labels. For each leaf label it runs spatial DBSCAN followed by normal-Z DBSCAN, then keeps exactly one valid zone: the one with the smallest standard deviation of `normal_z`.
 
 Typical call:
 
 ```python
 targets_result = run_estimate_horizontal_targets(
     image=image,
-    depth_map=depth_map,
+    depth_mm=depth_mm,
+    point_cloud=point_cloud,
+    labels_img=leaf_labels_img,
+    plant_mask=plant_mask,
     normals=normals,
-    output_dir=str(OUTPUT_DIR),
-    image_name=IMAGE_PATH.name,
-    tray_z_mm=Z_DEPART,
-    normal_threshold=0.94,
-    min_area_px=2000,
+    min_area_px=2100,
     max_area_px=150000,
-    cluster_eps_mm=1.8,
-    cluster_eps_normal=0.1,
+    cluster_eps_mm=2.0,
+    cluster_eps_normal=0.03,
+    normal_threshold=0.90,
     camera=cam,
-    plant_height=160,
-    scale_cube=None,
 )
 ```
 
@@ -205,45 +209,53 @@ The Sacred function is:
 
 ```python
 run_estimate_horizontal_targets(
-    image, depth_map, normals, tray_z_mm, normal_threshold,
+    image, depth_mm, point_cloud, labels_img, plant_mask, normals,
     min_area_px, max_area_px, cluster_eps_mm, cluster_eps_normal,
-    camera, plant_height, scale_cube, output_dir, image_name
+    normal_threshold, camera
 )
 ```
 
 | Parameter | Meaning |
 |---|---|
 | `image` | input image array |
-| `depth_map` | relative depth prediction |
+| `depth_mm` | depth calibrated in millimetres by `run_scale_depth` |
+| `point_cloud` | point cloud already created by `run_reconstruction` |
+| `labels_img` | image with one positive label per leaf |
+| `plant_mask` | binary plant mask used to restrict candidates |
 | `normals` | normal map; Z is `normals[:, :, 2]` |
-| `tray_z_mm` | tray reference used for depth conversion |
 | `normal_threshold` | minimum `abs(normal_z)` in the candidate mask |
 | `min_area_px` | minimum candidate area |
 | `max_area_px` | maximum candidate area |
 | `cluster_eps_mm` | spatial DBSCAN radius in millimetres; units must match `XYZ_map` |
 | `cluster_eps_normal` | DBSCAN radius for normal-Z similarity |
 | `camera` | camera object supplying `K` and `dist` |
-| `plant_height` | optional plant-based depth scaling |
-| `scale_cube` | optional blue-cube calibration length |
-| `output_dir` | directory for intermediate files |
-| `image_name` | output naming stem |
 
-When `scale_cube` is set, non-finite cube depths are removed and statistical outliers are rejected with the IQR rule before cube scaling. The retained cube values are used for calibration.
+Each leaf label can produce zero or one target, never multiple targets. If several valid zones are found inside one leaf, the zone with the smallest `std(normal_z)` is selected.
 
-### 5.2 Segmentation constants
+### 5.2 Depth scaling
 
-These values are coded in [`ingredients/filter_scene.py`](ingredients/filter_scene.py), can be changed directly to better fit your scene:
+`run_scale_depth` in [`ingredients/depth_scaling.py`](ingredients/depth_scaling.py) receives `image`, `depth_map`, `tray_mask`, `cube_mask`, `tray_z_mm`, and optional `plant_height` and `scale_cube` arguments. It returns `depth_mm`, filtered reference arrays, calibration min/max values, and a colour preview. Cube values use finite-value filtering and an IQR outlier filter before calibration.
+
+### 5.3 Segmentation configuration
+
+The HSV ranges are not OpenCV's internal scale you must calibrate the values thaks to a online hsv wheel:
+
+- hue: `0..360` degrees
+- saturation: `0..100` percent
+- value: `0..100` percent
+
+`filter_scene.py` validates and converts these values to OpenCV's `H: 0..179`, `S/V: 0..255` scale before calling `cv2.inRange`.
 
 | Component | Current value |
 |---|---|
 | tray marker dictionary | `DICT_4X4_50` |
 | tray padding | `20` pixels |
-| plant HSV | hue `35..95`, saturation/value `40..255` |
-| cube HSV | hue `100..105`, saturation/value `100..255` |
+| plant HSV | hue `70..190` degrees, saturation/value `16..100` percent |
+| cube HSV | hue `200..210` degrees, saturation/value `39..100` percent |
 | plant/cube morphology | `5x5` kernel |
 | candidate morphology | `3x3` kernel |
 
-### 5.3 Open3D leaf clustering
+### 5.4 Open3D leaf clustering
 
 `run_extract_leaf_clusters` voxel-downsamples with `voxel_size=0.005` and then runs Open3D DBSCAN.
 
@@ -257,7 +269,7 @@ These values are coded in [`ingredients/filter_scene.py`](ingredients/filter_sce
 
 The notebook point cloud is divided by `1000` before this stage, so these values are interpreted in metres. Keep the radius and point-cloud unit consistent.
 
-### 5.4 Reconstruction
+### 5.5 Reconstruction
 
 The optional reconstruction function accepts `image`, `depth_mm`, `camera`, `output_dir`, `image_name`, `meshing`, `alpha`, and `decimate_ratio`. Smaller `alpha` values usually create tighter or more fragmented alpha-shape surfaces. The implementation uses fixed statistical filtering values `nb_neighbors=20` and `std_ratio=2.0`.
 
@@ -284,12 +296,13 @@ Targets contain `id`, `pixel`, `area_px`, `bbox`, `normal_confidence`, `depth_st
 
 | Ingredient | Function | Role |
 |---|---|---|
-| `filter_scene` | `run_filter_scene` | tray, plant, and cube masks |
+| `filter_scene` | `run_filter_scene` | tray, plant, and cube masks using configured HSV ranges |
+| `depth_scaling` | `run_scale_depth` | depth calibration and diagnostics |
 | `inference_marigold` | `run_infer_depths_and_normals` | Marigold inference |
 | `inference_MoGe` | `run_infer_depths_and_normals` | MoGe depth, normals, and 3D points |
-| `target_horizontals` | `run_estimate_horizontal_targets` | target detection and projection |
-| `extract_leafs` | `run_extract_leaf_clusters` | Open3D spatial clustering |
-| `reconstruction` | `run_create_point_cloud` | optional point-cloud and mesh generation |
+| `extract_leafs` | `run_extract_leaf_clusters`, `run_leaf_clusters_to_opencv` | 3D leaf clustering and image masks |
+| `target_horizontals` | `run_estimate_horizontal_targets` | double DBSCAN and one target per leaf |
+| `reconstruction` | `run_create_point_cloud`, `run_reconstruction` | point-cloud and mesh generation |
 
 Functions decorated with `@ingredient.capture` can receive configured values through Sacred. If a notebook call raises `SignatureError`, restart the kernel and rerun the imports so the current module signatures are loaded.
 
@@ -311,7 +324,7 @@ The tray mask is empty when the expected `DICT_4X4_50` markers are not visible. 
 
 ### No plant or cube pixels
 
-Inspect the HSV masks. Their thresholds are hard-coded in `ingredients/filter_scene.py`; changing `config.yaml` does not change them.
+Inspect the HSV masks and verify that `config.yaml` uses standard HSV coordinates. The segmentation functions convert them to OpenCV's internal scale.
 
 ### DBSCAN uses too much memory
 
@@ -341,4 +354,4 @@ Restart the notebook kernel and rerun the import cell. Compare the call with the
 
 ## 12. Current status
 
-The step-by-step notebook is the preferred development and debugging interface. The CLI and Jubilee script are useful legacy entry points, but they do not expose exactly the same segmentation, scaling, clustering, or filtering behaviour as the current Sacred notebook workflow. The calibration script mentioned by older documentation is not currently present in this directory.
+The step-by-step notebook is the preferred development and debugging interface. The CLI and Jubilee script are useful legacy entry points, but they do not expose exactly the same segmentation, scaling, clustering, or filtering behaviour as the current Sacred notebook workflow.

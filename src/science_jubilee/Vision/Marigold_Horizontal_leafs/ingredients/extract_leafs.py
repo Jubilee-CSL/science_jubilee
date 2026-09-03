@@ -2,6 +2,7 @@ from sacred import Ingredient
 
 import numpy as np
 import open3d as o3d
+import cv2
 
 
 extract_leafs = Ingredient("extract_leafs")
@@ -24,8 +25,9 @@ def run_extract_leaf_clusters(
     size_threshold,
     shape_threshold,
     height_ratio,
+    voxel_size=0.0005,
 ):
-    downsampled = pcd.voxel_down_sample(voxel_size=0.005)
+    downsampled = pcd.voxel_down_sample(voxel_size=voxel_size)
     labels = np.asarray(
         downsampled.cluster_dbscan(
             eps=distance_threshold, min_points=min_points, print_progress=False
@@ -54,6 +56,60 @@ def run_extract_leaf_clusters(
             cluster.points = o3d.utility.Vector3dVector(cluster_points)
             clusters.append(cluster)
     return clusters
+
+
+@extract_leafs.capture
+def run_leaf_clusters_to_opencv(
+    leaf_clusters,
+    xyz_map,
+    image_shape,
+):
+    """Project each 3D leaf cluster into one OpenCV label and binary mask."""
+    height, width = image_shape[:2]
+    xyz_map = np.asarray(xyz_map)
+    labels_img = np.zeros((height, width), dtype=np.int32)
+    contours = []
+    masks = []
+    stats = []
+    centroids = []
+
+    for label_id, leaf_pcd in enumerate(leaf_clusters, start=1):
+        leaf_points = np.asarray(leaf_pcd.points)
+        if leaf_points.size == 0:
+            continue
+        min_bound = leaf_points.min(axis=0)
+        max_bound = leaf_points.max(axis=0)
+        projected = np.all(
+            (xyz_map >= min_bound) & (xyz_map <= max_bound), axis=2
+        )
+        mask = (projected.astype(np.uint8) * 255)
+        contour_list, _ = cv2.findContours(
+            mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+        if not contour_list:
+            continue
+        contour = max(contour_list, key=cv2.contourArea)
+        if cv2.contourArea(contour) <= 0:
+            continue
+        cv2.drawContours(mask, [contour], -1, 255, thickness=-1)
+        labels_img[mask > 0] = label_id
+        moments = cv2.moments(contour)
+        centroid = (
+            moments["m10"] / moments["m00"],
+            moments["m01"] / moments["m00"],
+        ) if moments["m00"] else (0.0, 0.0)
+        contours.append(contour)
+        masks.append(mask)
+        stats.append(cv2.boundingRect(contour))
+        centroids.append(centroid)
+
+    return {
+        "labels_img": labels_img,
+        "contours": contours,
+        "masks": masks,
+        "stats": stats,
+        "centroids": centroids,
+    }
 
 
 @extract_leafs.capture

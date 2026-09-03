@@ -87,7 +87,8 @@ def run_create_point_cloud(rgb: np.ndarray, depth_mm: np.ndarray, camera):
 
 def run_meshing(pcd, alpha=0.005, decimate_ratio=0.5):
     # Mesh creation from alpha shape method
-    mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(pcd, alpha)
+    pcd_downsampled = pcd.voxel_down_sample(voxel_size=0.0005)
+    mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(pcd_downsampled, alpha)
     # Cleaning
     mesh.compute_vertex_normals()
     mesh.remove_degenerate_triangles()

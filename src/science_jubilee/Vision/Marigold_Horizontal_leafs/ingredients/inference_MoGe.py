@@ -52,7 +52,7 @@ def infer_depth_and_normals(image_path: str, output_dir: str, resolution_level: 
     return output
 
 def to_numpy(tensor):
-    """Convertit un tenseur PyTorch en tableau NumPy en toute sécurité."""
+    """Convert the Pytorch tensor into Numpy array"""
     if isinstance(tensor, np.ndarray):
         return tensor
     return tensor.detach().cpu().numpy()
