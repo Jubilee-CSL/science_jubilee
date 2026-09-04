@@ -35,6 +35,8 @@ def test_reconstruction_launcher_delegates_to_pipeline(monkeypatch):
             "run_capture": False,
             "num_photos": 100,
             "show": True,
+            "pre_segment": True,
+            "post_segment": True,
         }
     )
 
@@ -51,5 +53,7 @@ def test_reconstruction_launcher_delegates_to_pipeline(monkeypatch):
             "stop": [250.0, 200.0, 220.0],
             "steps": [5, 5, 4],
             "delay": 2.0,
+            "pre_segment": True,
+            "post_segment": True,
         }
     ]

@@ -96,7 +96,7 @@ def run_pipeline(
         input_raw.mkdir(parents=True,exist_ok=True)
         shutil.copy(dataset_path/"input",dataset_path/"input_raw")
         run_filter_scene(
-                        images_path=str(dataset_path / "images"),
+                        images_path=str(dataset_path / "input"),
                         use_ai=True,remove=True
                     )
 
