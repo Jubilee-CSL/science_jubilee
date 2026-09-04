@@ -179,6 +179,9 @@ class _InoculatorLike(Tool):
         self.custom_ready = True
 
 
+_ONE_TOOL_STATE = {"tools": {"0": {"name": "inoculator"}}}
+
+
 def test_tool_changer_instantiates_registered_plugin():
     with patch.object(
         tool_registry,
@@ -188,7 +191,7 @@ def test_tool_changer_instantiates_registered_plugin():
         ],
     ):
         tool_registry.clear_cache()
-        changer = ToolChanger(MockTransport())
+        changer = ToolChanger(MockTransport(state=_ONE_TOOL_STATE))
 
     tool = changer.tools[0]
     assert isinstance(tool, _InoculatorLike)
@@ -200,7 +203,7 @@ def test_tool_changer_falls_back_to_base_tool_when_plugin_missing(caplog):
     with patch.object(tool_registry, "_iter_eps", return_value=[]):
         tool_registry.clear_cache()
         with caplog.at_level("WARNING"):
-            changer = ToolChanger(MockTransport())
+            changer = ToolChanger(MockTransport(state=_ONE_TOOL_STATE))
 
     assert isinstance(changer.tools[0], Tool)
     assert type(changer.tools[0]) is Tool

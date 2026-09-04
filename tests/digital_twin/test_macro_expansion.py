@@ -3,19 +3,19 @@
 All tests use the real firmware/sys/ and firmware/macro/ directories so the
 logged G-code matches what would actually be executed on hardware.
 
-Log files are written to <repo_root>/gcode_logs/ and named after the test
-function so they persist after the run and can be inspected.
+Log files are written to <repo_root>/pipeline_data/gcode_logs/ and named after
+the test function so they persist after the run and can be inspected.
 """
 
 from pathlib import Path
 
+from science_jubilee._paths import gcode_logs_dir
 from science_jubilee.hal.transport.mock import MockTransport
 from science_jubilee.hal.transport.recording import RecordingTransport
 
-# Persistent log output directory - repo_root/gcode_logs/
 # tests/digital_twin/test_macro_expansion.py → .parent×3 = repo root
 _REPO_ROOT = Path(__file__).parent.parent.parent
-_LOG_DIR = _REPO_ROOT / "gcode_logs"
+_LOG_DIR = gcode_logs_dir()
 
 
 # ---------------------------------------------------------------------------

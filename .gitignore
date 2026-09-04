@@ -70,3 +70,5 @@ tool_library/OT2_pipette/designs/OT_post_base.3mf
 # temporary inputs and outputs
 src/science_jubilee/Vision/Marigold_Horizontal_leafs/input/
 src/science_jubilee/Vision/Marigold_Horizontal_leafs/output/
+
+pipeline_data/

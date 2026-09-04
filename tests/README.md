@@ -64,7 +64,7 @@ pytest -q --jubilee-env hardware -m invasive --maxfail=1
 | `camera` | `BaseCamera` | mock or hardware depending on env |
 | `light` | `BaseLight` | `NeopixelMock` or `Neopixel` |
 
-All commands sent during a test are logged to `gcode_logs/latest.gcode`
+All commands sent during a test are logged to `pipeline_data/gcode_logs/latest.gcode`
 and a copy named after the test file.
 
 ## Adding tests

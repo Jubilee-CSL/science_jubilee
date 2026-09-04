@@ -48,14 +48,16 @@ def test_recording_transport_uses_explicit_copy_path_when_set(tmp_path, monkeypa
     assert "M400" in copy_path.read_text(encoding="utf-8")
 
 
-def test_recording_transport_saves_machine_state(tmp_path):
+def test_recording_transport_saves_machine_state(tmp_path, monkeypatch):
     import json
 
-    latest = tmp_path / "gcode_logs" / "latest.gcode"
+    monkeypatch.setenv("JUBILEE_PIPELINE_DATA", str(tmp_path))
 
-    RecordingTransport(MockTransport(), log_path=str(latest))
+    RecordingTransport(
+        MockTransport(), log_path=str(tmp_path / "gcode_logs" / "latest.gcode")
+    )
 
-    state_file = tmp_path / "gcode_logs" / "machine_state.json"
+    state_file = tmp_path / "machine_state.json"
     assert state_file.exists(), "machine_state.json was not written"
     state = json.loads(state_file.read_text())
     for key in ("transport", "positions", "active_tool", "tools", "tool_parks"):

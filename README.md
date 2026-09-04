@@ -171,7 +171,7 @@ JUBILEE_TRANSPORT=mock            # or: hardware
 JUBILEE_ADDRESS=192.168.1.2       # required when TRANSPORT=hardware
 JUBILEE_EXPERIMENT_DIR=my_exp/    # folder with deck.json, labware JSONs, gcode files
 JUBILEE_DECK_DEF=deck             # stem of the deck JSON (auto-detected if omitted)
-JUBILEE_GCODE_LOG=gcode_logs/latest.gcode
+JUBILEE_PIPELINE_DATA=            # override for pipeline_data/ (gcode logs, snapshot, traces)
 JUBILEE_CAMERA_ADDRESS=           # camera server IP (hardware only)
 JUBILEE_NEOPIXEL_ADDRESS=         # LED server IP (hardware only)
 JUBILEE_CAMERA_CALIB=calibration/camera_params.yaml
@@ -321,7 +321,7 @@ The generated files are written to `firmware/sys/` locally and, when `transport`
 ```
 docs/                         # Sphinx documentation source
 firmware/                     # Duet/RepRapFirmware sys + macro files
-gcode_logs/                   # sample/recorded g-code logs
+pipeline_data/                # generated at runtime: gcode_logs/, machine_state.json, traces/ (git-ignored)
 images/                       # calibration & sample images
 tool_library/                 # template/ for scaffolding new tool hardware, old/ pre-plugin archive
 src/science_jubilee/          # core package — see table above

@@ -12,40 +12,48 @@ class MockTransport(BaseTransport):
 
     is_mock: bool = True
 
-    def __init__(self, deck_clear: bool = True):
-        # Machine state
+    def __init__(self, deck_clear: bool = True, state: Optional[dict] = None):
+        from science_jubilee.machine_state import EMPTY_OFFSETS, resolve
+
+        if state is None:
+            # Replay the last recorded session so the mock mirrors your machine.
+            state, source = resolve(allow_live=False)
+        else:
+            source = "injected"
+        self.state_source = source
+
         self._deck_clear = deck_clear
         self.absolute_positioning = True
         self.absolute_extrusion = True
-        self.position: Dict[str, float] = {"X": 0.0, "Y": 0.0, "Z": 0.0, "U": 0.0}
-        self.axes_letters: List[str] = ["X", "Y", "Z", "U"]
+        self.axes_letters: List[str] = [
+            str(a).upper() for a in state.get("axes") or ["X", "Y", "Z", "U"]
+        ]
+        self.position: Dict[str, float] = {
+            letter: float(state.get("positions", {}).get(letter, 0.0))
+            for letter in self.axes_letters
+        }
         self.axis_limits: Dict[str, tuple] = {
+            letter: tuple(limits)
+            for letter, limits in (state.get("limits") or {}).items()
+        } or {
             "X": (0.0, 300.0),
             "Y": (0.0, 300.0),
             "Z": (0.0, 200.0),
             "U": (0.0, 300.0),
         }
-        self.axes_homed: List[bool] = [False, False, False, False]
+        self.axes_homed: List[bool] = [False] * len(self.axes_letters)
         self.active_tool_index: int = -1
-        # No tools configured by default
-        self.tools: Dict[int, dict] = {
-            0: {
-                "name": "inoculator",
-                "offsets": [0.0, 16.0, -78.0],
-            },
-            1: {
-                "name": "syringe",
-                "offsets": [0.0, 20, -80.0],
-            },
-            2: {
-                "name": "no_offset_tool",
-                "offsets": [0.0, 0.0, -400.0],
-            },
-            3: {
-                "name": "None",
-                "offsets": [0.0, 0.0, -400.0],
-            },
-        }
+
+        names = state.get("tools") or {}
+        offsets = state.get("tool_offsets") or {}
+        self.tools: Dict[int, dict] = {}
+        for i in range(4):
+            entry = names.get(str(i)) or names.get(i)
+            name = entry.get("name") if isinstance(entry, dict) else entry
+            self.tools[i] = {
+                "name": name or "None",
+                "offsets": list(offsets.get(str(i), offsets.get(i, EMPTY_OFFSETS))),
+            }
 
     def _reply(self, text: Optional[str]) -> Optional[str]:
         # For mock we simply return the text

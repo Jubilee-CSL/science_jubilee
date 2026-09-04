@@ -80,7 +80,7 @@ Remarque de bonne pratique : utiliser au maximum le matériel et les emplacement
    - Vérifier le comportement des macros : `Tn` déclenche bien `tpreN.g` et `tpostN.g` et que `tfreeN.g` correspond aux mouvements libres.
    - Valider l'offset en effectuant un mouvement connu et en inspectant la position réelle.
 
-3. G-code logging : utiliser `RecordingTransport` pour capturer la séquence G-code et la stocker sous `gcode_logs/{test_name}.gcode` pour revue.
+3. G-code logging : utiliser `RecordingTransport` pour capturer la séquence G-code et la stocker sous `pipeline_data/gcode_logs/{test_name}.gcode` pour revue.
 
 ## 6. Checklist rapide (à suivre pour chaque nouvel outil)
 

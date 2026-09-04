@@ -41,12 +41,11 @@ class RecordingTransport(BaseTransport):
             Path(macro_dir) if macro_dir is not None else None
         )
 
-        # Default log path can be overridden via env
+        # Default log path is derived; the location follows JUBILEE_PIPELINE_DATA.
         if log_path is None:
-            log_path = os.getenv(
-                "JUBILEE_GCODE_LOG",
-                str(_REPO_ROOT / "gcode_logs" / "latest.gcode"),
-            )
+            from science_jubilee._paths import gcode_logs_dir
+
+            log_path = str(gcode_logs_dir() / "latest.gcode")
         self.log_path = Path(log_path)
         self.run_log_path = self._resolve_run_log_path()
         try:
@@ -74,8 +73,11 @@ class RecordingTransport(BaseTransport):
         try:
             import json as _json
 
+            from science_jubilee._paths import machine_state_json
+
             _state = self._inner.get_machine_summary()
-            _state_path = self.log_path.parent / "machine_state.json"
+            _state_path = machine_state_json()
+            _state_path.parent.mkdir(parents=True, exist_ok=True)
             _state_path.write_text(_json.dumps(_state, indent=2), encoding="utf-8")
         except Exception as _exc:
             import warnings

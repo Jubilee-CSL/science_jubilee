@@ -52,9 +52,15 @@ class ToolChanger:
         }
         mock = bool(getattr(transport, "is_mock", False))
         duet_tools = transport.get_tools()
+
+        from science_jubilee import trace as trace_mod
+
+        sec = trace_mod.session().section("Tool registry", reset=True)
+
         for i in range(4):
             tool_name = duet_tools[i]["name"]
             if tool_name == "None":
+                sec.skipped(f"slot {i}", "empty")
                 continue
 
             tool_cls = tool_registry.get_tool_class(tool_name, mock=mock)
@@ -65,7 +71,12 @@ class ToolChanger:
                     tool_name,
                     i,
                 )
+                sec.partial(
+                    f"slot {i} · {tool_name}", "no plugin installed — base Tool"
+                )
                 tool_cls = Tool
+            else:
+                sec.ok(f"slot {i} · {tool_name}", tool_cls.__name__)
 
             self.tools[i] = tool_cls(index=i, name=tool_name)
             self.tools[i].post_load()

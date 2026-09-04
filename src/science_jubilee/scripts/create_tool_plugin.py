@@ -210,6 +210,12 @@ tool.run(session.deck_navigator)
 ## Hardware
 
 <!-- TODO: add BOM, STL links, assembly notes -->
+
+## Conventions
+
+- Console scripts registered under `[project.scripts]` should be prefixed with
+  the tool key (e.g. `{tool_key}_calibrate`) so multiple installed plugins never
+  collide on a name.
 """
 
 
@@ -226,6 +232,27 @@ build/
 
 def _configs_json(tool_key: str) -> str:
     return f'{{\n    "tool_key": "{tool_key}"\n}}\n'
+
+
+def _twin_json(tool_key: str, display: str) -> str:
+    """Digital-twin manifest — overrides only, everything else is auto-derived.
+
+    Park positions and offsets are deliberately absent: they live in the tool's
+    tpre/tpost/tfree macros and nowhere else.
+    """
+    return f"""\
+{{
+    "tool_key": "{tool_key}",
+    "display_name": "{display}",
+
+    "_comment_assets": "Paths are relative to this twin_assets/ directory. Name the tool body tool.blend and leave these null.",
+    "blend": null,
+    "park_post_blend": null,
+
+    "_comment_aliases": "Extra names the Duet may report for this tool; matching is case- and separator-insensitive.",
+    "aliases": []
+}}
+"""
 
 
 # ---------------------------------------------------------------------------
@@ -266,7 +293,9 @@ def scaffold(
     (src / "configs" / f"{tool_key}.json").write_text(_configs_json(tool_key))
 
     # twin_assets at repo root — heavy 3D files live here, not inside the Python package
-    (root / "twin_assets").mkdir()
+    twin_assets = root / "twin_assets"
+    twin_assets.mkdir()
+    (twin_assets / "twin.json").write_text(_twin_json(tool_key, display))
 
     # Tests
     (root / "tests" / "__init__.py").write_text("")
@@ -283,12 +312,21 @@ def scaffold(
     tmpl_out = root / "templates"
     tmpl_out.mkdir()
 
-    for name in ("tpre.g", "tpost.g", "tfree.g"):
-        src_t = templates_src / name
-        if src_t.exists():
-            shutil.copy(src_t, tmpl_out / f"{name}.template")
-        else:
-            warnings.warn(f"Template not found, skipping: {src_t}")
+    # Zeroed macros so the tool has a real slot from the start; the calibration
+    # notebook overwrites them with measured coordinates.
+    try:
+        from science_jubilee.calibration.tool_gfiles import generate_tool_gfiles
+
+        generate_tool_gfiles(
+            tool_number=0,
+            x_park=0.0,
+            y_park=0.0,
+            y_clear=0.0,
+            output_dir=tmpl_out,
+            print_output=False,
+        )
+    except Exception as exc:
+        warnings.warn(f"Could not render tool macros: {exc}")
 
     wedge = templates_src / "wedge_plate.blend"
     if wedge.exists():

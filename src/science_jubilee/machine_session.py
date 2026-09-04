@@ -72,6 +72,8 @@ class MachineSession:
         from science_jubilee.hal.motion_driver import MotionDriver
         from science_jubilee.hal.tool_changer import ToolChanger
 
+        self._start_trace_session()
+
         self.transport = transport
         self.motion = MotionDriver(transport)
         self.tool_changer = ToolChanger(transport)
@@ -130,6 +132,27 @@ class MachineSession:
                 calib_file=camera_calib,
             )
             self.light = Neopixel(url=f"http://{led_address}:5001")
+
+    def _start_trace_session(self) -> None:
+        """Any script that opens a session gets a recap in pipeline_data/traces/.
+
+        Yields to an outer session (e.g. the twin's CLI) if one has explicitly
+        chosen a directory.
+        """
+        import atexit
+        import sys
+
+        from science_jubilee import trace
+        from science_jubilee._paths import pipeline_data_dir
+
+        if trace._session_dir is not None:
+            return
+
+        title = Path(sys.argv[0]).stem or "session"
+        trace.session(pipeline_data_dir(), title)
+        if trace._session is not None:
+            trace._session.title = title
+        atexit.register(trace.flush)
 
     # ------------------------------------------------------------------
     # Factory classmethods
@@ -222,7 +245,8 @@ class MachineSession:
           JUBILEE_ADDRESS          — machine IP, required when transport=hardware
           JUBILEE_DECK_DEF         — deck JSON filename; auto-detected when experiment dir has exactly one .json
           JUBILEE_EXPERIMENT_DIR   — folder containing deck.json, labware JSONs, and gcode files
-          JUBILEE_GCODE_LOG        — G-code log path (default: gcode_logs/latest.gcode)
+          JUBILEE_PIPELINE_DATA    — directory for gcode logs, machine snapshot, and trace recaps
+                                     (default: ``science_jubilee/pipeline_data``)
           JUBILEE_CAMERA_ADDRESS   — OctoPi/camera IP; omit to skip camera wiring
           JUBILEE_NEOPIXEL_ADDRESS — LED server IP; omit to skip Neopixel wiring
           JUBILEE_CAMERA_CALIB     — path to camera_params.yaml from calibrate_camera.py
@@ -246,7 +270,6 @@ class MachineSession:
 
         transport_type = os.getenv("JUBILEE_TRANSPORT", "mock").strip().lower()
         address = os.getenv("JUBILEE_ADDRESS")
-        log_path = os.getenv("JUBILEE_GCODE_LOG") or None
 
         if deck_def is None:
             deck_def = os.getenv("JUBILEE_DECK_DEF") or None
@@ -265,6 +288,10 @@ class MachineSession:
             if (_exp_dir and Path(_exp_dir).is_absolute())
             else ((_env_dir / _exp_dir).resolve() if _exp_dir else None)
         )
+        if experiment_dir is None:
+            from science_jubilee._paths import latest_experiment_dir
+
+            experiment_dir = latest_experiment_dir()
 
         if transport_type == "hardware":
             if not address:
@@ -275,7 +302,6 @@ class MachineSession:
             return cls.hardware(
                 address=address,
                 deck_def=deck_def,
-                log_path=log_path,
                 camera_address=camera_address,
                 led_address=led_address,
                 camera_calib=camera_calib,
@@ -284,7 +310,6 @@ class MachineSession:
 
         return cls.mock(
             deck_def=deck_def,
-            log_path=log_path,
             camera_calib=camera_calib,
             experiment_dir=experiment_dir,
         )
