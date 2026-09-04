@@ -56,15 +56,18 @@ def run_create_point_cloud(rgb: np.ndarray, depth_mm: np.ndarray, camera):
     # 3. Filtrage des pixels valides (profondeur > 0)
     valid = depth_mm_flat > 0
     valid_rgb = valid.reshape(-1)
+    valid_mask = valid.reshape(h, w)
     z = depth_mm_flat[valid_rgb] / 1000.0  # Conversion mm -> mètres pour Open3D
 
     # Reprojection 3D
     x = x_norm[valid_rgb] * z
     y = y_norm[valid_rgb] * z
-
+    
+    
     y = -y
     z = -z
-
+    xyz_map = np.full((h, w, 3), np.nan, dtype=np.float32)
+    xyz_map[valid_mask] = np.column_stack((x, y, z))
     points = np.vstack((x, y, z)).T
 
     rgb_flat = rgb.reshape(-1, rgb.shape[-1])
@@ -79,7 +82,7 @@ def run_create_point_cloud(rgb: np.ndarray, depth_mm: np.ndarray, camera):
     print("[3D] Filtrage statistique des valeurs aberrantes...")
     pcd, _ = pcd.remove_statistical_outlier(nb_neighbors=20, std_ratio=2.0)
 
-    return pcd
+    return pcd,xyz_map
 
 def run_meshing(pcd, alpha=0.005, decimate_ratio=0.5):
     # Mesh creation from alpha shape method
@@ -130,7 +133,7 @@ def run_reconstruction(
     np.save(depth_file, np.asarray(depth_mm))
 
     # 1. Pipeline Nuage de points (passage de l'objet camera)
-    point_cloud = run_create_point_cloud(np.asarray(image), np.asarray(depth_mm), camera)
+    point_cloud, xyz_map = run_create_point_cloud(np.asarray(image), np.asarray(depth_mm), camera)
     o3d.io.write_point_cloud(str(pcd_file), point_cloud)
     print(f"[+] Nuage de points sauvegardé : {pcd_file}")
     mesh=None  # Initialisation de la variable mesh pour éviter les erreurs si meshing est False
@@ -141,6 +144,7 @@ def run_reconstruction(
         print(f"[+] Maillage sauvegardé : {mesh_file}")
 
     return {
+        "xyz_map": xyz_map,
         "point_cloud": point_cloud,
         "mesh": mesh,
         "pcd_path": str(pcd_file),

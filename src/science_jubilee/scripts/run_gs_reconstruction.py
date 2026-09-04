@@ -43,6 +43,8 @@ def config():
     run_capture = hardware
     num_photos = 100
     show = True
+    pre_segment = True
+    post_segment = True
 
 
 @ex.main
@@ -71,6 +73,8 @@ def main(_config, _run):
         stop=cfg["stop"],
         steps=cfg["steps"],
         delay=cfg["delay"],
+        pre_segment=cfg["pre_segment"],
+        post_segment=cfg["post_segment"],
     )
 
 

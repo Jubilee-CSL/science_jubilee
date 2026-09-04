@@ -19,6 +19,7 @@ def config():
         / "src/science_jubilee/Vision/GS_Reconstruction/src"
         / "run_colmap.sh"
     )
+    run_dense=False
 
 
 def _windows_to_wsl_path(windows_path: str) -> str:
@@ -28,10 +29,12 @@ def _windows_to_wsl_path(windows_path: str) -> str:
 
 
 @colmap.capture
-def run_colmap(colmap_script, dataset_path):
+def run_colmap(colmap_script, dataset_path, run_dense):
     colmap_wsl = _windows_to_wsl_path(colmap_script)
     dataset_wsl = _windows_to_wsl_path(str(Path(dataset_path).resolve()))
     cmd = f"start /wait cmd /k bash {colmap_wsl} --dataset {dataset_wsl}"
+    if run_dense:
+        cmd += " --run_dense"
     # Run inside WSL; keep caller responsible for platform specifics
     res = os.system(cmd)
     if res != 0:

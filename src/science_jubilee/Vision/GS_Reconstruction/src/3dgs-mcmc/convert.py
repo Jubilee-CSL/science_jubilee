@@ -23,6 +23,7 @@ parser.add_argument("--camera", default="OPENCV", type=str)
 parser.add_argument("--colmap_executable", default="", type=str)
 parser.add_argument("--resize", action="store_true")
 parser.add_argument("--magick_executable", default="", type=str)
+parser.add_argument("--run_dense", action="store_true", help="Run dense reconstruction after sparse reconstruction")
 args = parser.parse_args()
 colmap_command = '"{}"'.format(args.colmap_executable) if len(args.colmap_executable) > 0 else "colmap"
 magick_command = '"{}"'.format(args.magick_executable) if len(args.magick_executable) > 0 else "magick"
@@ -123,29 +124,28 @@ if(args.resize):
     # ==============================================================================
     # MVS with Colmap
     # ==============================================================================
-workspace_path = args.source_path
+if args.run_dense:
+    workspace_path = args.source_path
 
-    # 1. Patch Match Stereo
-patch_match_cmd = (colmap_command + f" patch_match_stereo \
-        --workspace_path {workspace_path} \
-        --workspace_format COLMAP \
-        --PatchMatchStereo.geom_consistency true")
-exit_code = os.system(patch_match_cmd)
-if exit_code != 0:
-        logging.error(f"Patch Match Stereo failed with code {exit_code}. Exiting.")
-        exit(exit_code)
+        # 1. Patch Match Stereo
+    patch_match_cmd = (colmap_command + f" patch_match_stereo \
+            --workspace_path {workspace_path} \
+            --workspace_format COLMAP \
+            --PatchMatchStereo.geom_consistency true")
+    exit_code = os.system(patch_match_cmd)
+    if exit_code != 0:
+            logging.error(f"Patch Match Stereo failed with code {exit_code}. Exiting.")
+            exit(exit_code)
 
-    # 2. Stereo Fusion
-stereo_fusion_cmd = (colmap_command + f" stereo_fusion \
-        --workspace_path {workspace_path} \
-        --workspace_format COLMAP \
-        --input_type geometric \
-        --output_path {workspace_path}/dense_point_cloud.ply")
-exit_code = os.system(stereo_fusion_cmd)
-if exit_code != 0:
-        logging.error(f"Stereo Fusion failed with code {exit_code}. Exiting.")
-        exit(exit_code)
-
-
+        # 2. Stereo Fusion
+    stereo_fusion_cmd = (colmap_command + f" stereo_fusion \
+            --workspace_path {workspace_path} \
+            --workspace_format COLMAP \
+            --input_type geometric \
+            --output_path {workspace_path}/dense_point_cloud.ply")
+    exit_code = os.system(stereo_fusion_cmd)
+    if exit_code != 0:
+            logging.error(f"Stereo Fusion failed with code {exit_code}. Exiting.")
+            exit(exit_code)
 
 print("Done.")
