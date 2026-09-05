@@ -74,7 +74,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.githubpages",
     "sphinx_design",
-    "autoapi.extension",
+    # "autoapi.extension",  # temporarily disabled: chokes on hal/transport/http.py name clash with stdlib
     "sphinxcontrib.youtube",
     "nbsphinx"
 ]
@@ -146,7 +146,7 @@ release = version
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", ".venv"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", ".venv", "api/*"]
 
 # The reST default role (used for this markup: `text`) to use for all documents.
 # default_role = None
@@ -179,13 +179,13 @@ todo_emit_warnings = True
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = "pydata_sphinx_theme"
+html_theme = "sphinx_rtd_theme"
 
 html_context = {
     # "github_url": "https://github.com", # or your GitHub Enterprise site
-    "github_user": "machineagency",
+    "github_user": "Jubilee-CSL",
     "github_repo": "science-jubilee",
-    "github_version": "main",
+    "github_version": "core-app",
     "doc_path": "docs",
 }
 
@@ -197,46 +197,11 @@ autoapi_dirs = ["../src"]
 # further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
-    # "external_links": [
-    #     {
-    #         "url": "https://pydata.org",
-    #         "name": "PyData",
-    #     },
-    #     {
-    #         "url": "https://numfocus.org/",
-    #         "name": "NumFocus",
-    #     },
-    #     {
-    #         "url": "https://numfocus.org/donate",
-    #         "name": "Donate to NumFocus",
-    #     },
-    # ],
-    "header_links_before_dropdown": 4,
-    "icon_links": [
-        {
-            "name": "Twitter",
-            "url": "https://twitter.com/machine_agency",
-            "icon": "fa-brands fa-twitter",
-        },
-        {
-            "name": "GitHub",
-            "url": "https://github.com/machineagency/science-jubilee",
-            "icon": "fa-brands fa-github",
-        },
-        {
-            "name": "PyPI",
-            "url": "https://pypi.org/project/science-jubilee",
-            "icon": "fa-custom fa-pypi",
-        },
-    ],
-    # alternative way to set twitter and github header icons
-    # "github_url": "https://github.com/pydata/pydata-sphinx-theme",
-    # "twitter_url": "https://twitter.com/PyData",
-    "logo": {
-        "text": "Science Jubilee",
-        # "image_dark": "_static/logo-dark.svg",
-    },
-    "use_edit_page_button": True,
+    "collapse_navigation": False,
+    "navigation_depth": 4,
+    "sticky_navigation": True,
+    "prev_next_buttons_location": "both",
+    "style_external_links": True,
 }
 
 # Add any paths that contain custom themes here, relative to this directory.

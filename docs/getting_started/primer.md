@@ -1,11 +1,11 @@
 ---
-title: Science Jubilee Primer
+title: G-code, coordinates, and tool changing
 ---
 
 (primer)=
-# Science Jubilee Primer
+# G-code, coordinates, and tool changing
 
-This page provides an introduction to key concepts for using `science-jubilee`. This primer is by no means exhaustive, but provides helpful background information for newcomers to Jubilee. If you're already familiar with computer-controlled machines, or if you want to learn how to use the `science-jubilee` codebase, feel free to skip ahead to the [Machine Introduction](machine_intro.md).
+This page introduces the key concepts you need to use `science-jubilee`: how G-code moves the machine, what the coordinate system looks like, and how tool changing works. If you already know these from another CNC machine or 3D printer, skip to [Your first session](first_session.md).
 
 ## GCode
 

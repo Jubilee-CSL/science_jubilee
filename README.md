@@ -40,7 +40,7 @@ register themselves, core looks them up by key.
 | `tools/Tool.py`, `tools/registry.py` | Base `Tool` class + entry-point discovery for hardware tools |
 | `machine_session.py` | `MachineSession` — wires transport → motion → tool-changer → navigator → camera → light |
 | `calibration/` | Tool g-code generation (`tool_gfiles.py`), camera calibration |
-| `_paths.py` | `jubilee_dir()`, `camera_params_yaml()` — path helpers used as plugin fallbacks |
+| `_paths.py` | `jubilee_dir()`, `camera_params_yaml()`, `pipeline_data_dir()`, `gcode_logs_dir()`, `machine_state_json()`, `traces_dir()` — path helpers registered as `jubilee.paths` entry points |
 | `tests/` | Core test suite only (motion, tool-changer, macro expansion, digital-twin connection, deck/labware) |
 
 ### Plugins (installed separately, discovered by entry point)
@@ -210,7 +210,7 @@ session = MachineSession.hardware(
 
 ```python
 with MachineSession.from_env(".env") as s:
-    s.motion.home_all()
+    s.free_navigator.home_all()
 ```
 
 Key attributes:

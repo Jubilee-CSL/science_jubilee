@@ -250,8 +250,6 @@ class MachineSession:
           JUBILEE_CAMERA_ADDRESS   — OctoPi/camera IP; omit to skip camera wiring
           JUBILEE_NEOPIXEL_ADDRESS — LED server IP; omit to skip Neopixel wiring
           JUBILEE_CAMERA_CALIB     — path to camera_params.yaml from calibrate_camera.py
-          JUBILEE_RAW_DIR          — directory for raw images (default: dataset_brut)
-          JUBILEE_LED_DIR          — directory for multi-lighting images (default: dataset_brut_led)
         """
         if env_file is not None:
             from science_jubilee.utils.env import load_env_file

@@ -43,7 +43,7 @@ def collect_images(images_folder: str) -> None:
     print("Checking homing state...")
     if not session.motion.get_axes_homed() or not all(session.motion.get_axes_homed()):
         print("Homing all axes...")
-        session.motion.home_all()
+        session.free_navigator.home_all()
     session.camera.move_to_get_image(BED_CX, BED_CY, BED_Z)
 
     print(

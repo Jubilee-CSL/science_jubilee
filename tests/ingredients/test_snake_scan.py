@@ -5,7 +5,11 @@ from unittest.mock import patch
 
 import pytest
 
-pytest.importorskip("sacred", reason="sacred requires pkg_resources (setuptools)")
+try:
+    # sacred (< 0.9) uses pkgutil.find_loader, removed in Python 3.14
+    import sacred  # noqa: F401
+except (ImportError, AttributeError) as exc:
+    pytest.skip(f"sacred unavailable ({exc})", allow_module_level=True)
 
 from science_jubilee.scripts.ingredients.snake_scan import run_scan
 

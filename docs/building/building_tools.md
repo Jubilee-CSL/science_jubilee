@@ -7,6 +7,10 @@ title: Building Science Jubilee Tools
 
 All tools which are supported in `science-jubilee` are documented here. For existing tools, we link to documentation on the Jubilee project page and provide additional information where necessary. Here, we describe tool prerequisites, the current gallery of tools, how to design a custom tool, and how to calibrate a tool.
 
+:::{note}
+Adding a **brand-new tool** — hardware plus its `science-jubilee` plugin — is covered end-to-end in [Design a new tool](../new_tool/index.md).
+:::
+
 (tool-prerequisites)=
 ## Tool Prerequisites
 
@@ -164,7 +168,6 @@ side_camera_tool
 syringe_tool
 http_syringe
 lab_automation_deck
-pneumatic_sample_loader
 designing_custom_tools
 tool_postreqs
 ```

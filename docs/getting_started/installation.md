@@ -1,13 +1,13 @@
 ---
-title: Installation Guide for Science Jubilee
+title: Installing science-jubilee
 ---
 
 (installation)=
-# Installation
+# Installing science-jubilee
 
 To install `science-jubilee`:
 
-- Clone the repository: `git clone https://github.com/machineagency/science-jubilee.git`
+- Clone the repository: `git clone https://github.com/Jubilee-CSL/science-jubilee.git`
 - We recommend using virtual environments to handle dependencies. See [here](https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/#creating-a-virtual-environment) for more information on virtual environments. To do this:
   - Move into the new directory: `cd science-jubilee`
   - Create a virtual environment named `.venv`: `python3 -m venv .venv`

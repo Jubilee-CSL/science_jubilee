@@ -1,9 +1,9 @@
 ---
-title: New User Guide
+title: End-to-end setup for a new lab
 ---
 
 (new-user-guide)=
-# New User Guide
+# End-to-end setup for a new lab
 This page provides a general overview of the Jubilee ecosystem with an eye towards getting a new contributor up to speed as a developer of Jubilee for science. This guide was developed as a resource to aid in the onboarding of new students in the Pozzo research group, but can serve as a useful reference for anyone new to Jubilee. If you are using a Jubilee as a tool in your research in collaboration with an established Jubilee user, following this guide verbatim may be unnecessarily involved. However if you are starting from scratch with Jubilee, you will need to follow all the steps here to get a functional experiment up and running.
 
 ## What is Jubilee?
@@ -158,17 +158,15 @@ Make sure to drop the bed z height so that the tool will clear the bed when pick
 
  1. Build the deck plate. Directions can be found [here](../building/lab_automation_deck.md)
  2. Verify that you followed the directions to update the machine config files in the docs linked in step 1.
- 3. Create a calibration file for your new deck plate, following the procedure linked [here](./deck_guide.md). Note you need properly set up tools with tools offsets configured before you can do this.
+ 3. Install the [`decks`](https://github.com/Jubilee-CSL/decks) plugin (`pip install -e .` from a clone). Its deck definition JSON contains the calibrated slot offsets — see [Packaging a deck plugin](../development/deck_plugin.md) for the file format and how to re-calibrate for your specific machine.
 
-# 4. Control the tools with science-jubilee
+## 4. Run your first experiment script
 
-Learn how to use the tools you set up by exploring their respective tool operation guides:
+At this point you have a wired-up Jubilee, at least one calibrated tool, and a deck plugin installed. Time to write Python.
 
-TODO: Write up operation guides for pipette and web camera
+- [Your first session](first_session.md) walks through connecting, homing, picking up a tool, and moving to a well — first in mock mode, then on hardware.
+- [Writing an experiment script](../users/writing_experiments.md) covers the two navigation styles (`FreeNavigator` vs `DeckNavigator`) and how to structure a real experiment.
+- [Every environment variable, explained](../users/environment_reference.md) is the reference for what your `.env.hardware` needs.
+- [Common errors and how to fix them](../users/troubleshooting.md) covers the frequent gotchas.
 
-To use smaller labware like tipracks and 96 well plates, you probably need to perform labware-specific calibrations for each piece of labware in each deck slot. See the [procedure](./deck_guide.md#Labware-Calibration) for this.
-
-
-# 5. Provision for and run the color mixing demonstration notebook
-
-Now that you have a fully functioning Jubilee with tools attached and calibrated, you are ready to run an experiment! We will start with the color mixing demonstration. See the [color mixing demo getting started guide](./color_mixing_setup.md) for more details on this experiment.
+Once your first script runs end-to-end on hardware, you're ready to build your own experiment on top of the same patterns.
