@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Dict, Optional
 
+from science_jubilee.machine_state import EMPTY_OFFSETS
 from science_jubilee.tools import registry as tool_registry
 from science_jubilee.tools.Tool import Tool
 
@@ -43,21 +44,17 @@ class ToolChanger:
     def __init__(self, transport) -> None:
 
         self.transport = transport
-        # Instance runtime state
-        self.tools: Dict[int, Optional[Tool]] = {
-            0: None,
-            1: None,
-            2: None,
-            3: None,
-        }
+
         mock = bool(getattr(transport, "is_mock", False))
         duet_tools = transport.get_tools()
+
+        self.tools: Dict[int, Optional[Tool]] = {int(i): None for i in duet_tools}
 
         from science_jubilee import trace as trace_mod
 
         sec = trace_mod.session().section("Tool registry", reset=True)
 
-        for i in range(4):
+        for i in self.tools:
             tool_name = duet_tools[i]["name"]
             if tool_name == "None":
                 sec.skipped(f"slot {i}", "empty")
@@ -107,7 +104,7 @@ class ToolChanger:
         if self.get_active_tool_index() == tool_idx:
             return True
 
-        if list(self.get_tool_offset(tool_idx)) == [0.0, 0.0, -400.0]:
+        if list(self.get_tool_offset(tool_idx)) == list(EMPTY_OFFSETS):
             raise ToolStateError("Tool offset must be configured")
 
         self.park_tool()

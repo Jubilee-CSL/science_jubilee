@@ -61,15 +61,21 @@ def latest_experiment_dir() -> Path | None:
 
     Returns None when the interface is not installed or has exported nothing.
     """
+    import logging
     from importlib.metadata import entry_points
 
+    log = logging.getLogger(__name__)
     roots: list[Path] = []
     for ep in entry_points(group="jubilee.paths"):
         if ep.name not in ("experiment_deck_dir", "interface_dir"):
             continue
         try:
-            base = Path(ep.load()())
-        except Exception:
+            obj = ep.load()
+            if callable(obj):
+                obj = obj()
+            base = Path(obj) if isinstance(obj, (str, Path)) else Path(next(iter(obj)))
+        except Exception as exc:
+            log.warning("jubilee.paths/%s failed to load: %s", ep.name, exc)
             continue
         roots.append(
             base if ep.name == "experiment_deck_dir" else base / "experiment_deck"

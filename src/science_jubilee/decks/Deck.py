@@ -10,14 +10,35 @@ from science_jubilee.labware.Labware import Labware, Well
 logger = logging.getLogger(__name__)
 
 
+def _resolve_path_entry_point(ep) -> Optional[str]:
+    """Load an entry point that resolves to either a callable → path, a Path attribute, or a package ``__path__``."""
+    try:
+        obj = ep.load()
+    except Exception as exc:
+        logger.warning("plugin %r failed to load: %s", ep.name, exc)
+        return None
+    if callable(obj):
+        try:
+            obj = obj()
+        except Exception as exc:
+            logger.warning("plugin %r factory raised: %s", ep.name, exc)
+            return None
+    if isinstance(obj, (str, os.PathLike)):
+        return str(obj)
+    try:
+        return str(next(iter(obj)))
+    except Exception:
+        logger.warning("plugin %r resolved to %r; expected path-like", ep.name, obj)
+        return None
+
+
 def _plugin_labware_dirs() -> list[str]:
     """Return labware definition directories registered by installed plugins."""
     dirs = []
-    for ep in entry_points(group="science_jubilee.labware"):
-        try:
-            dirs.append(ep.load()())
-        except Exception:
-            pass
+    for ep in entry_points(group="science_jubilee.labware_dirs"):
+        path = _resolve_path_entry_point(ep)
+        if path is not None:
+            dirs.append(path)
     return dirs
 
 
@@ -25,10 +46,9 @@ def _plugin_deck_dirs() -> list[str]:
     """Return deck definition directories registered by installed plugins."""
     dirs = []
     for ep in entry_points(group="science_jubilee.deck"):
-        try:
-            dirs.append(ep.load()())
-        except Exception:
-            pass
+        path = _resolve_path_entry_point(ep)
+        if path is not None:
+            dirs.append(path)
     return dirs
 
 

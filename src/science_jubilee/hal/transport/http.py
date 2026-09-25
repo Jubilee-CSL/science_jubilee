@@ -167,7 +167,10 @@ class HTTPTransport(BaseTransport):
                                             break
                                         time.sleep(self._delay_time(tries2))
                                         tries2 += 1
-                                    except Exception:
+                                    except requests.RequestException as e:
+                                        logger.debug(
+                                            "M400 wait loop transient error: %s", e
+                                        )
                                         time.sleep(2)
                                         continue
                             return text
@@ -222,9 +225,11 @@ class HTTPTransport(BaseTransport):
         if self.deck_clear_provider is not None:
             try:
                 return bool(self.deck_clear_provider())
-            except Exception:
-                # If provider fails, fall back to prompt
-                pass
+            except Exception as e:
+                logger.warning(
+                    "deck_clear_provider raised %s; falling back to interactive prompt",
+                    e,
+                )
         try:
             answer = (
                 input("Confirm deck is clear and safe to home Z (y/N): ")
@@ -232,7 +237,7 @@ class HTTPTransport(BaseTransport):
                 .lower()
             )
             return answer in ("y", "yes")
-        except Exception:
+        except (EOFError, KeyboardInterrupt):
             return False
 
     # ---- Convenience: available axes (http-specific) ---------------------
@@ -277,7 +282,8 @@ class HTTPTransport(BaseTransport):
                     seen.add(l)
                     ordered.append(l)
             return ordered
-        except Exception:
+        except requests.RequestException as e:
+            logger.warning("get_available_axes M114 fallback failed: %s", e)
             return []
 
     def get_axis_limits(self) -> dict:
@@ -303,14 +309,16 @@ class HTTPTransport(BaseTransport):
                             ):
                                 limits[letter] = (float(minv), float(maxv))
             return limits
-        except Exception:
+        except requests.RequestException as e:
+            logger.warning("get_axis_limits failed: %s", e)
             return {}
 
     def get_positions(self) -> dict:
         """Return current axis positions by parsing M114 response."""
         try:
             text = self.send_gcode("M114") or ""
-        except Exception:
+        except requests.RequestException as e:
+            logger.warning("get_positions M114 failed: %s", e)
             return {}
         positions = {}
         for m in re.finditer(r"([A-Za-z]):\s*(-?\d+(?:\.\d+)?)", text):
@@ -322,7 +330,8 @@ class HTTPTransport(BaseTransport):
         """Query current tool selection via "T" response; return -1 if none."""
         try:
             resp = (self.send_gcode("T") or "").strip()
-        except Exception:
+        except requests.RequestException as e:
+            logger.warning("get_active_tool_index T failed: %s", e)
             return -1
         lower = resp.lower()
         if lower.startswith("no tool"):
@@ -331,12 +340,12 @@ class HTTPTransport(BaseTransport):
             parts = resp.split()
             try:
                 return int(parts[1])
-            except Exception:
+            except (ValueError, IndexError):
                 return -1
         if resp.isdigit():
             try:
                 return int(resp)
-            except Exception:
+            except ValueError:
                 return -1
         return -1
 
@@ -344,14 +353,16 @@ class HTTPTransport(BaseTransport):
         try:
             _ = self.send_gcode(f"T{int(tool_idx)}")
             return True
-        except Exception:
+        except requests.RequestException as e:
+            logger.warning("select_tool T%s failed: %s", tool_idx, e)
             return False
 
     def park_tool(self) -> bool:
         try:
             _ = self.send_gcode("T-1")
             return True
-        except Exception:
+        except requests.RequestException as e:
+            logger.warning("park_tool T-1 failed: %s", e)
             return False
 
     def get_tools(self) -> dict:
@@ -368,8 +379,8 @@ class HTTPTransport(BaseTransport):
                             name = t.get("name")
                             if isinstance(num, int):
                                 tools[num] = {"name": name}
-        except Exception:
-            pass
+        except requests.RequestException as e:
+            logger.warning("get_tools M409 failed: %s", e)
         return tools
 
     def get_tool_offsets(self) -> dict:
@@ -396,10 +407,15 @@ class HTTPTransport(BaseTransport):
                                         float(offs[2]),
                                     )
                                     offsets[num] = [x, y, z]
-                                except Exception:
-                                    pass
-        except Exception:
-            pass
+                                except (TypeError, ValueError) as e:
+                                    logger.debug(
+                                        "skipping tool %s offsets (bad values %r): %s",
+                                        num,
+                                        offs,
+                                        e,
+                                    )
+        except requests.RequestException as e:
+            logger.warning("get_tool_offsets M409 failed: %s", e)
         return offsets
 
     @staticmethod
@@ -427,8 +443,10 @@ class HTTPTransport(BaseTransport):
             )
             if resp.ok:
                 return resp.text
-        except Exception:
-            pass
+        except requests.RequestException as e:
+            logger.debug(
+                "download_sys_file DWC2 attempt failed for %s: %s", filename, e
+            )
         resp = self.session.get(
             f"http://{self.address}/rr_download",
             params={"name": f"0:/sys/{filename}"},
@@ -446,8 +464,8 @@ class HTTPTransport(BaseTransport):
             try:
                 content = self.download_sys_file(f"tpost{idx}.g", timeout=timeout)
                 parks[idx] = self._parse_park_position(content)
-            except Exception:
-                pass
+            except (requests.RequestException, requests.HTTPError) as e:
+                logger.debug("tpost%d.g not available on %s: %s", idx, self.address, e)
         return parks
 
     # ---- File upload ----------------------------------------------------
@@ -557,8 +575,8 @@ class HTTPTransport(BaseTransport):
                         )
                         return remote_path
                     logger.debug("rr_upload returned err=%s", body.get("err"))
-                except Exception:
-                    # Some firmware versions return plain 200 with no JSON
+                except ValueError:
+                    # Older firmware returns plain 200 with no JSON body
                     logger.info(
                         "Uploaded via rr_upload: %s -> %s", local_path.name, remote_path
                     )

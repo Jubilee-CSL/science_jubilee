@@ -68,3 +68,4 @@ src/science_jubilee/Vision/Marigold_Horizontal_leafs/input/
 src/science_jubilee/Vision/Marigold_Horizontal_leafs/output/
 
 pipeline_data/
+!pipeline_data/machine_state.json

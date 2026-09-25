@@ -13,7 +13,11 @@ class MockTransport(BaseTransport):
     is_mock: bool = True
 
     def __init__(self, deck_clear: bool = True, state: Optional[dict] = None):
-        from science_jubilee.machine_state import EMPTY_OFFSETS, resolve
+        from science_jubilee.machine_state import (
+            DEFAULT_AXIS_LIMITS,
+            EMPTY_OFFSETS,
+            resolve,
+        )
 
         if state is None:
             # Replay the last recorded session so the mock mirrors your machine.
@@ -35,19 +39,20 @@ class MockTransport(BaseTransport):
         self.axis_limits: Dict[str, tuple] = {
             letter: tuple(limits)
             for letter, limits in (state.get("limits") or {}).items()
-        } or {
-            "X": (0.0, 300.0),
-            "Y": (0.0, 300.0),
-            "Z": (0.0, 200.0),
-            "U": (0.0, 300.0),
-        }
+        } or dict(DEFAULT_AXIS_LIMITS)
         self.axes_homed: List[bool] = [False] * len(self.axes_letters)
         self.active_tool_index: int = -1
 
         names = state.get("tools") or {}
         offsets = state.get("tool_offsets") or {}
+
+        # Union of slots declared in either "tools" or "tool_offsets"; fall back
+        # to the classic four-post Jubilee layout when both are absent.
+        slot_keys = set(names) | set(offsets)
+        indices = sorted({int(k) for k in slot_keys}) if slot_keys else [0, 1, 2, 3]
+
         self.tools: Dict[int, dict] = {}
-        for i in range(4):
+        for i in indices:
             entry = names.get(str(i)) or names.get(i)
             name = entry.get("name") if isinstance(entry, dict) else entry
             self.tools[i] = {

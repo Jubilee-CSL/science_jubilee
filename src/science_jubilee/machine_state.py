@@ -20,6 +20,14 @@ logger = logging.getLogger(__name__)
 
 EMPTY_OFFSETS = [0.0, 0.0, -400.0]
 
+# Stock Jubilee travel envelope; used when a snapshot doesn't declare its own limits.
+DEFAULT_AXIS_LIMITS = {
+    "X": (0.0, 300.0),
+    "Y": (0.0, 300.0),
+    "Z": (0.0, 200.0),
+    "U": (0.0, 300.0),
+}
+
 
 def empty_state() -> dict:
     """A machine with four unconfigured slots and nothing homed."""
@@ -31,12 +39,7 @@ def empty_state() -> dict:
         "axes": ["X", "Y", "Z", "U"],
         "homed": [False, False, False, False],
         "homed_map": {},
-        "limits": {
-            "X": (0.0, 300.0),
-            "Y": (0.0, 300.0),
-            "Z": (0.0, 200.0),
-            "U": (0.0, 300.0),
-        },
+        "limits": dict(DEFAULT_AXIS_LIMITS),
         "positions": {"X": 0.0, "Y": 0.0, "Z": 0.0, "U": 0.0},
         "active_tool": -1,
         "tools": {str(i): {"name": "None"} for i in range(4)},

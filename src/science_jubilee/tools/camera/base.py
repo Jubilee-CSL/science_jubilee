@@ -58,6 +58,14 @@ class BaseCamera(ABC):
     def get_image(self) -> np.ndarray:
         """Return a RGB image as a numpy array."""
 
+    def autofocus(self, focus_seconds: float = 3) -> np.ndarray:
+        """Focus the camera if supported, then return a RGB image.
+
+        Camera implementations without controllable focus fall back to a normal
+        image capture. ``focus_seconds`` is accepted for API compatibility.
+        """
+        return self.get_image()
+
     # ------------------------------------------------------------------
     # Motion
     # ------------------------------------------------------------------

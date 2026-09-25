@@ -1,0 +1,35 @@
+{
+  "transport": "default",
+  "address": null,
+  "firmware": null,
+  "deck_clear": true,
+  "axes": ["X", "Y", "Z", "U"],
+  "homed": [false, false, false, false],
+  "homed_map": {},
+  "limits": {
+    "X": [0.0, 300.0],
+    "Y": [0.0, 300.0],
+    "Z": [0.0, 200.0],
+    "U": [0.0, 300.0]
+  },
+  "positions": {"X": 0.0, "Y": 0.0, "Z": 0.0, "U": 0.0},
+  "active_tool": -1,
+  "tools": {
+    "0": {"name": "inoculator"},
+    "1": {"name": "inoculator"},
+    "2": {"name": "inoculator"},
+    "3": {"name": "None"}
+  },
+  "tool_offsets": {
+    "0": [0.0, 0.0, -50.0],
+    "1": [0.0, 0.0, -50.0],
+    "2": [0.0, 0.0, -400.0],
+    "3": [0.0, 0.0, -400.0]
+  },
+  "tool_parks": {
+    "0": [277.0, 342.0, 105.0],
+    "1": [191.0, 342.0, 105.0],
+    "2": [105.0, 342.0, 105.0],
+    "3": [19.0, 342.0, 105.0]
+  }
+}

@@ -2,7 +2,9 @@ import logging
 
 import pytest
 
-from science_jubilee.hal.tool_changer import ToolSlotError, ToolStateError
+from science_jubilee.hal.tool_changer import ToolChanger, ToolSlotError, ToolStateError
+from science_jubilee.hal.transport.mock import MockTransport
+from science_jubilee.machine_state import EMPTY_OFFSETS
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +72,16 @@ def test_pickup_empty_slot(motion, tool_changer):
 
 
 @pytest.mark.invasive
-def test_pickup_tool_without_offset(motion, tool_changer):
-    motion.move_to({"Z": _PARK_Z})
+def test_pickup_tool_without_offset():
+    state = {
+        "tools": {
+            "2": {"name": "Test"},
+        },
+        "tool_offsets": {
+            "2": list(EMPTY_OFFSETS),
+        },
+    }
+    tool_changer = ToolChanger(MockTransport(state=state))
+
     with pytest.raises(ToolStateError):
         tool_changer.pickup_tool(2)
