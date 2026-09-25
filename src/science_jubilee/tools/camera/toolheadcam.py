@@ -117,24 +117,32 @@ class ToolheadCam(BaseCamera):
 
     def focus_mode(self, mode: str) -> None:
         """Set the camera focus mode."""
-        mode_list = ["manual", "single", "auto"]
-        if mode not in mode_list:
-            raise ValueError(f"Focus mode must be one of {mode_list}.")
+        mode = self.normalize_focus_mode(mode)
+        value_by_mode = {"manual": 0, "single": 1, "auto": 2}
+        response = self.set_option("AfMode", value_by_mode[mode])
         if mode == "manual":
-            response = self.set_option("AfMode", 0)
             logger.info("in manual mode, use lensPosition parameter to adjust focus")
         elif mode == "single":
-            response = self.set_option("AfMode", 1)
             logger.info(
                 "in single focus mode, the camera will focus once and then hold: use trigger_focus to refocus if needed"
             )
         elif mode == "auto":
-            response = self.set_option("AfMode", 2)
             logger.info(
                 "in auto focus mode, the camera will continuously adjust focus automatically"
             )
         logger.info(f"Camera response: {response.status_code}")
         logger.info(f"Setting focus mode to {mode}")
+
+    def trigger_single_autofocus(self, focus_seconds: float = 3) -> None:
+        """Switch to single-focus mode and trigger one autofocus cycle.
+
+        Some camera status endpoints report the previous continuous-focus mode
+        briefly after changing AfMode. For a scan, the safest behavior is to set
+        AfMode immediately before triggering and trust the successful option
+        request instead of failing on a stale status read.
+        """
+        self.focus_mode("single")
+        self._trigger_focus(focus_seconds=focus_seconds)
 
     def get_focus_mode(self) -> str:
         """Get the current camera focus mode from the camera."""
@@ -167,6 +175,10 @@ class ToolheadCam(BaseCamera):
                 "(single focus mode). Call focus_mode('single') before "
                 f"trigger_focus(). Current AfMode is {af_mode}."
             )
+        self._trigger_focus(focus_seconds=focus_seconds)
+
+    def _trigger_focus(self, focus_seconds: float = 3) -> None:
+        """Send the hardware focus trigger once AfMode has been prepared."""
         keep_alive_thread = threading.Thread(
             target=self.keep_alive,
             kwargs={"seconds": focus_seconds},

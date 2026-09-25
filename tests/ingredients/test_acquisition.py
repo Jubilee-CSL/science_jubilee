@@ -5,6 +5,7 @@ Run in mock (default) or against hardware:
     pytest tests/ingredients/ --jubilee-env hardware --jubilee-address 192.168.1.2
 """
 
+import json
 from unittest.mock import patch
 
 import numpy as np
@@ -49,6 +50,20 @@ def test_acquire_simple_writes_file(camera, light, tmp_path):
 
 
 @pytest.mark.primary
+def test_acquire_simple_writes_camera_parameters(camera, light, tmp_path):
+    acquire(cam=camera, light=light, save_dir=tmp_path, name="img", **_ACQ)
+
+    metadata_path = tmp_path / "img.camera.json"
+    assert metadata_path.exists()
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    assert metadata["image"] == "img.jpg"
+    assert "queried_at" in metadata
+    assert "camera_parameters" in metadata
+    assert "machine_status" in metadata
+    assert "positions" in metadata["machine_status"]
+
+
+@pytest.mark.primary
 def test_acquire_simple_does_not_change_led_state(camera, light, tmp_path, jubilee_env):
     if jubilee_env == "mock":
         before = dict(light.state)
@@ -76,6 +91,24 @@ def test_acquire_illuminated_writes_file(camera, light, tmp_path):
     with patch(_SLEEP):
         acquire(cam=camera, light=light, save_dir=tmp_path, name="img", **_ACQ_ILLUM)
     assert (tmp_path / "img.jpg").exists()
+
+
+@pytest.mark.invasive
+def test_acquire_illuminated_debug_writes_camera_parameters_for_each_image(
+    camera, light, tmp_path
+):
+    with patch(_SLEEP):
+        acquire(
+            cam=camera,
+            light=light,
+            save_dir=tmp_path,
+            name="img",
+            **{**_ACQ_ILLUM, "debug": True, "nb_leds": 2},
+        )
+
+    assert (tmp_path / "img.camera.json").exists()
+    assert (tmp_path / "img_led00.camera.json").exists()
+    assert (tmp_path / "img_led01.camera.json").exists()
 
 
 @pytest.mark.invasive

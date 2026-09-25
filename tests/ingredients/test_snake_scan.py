@@ -122,3 +122,85 @@ def test_run_scan_1x1_grid_calls_acquire_once(patched_session, tmp_path):
             out=str(tmp_path),
         )
     mock_acq.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Focus handling
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.secondary
+def test_run_scan_manual_focus_sets_lens_position(patched_session, tmp_path):
+    with patch(_ACQUIRE, side_effect=_fake_acquire):
+        run_scan(
+            start=[0.0, 0.0, 50.0],
+            stop=[0.0, 0.0, 50.0],
+            steps=[1, 1, 1],
+            delay=0.0,
+            out=str(tmp_path),
+            focus_mode="manual",
+            lens_position=7,
+        )
+
+    assert patched_session.camera.get_focus_mode() == "manual"
+    assert patched_session.camera.get_option("LensPosition") == 7
+
+
+@pytest.mark.secondary
+def test_run_scan_auto_focus_waits_after_each_z_move(patched_session, tmp_path):
+    sleep_calls = []
+
+    with (
+        patch(_ACQUIRE, side_effect=_fake_acquire),
+        patch(
+            "science_jubilee.scripts.ingredients.snake_scan.time.sleep",
+            sleep_calls.append,
+        ),
+    ):
+        run_scan(
+            start=[0.0, 0.0, 50.0],
+            stop=[0.0, 0.0, 40.0],
+            steps=[1, 1, 2],
+            delay=0.0,
+            out=str(tmp_path),
+            focus_mode="autofocus",
+            autofocus_z_delay=1.25,
+        )
+
+    assert sleep_calls.count(1.25) == 2
+    assert patched_session.camera.get_focus_mode() == "auto"
+
+
+@pytest.mark.secondary
+def test_run_scan_single_focus_triggers_at_scan_center(patched_session, tmp_path):
+    focus_positions = []
+
+    def record_focus(focus_seconds=3.0):
+        focus_positions.append(
+            (focus_seconds, patched_session.free_navigator.get_position())
+        )
+
+    with (
+        patch(_ACQUIRE, side_effect=_fake_acquire),
+        patch.object(
+            patched_session.camera,
+            "trigger_single_autofocus",
+            side_effect=record_focus,
+        ),
+    ):
+        run_scan(
+            start=[0.0, 10.0, 50.0],
+            stop=[20.0, 30.0, 40.0],
+            steps=[3, 3, 2],
+            delay=0.0,
+            out=str(tmp_path),
+            focus_mode="single",
+            single_focus_seconds=4.5,
+        )
+
+    assert len(focus_positions) == 1
+    focus_seconds, position = focus_positions[0]
+    assert focus_seconds == 4.5
+    assert position["X"] == pytest.approx(10.0)
+    assert position["Y"] == pytest.approx(20.0)
+    assert position["Z"] == pytest.approx(45.0)

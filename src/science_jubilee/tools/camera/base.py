@@ -1,16 +1,14 @@
 from __future__ import annotations
 
-import logging
+import json
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import cv2
 import numpy as np
 import yaml
-
-logger = logging.getLogger(__name__)
 
 
 class BaseCamera(ABC):
@@ -57,6 +55,105 @@ class BaseCamera(ABC):
     @abstractmethod
     def get_image(self) -> np.ndarray:
         """Return a RGB image as a numpy array."""
+
+    def get_parameters(self) -> dict[str, Any]:
+        """Return the camera's current parameter/status document if available."""
+        get_status = getattr(self, "get_status", None)
+        return get_status() if callable(get_status) else {}
+
+    def get_machine_status(self) -> dict[str, Any]:
+        """Return the current machine status associated with this camera."""
+        transport = getattr(getattr(self, "driver", None), "transport", None)
+        if transport is None:
+            return {}
+        try:
+            return transport.get_machine_summary()
+        except Exception:
+            positions = getattr(self.driver, "get_positions", lambda: {})()
+            axes = getattr(self.driver, "get_available_axes", lambda: [])()
+            return {"positions": positions, "axes": axes}
+
+    def save_acquisition_metadata(
+        self,
+        save_dir: Path = Path("."),
+        save_name: str | None = None,
+        image_name: str | None = None,
+    ) -> str:
+        """Save camera parameters and machine status next to an acquired image."""
+        if save_name is None:
+            save_name = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        if image_name is None:
+            image_name = f"{save_name}.jpg"
+        payload = {
+            "image": image_name,
+            "queried_at": datetime.now(timezone.utc).isoformat(),
+            "camera_parameters": self.get_parameters(),
+            "machine_status": self.get_machine_status(),
+        }
+        path = save_dir / f"{save_name}.camera.json"
+        path.write_text(
+            json.dumps(payload, indent=2, sort_keys=True, default=str),
+            encoding="utf-8",
+        )
+        return str(path)
+
+    def normalize_focus_mode(self, mode: str) -> str:
+        """Normalize user-facing focus mode aliases."""
+        normalized = str(mode).strip().lower()
+        aliases = {
+            "autofocus": "auto",
+            "continuous": "auto",
+            "continuous_autofocus": "auto",
+        }
+        normalized = aliases.get(normalized, normalized)
+        if normalized not in {"manual", "single", "auto"}:
+            raise ValueError(
+                "focus mode must be one of 'manual', 'single', 'auto', or 'autofocus'"
+            )
+        return normalized
+
+    def configure_focus(
+        self,
+        mode: str,
+        lens_position: Optional[int] = None,
+    ) -> str:
+        """Configure camera focus mode when the camera supports focus controls.
+
+        Cameras that do not expose focus controls accept ``auto`` as a no-op.
+        ``manual`` requires a lens position and ``single`` prepares the camera
+        for a later single-autofocus trigger.
+        """
+        normalized = self.normalize_focus_mode(mode)
+        set_focus_mode = getattr(self, "focus_mode", None)
+        if set_focus_mode is None:
+            if normalized == "auto":
+                return normalized
+            raise NotImplementedError(
+                f"{type(self).__name__} does not support focus_mode={normalized!r}"
+            )
+
+        set_focus_mode(normalized)
+        if normalized == "manual":
+            if lens_position is None:
+                raise ValueError("lens_position is required when focus_mode='manual'")
+            set_lens_position = getattr(self, "lens_position", None)
+            if set_lens_position is None:
+                raise NotImplementedError(
+                    f"{type(self).__name__} does not support manual lens position"
+                )
+            set_lens_position(int(lens_position))
+
+        return normalized
+
+    def trigger_single_autofocus(self, focus_seconds: float = 3) -> None:
+        """Prepare single-focus mode and trigger one autofocus cycle."""
+        self.configure_focus("single")
+        trigger_focus = getattr(self, "trigger_focus", None)
+        if trigger_focus is None:
+            raise NotImplementedError(
+                f"{type(self).__name__} does not support single autofocus trigger"
+            )
+        trigger_focus(focus_seconds=focus_seconds)
 
     def autofocus(self, focus_seconds: float = 3) -> np.ndarray:
         """Focus the camera if supported, then return a RGB image.

@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 
 from sacred import Experiment
 from sacred.observers import MongoObserver
@@ -17,11 +18,13 @@ ex.observers.append(MongoObserver(db_name="jubilee26"))
 @ex.config
 def config():
     name = ""  # run label stored in Sacred config
+    out = "output/snake_scan"  # image output folder, editable in the run dialog
     scan = dict(  # noqa: F841
-        start=[144.0, 125.0, 320.0],
-        stop=[184.0, 145.0, 220.0],
-        steps=[20, 10, 1],
         delay=0.5,
+        focus_mode="auto",  # "manual" | "single" | "auto"/"autofocus"
+        lens_position=12,  # used only when focus_mode="manual"
+        autofocus_z_delay=1.0,  # settle time after each Z move in auto focus
+        single_focus_seconds=3.0,  # focus time for focus_mode="single"
     )
     acquisition = dict(  # noqa: F841
         mode="simple",  # "simple" | "illuminated"
@@ -43,9 +46,16 @@ def main(_config, _run):
         stop=scan_cfg["stop"],
         steps=scan_cfg["steps"],
         delay=scan_cfg["delay"],
+        focus_mode=scan_cfg["focus_mode"],
+        lens_position=scan_cfg["lens_position"],
+        autofocus_z_delay=scan_cfg["autofocus_z_delay"],
+        single_focus_seconds=scan_cfg["single_focus_seconds"],
     )
     for path in saved:
         _run.add_artifact(path)
+        metadata_path = Path(path).with_suffix(".camera.json")
+        if metadata_path.exists():
+            _run.add_artifact(str(metadata_path), name=metadata_path.name)
 
 
 def run():

@@ -73,6 +73,32 @@ def test_mock_camera_focus_api_matches_toolhead_camera():
 
 
 @pytest.mark.secondary
+def test_mock_camera_configure_focus_normalizes_alias_and_sets_lens():
+    from science_jubilee.tools.camera.toolheadcam_mock import ToolheadCamMock
+
+    camera = ToolheadCamMock(motion=None, tool_changer=None)
+
+    assert camera.configure_focus("autofocus") == "auto"
+    assert camera.get_focus_mode() == "auto"
+
+    assert camera.configure_focus("manual", lens_position=6) == "manual"
+    assert camera.get_focus_mode() == "manual"
+    assert camera.get_option("LensPosition") == 6
+
+
+@pytest.mark.secondary
+def test_mock_camera_trigger_single_autofocus_prepares_mode():
+    from science_jubilee.tools.camera.toolheadcam_mock import ToolheadCamMock
+
+    camera = ToolheadCamMock(motion=None, tool_changer=None)
+
+    camera.trigger_single_autofocus(focus_seconds=3)
+
+    assert camera.get_focus_mode() == "single"
+    assert camera.get_option("AfTrigger") == 0
+
+
+@pytest.mark.secondary
 def test_mock_camera_status_and_forced_providers():
     from science_jubilee.tools.camera.toolheadcam_mock import ToolheadCamMock
 
@@ -127,6 +153,32 @@ def test_toolhead_trigger_focus_does_not_change_focus_mode(monkeypatch):
     assert ("keep_alive", 3) in calls
     assert ("AfTrigger", 0) in calls
     assert ("AfMode", 1) not in calls
+
+
+@pytest.mark.secondary
+def test_toolhead_trigger_single_autofocus_sets_mode_before_trigger(monkeypatch):
+    from science_jubilee.tools.camera import toolheadcam
+    from science_jubilee.tools.camera.toolheadcam import ToolheadCam
+
+    camera = ToolheadCam.__new__(ToolheadCam)
+    calls = []
+
+    def fake_keep_alive(seconds):
+        calls.append(("keep_alive", seconds))
+
+    def fake_set_option(key, value):
+        calls.append((key, value))
+        return SimpleNamespace(status_code=200)
+
+    monkeypatch.setattr(camera, "keep_alive", fake_keep_alive)
+    monkeypatch.setattr(camera, "set_option", fake_set_option)
+    monkeypatch.setattr(toolheadcam.time, "sleep", lambda seconds: None)
+
+    camera.trigger_single_autofocus(focus_seconds=4)
+
+    assert ("AfMode", 1) in calls
+    assert ("keep_alive", 4) in calls
+    assert ("AfTrigger", 0) in calls
 
 
 @pytest.mark.secondary

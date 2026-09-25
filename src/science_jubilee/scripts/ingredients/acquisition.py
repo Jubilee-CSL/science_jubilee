@@ -49,12 +49,13 @@ def acquire(
         images = _capture_multi_lighting(cam, light, nb_leds, r=led_r, g=led_g, b=led_b)
         if debug:
             for i, img in enumerate(images):
-                cam.save_image(
-                    img=img, save_dir=save_dir, save_name=f"{name}_led{i:02d}"
-                )
+                led_name = f"{name}_led{i:02d}"
+                cam.save_image(img=img, save_dir=save_dir, save_name=led_name)
+                cam.save_acquisition_metadata(save_dir=save_dir, save_name=led_name)
         img = _pixel_minimum(images)
     else:
         img = cam.get_image()
 
     cam.save_image(img=img, save_dir=save_dir, save_name=name)
+    cam.save_acquisition_metadata(save_dir=save_dir, save_name=name)
     return str(save_dir / f"{name}.jpg")
