@@ -24,11 +24,152 @@ import cv2
 import numpy as np
 import yaml
 
-CHECKERBOARD = (6, 8)
+CHECKERBOARD = (11, 8)  # inner corners: columns, rows
+# Max mean corner motion (px) between two frames for the board to count as still.
+STILL_PX = 3.0
+PREVIEW_WIDTH = 960
 
 
-def collect_images(images_folder: str) -> None:
-    """Capture calibration images from the machine camera interactively."""
+def _gray(img: np.ndarray) -> np.ndarray:
+    return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if img.ndim == 3 else img
+
+
+def find_corners(gray: np.ndarray, size: tuple[int, int], fast: bool = False):
+    """Inner corners of a ``size`` (cols, rows) checkerboard, or None."""
+    flags = cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_NORMALIZE_IMAGE
+    if fast:
+        flags += cv2.CALIB_CB_FAST_CHECK
+    found, corners = cv2.findChessboardCorners(gray, size, flags)
+    return corners if found else None
+
+
+class _StillBoard:
+    """Tracks consecutive detections; True once the board stops moving."""
+
+    def __init__(self) -> None:
+        self.previous = None
+
+    def update(self, corners) -> bool:
+        still = (
+            corners is not None
+            and self.previous is not None
+            and np.abs(corners - self.previous).mean() < STILL_PX
+        )
+        self.previous = corners
+        return still
+
+
+class _PreviewWindow:
+    """Live camera view with detected corners, drawn with plain tkinter.
+
+    Works with headless OpenCV builds (no cv2.imshow). Space/Enter asks for
+    a shot; Q, Esc or closing the window finishes.
+    """
+
+    def __init__(self) -> None:
+        import tkinter as tk
+
+        self._tk = tk
+        self.root = tk.Tk()
+        self.root.title("Camera calibration")
+        self.image_label = tk.Label(self.root)
+        self.image_label.pack()
+        self.status = tk.StringVar()
+        tk.Label(self.root, textvariable=self.status, font=("Arial", 13)).pack(pady=6)
+        self.shot_requested = False
+        self.done = False
+        for key in ("<space>", "<Return>"):
+            self.root.bind(key, lambda _e: setattr(self, "shot_requested", True))
+        for key in ("q", "<Escape>"):
+            self.root.bind(key, lambda _e: setattr(self, "done", True))
+        self.root.protocol("WM_DELETE_WINDOW", lambda: setattr(self, "done", True))
+        self._photo = None  # keep a reference or Tk drops the image
+
+    def show(self, img, size, corners, status: str) -> None:
+        import base64
+
+        frame = img.copy()
+        if corners is not None:
+            cv2.drawChessboardCorners(frame, size, corners, True)
+        scale = min(1.0, PREVIEW_WIDTH / frame.shape[1])
+        frame = cv2.resize(frame, None, fx=scale, fy=scale)
+        png = cv2.imencode(".png", frame)[1].tobytes()
+        self._photo = self._tk.PhotoImage(data=base64.b64encode(png))
+        self.image_label.configure(image=self._photo)
+        self.status.set(status)
+        self.root.update()
+
+    def close(self) -> None:
+        self.root.destroy()
+
+
+def _collect_with_preview(camera, checkerboard, images_folder, window) -> int:
+    """Live loop: show every frame; save one when asked and the board is still."""
+    idx = 0
+    still = _StillBoard()
+    while not window.done:
+        img = camera.get_image()
+        corners = find_corners(_gray(img), checkerboard, fast=True)
+        is_still = still.update(corners)
+        if window.shot_requested and is_still:
+            path = os.path.join(images_folder, f"calib_{idx:03d}.jpg")
+            cv2.imwrite(path, img)
+            print(f"  Saved {path}")
+            idx += 1
+            window.shot_requested = False
+            still = _StillBoard()  # next shot needs a fresh still board
+        if window.shot_requested:
+            status = (
+                f"Shot {idx:02d}: hold the board still..."
+                if corners is not None
+                else f"Shot {idx:02d}: searching for the board..."
+            )
+        else:
+            seen = "board detected" if corners is not None else "no board"
+            status = f"{seen} — {idx} saved — Space: take shot, Q: finish"
+        window.show(img, checkerboard, corners, status)
+    return idx
+
+
+def _collect_in_terminal(camera, checkerboard, images_folder) -> int:
+    """Fallback without a display: Enter, then wait for a still board."""
+    idx = 0
+    while True:
+        user = (
+            input(f"  Shot {idx:02d} — Enter to capture, 'q' to finish: ")
+            .strip()
+            .lower()
+        )
+        if user == "q":
+            return idx
+        still = _StillBoard()
+        status = ""
+        while True:
+            img = camera.get_image()
+            corners = find_corners(_gray(img), checkerboard, fast=True)
+            if still.update(corners):
+                break
+            new_status = (
+                "board found, hold still..."
+                if corners is not None
+                else "searching for the board..."
+            )
+            if new_status != status:
+                print(f"\r    {new_status:<30}", end="", flush=True)
+                status = new_status
+        path = os.path.join(images_folder, f"calib_{idx:03d}.jpg")
+        cv2.imwrite(path, img)
+        print(f"\n  Saved {path}")
+        idx += 1
+
+
+def collect_images(images_folder: str, checkerboard: tuple[int, int]) -> None:
+    """Capture calibration images from the machine camera interactively.
+
+    A live window shows the camera with the detected ``checkerboard`` (cols,
+    rows inner corners). A requested shot is saved once the board is detected
+    and held still. Without a display, falls back to the terminal.
+    """
     os.makedirs(images_folder, exist_ok=True)
 
     from science_jubilee.machine_session import MachineSession
@@ -49,36 +190,33 @@ def collect_images(images_folder: str) -> None:
     print(
         "\nReady to collect calibration images."
         f"\n  Camera is at X={BED_CX} Y={BED_CY} Z={BED_Z} mm."
-        "\n  Open OctoPrint → Camera tab to preview the live feed."
+        f"\n  Looking for {checkerboard[0]} x {checkerboard[1]} inner corners."
         "\n  The FULL chessboard must be visible in every shot — no cropped corners."
         "\n  Tilt or rotate the board between shots (vary angle, not just position)."
-        "\n  Aim for 15–20 images. Type 'q' + Enter when done.\n"
+        "\n  Each shot is taken once the board is detected and held still."
+        "\n  Aim for 15–20 images.\n"
     )
 
-    idx = 0
-    while True:
-        user = (
-            input(f"  Shot {idx:02d} — Enter to capture, 'q' to finish: ")
-            .strip()
-            .lower()
-        )
-        if user == "q":
-            break
-        img = session.camera.get_image()
-        path = os.path.join(images_folder, f"calib_{idx:03d}.jpg")
-        cv2.imwrite(path, img)
-        print(f"  Saved {path}")
-        idx += 1
+    try:
+        window = _PreviewWindow()
+    except Exception as exc:  # no display available
+        print(f"  No preview window ({exc}); using the terminal.\n")
+        idx = _collect_in_terminal(session.camera, checkerboard, images_folder)
+    else:
+        print("  Preview window open: Space/Enter takes a shot, Q finishes.\n")
+        try:
+            idx = _collect_with_preview(
+                session.camera, checkerboard, images_folder, window
+            )
+        finally:
+            window.close()
 
     print(f"\nCollected {idx} images in '{images_folder}'.")
 
 
-def calibrate(images_folder: str) -> tuple[np.ndarray, np.ndarray, float]:
-    objp = np.zeros((CHECKERBOARD[0] * CHECKERBOARD[1], 3), np.float32)
-    objp[:, :2] = np.mgrid[0 : CHECKERBOARD[0], 0 : CHECKERBOARD[1]].T.reshape(-1, 2)
-
-    objpoints, imgpoints = [], []
-
+def calibrate(
+    images_folder: str, checkerboard: tuple[int, int]
+) -> tuple[np.ndarray, np.ndarray, float]:
     patterns = ("*.jpg", "*.jpeg", "*.png")
     images = []
     for p in patterns:
@@ -86,6 +224,11 @@ def calibrate(images_folder: str) -> tuple[np.ndarray, np.ndarray, float]:
 
     if not images:
         raise FileNotFoundError(f"No images found in: {images_folder}")
+
+    objp = np.zeros((checkerboard[0] * checkerboard[1], 3), np.float32)
+    objp[:, :2] = np.mgrid[0 : checkerboard[0], 0 : checkerboard[1]].T.reshape(-1, 2)
+
+    objpoints, imgpoints = [], []
 
     print(f"Found {len(images)} images, searching for checkerboard corners...")
 
@@ -95,9 +238,9 @@ def calibrate(images_folder: str) -> tuple[np.ndarray, np.ndarray, float]:
         img = cv2.imread(fname)
         if img is None:
             continue
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        ret, corners = cv2.findChessboardCorners(gray, CHECKERBOARD, None)
-        if ret:
+        gray = _gray(img)
+        corners = find_corners(gray, checkerboard)
+        if corners is not None:
             criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
             corners2 = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
             objpoints.append(objp)
@@ -110,7 +253,7 @@ def calibrate(images_folder: str) -> tuple[np.ndarray, np.ndarray, float]:
     if not objpoints:
         raise ValueError(
             "Checkerboard not detected in any image. "
-            f"Check CHECKERBOARD={CHECKERBOARD} matches your board."
+            f"Check --checkerboard {checkerboard[0]} {checkerboard[1]} matches your board."
         )
 
     print(f"\nCalibrating with {valid} valid images...")
@@ -176,16 +319,15 @@ if __name__ == "__main__":
         type=int,
         default=list(CHECKERBOARD),
         metavar=("COLS", "ROWS"),
-        help="Inner corner count: columns rows (default: 6 8).",
+        help=f"Inner corner count: columns rows (default: {CHECKERBOARD[0]} {CHECKERBOARD[1]}).",
     )
     args = parser.parse_args()
-
-    CHECKERBOARD = tuple(args.checkerboard)
+    checkerboard = tuple(args.checkerboard)
 
     try:
         if args.collect:
-            collect_images(args.images)
-        mtx, dist, rms = calibrate(args.images)
+            collect_images(args.images, checkerboard)
+        mtx, dist, rms = calibrate(args.images, checkerboard)
         save_params(mtx, dist, args.out)
         print("\nDone. Set JUBILEE_CAMERA_CALIB=" + args.out)
     except Exception as e:

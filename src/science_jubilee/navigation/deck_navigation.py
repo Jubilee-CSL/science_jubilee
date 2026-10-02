@@ -59,6 +59,17 @@ class DeckNavigator:
                 wait=True,
             )
 
+    def move_to_z(
+        self,
+        z: float,
+        speed: float | None = None,
+    ) -> None:
+        """
+        Move Z to an absolute height, leaving X and Y where they are.
+        """
+        speed = self.default_speed_z if speed is None else speed
+        self.driver.move_to({"Z": float(z)}, s=speed, wait=True)
+
     # ------------------------------------------------------------------
     # Well movement
     # ------------------------------------------------------------------
