@@ -44,6 +44,26 @@ def _log_content(log: Path) -> str:
     return log.read_text(encoding="utf-8")
 
 
+def _firmware_line(relpath: str, startswith: str, contains: str = "") -> str:
+    """First line of a real firmware file that starts with ``startswith``.
+
+    The firmware copies are synced from the Duet, so tests look values up
+    instead of pinning them.
+    """
+    for line in (
+        (_REPO_ROOT / "firmware" / relpath).read_text(encoding="utf-8").splitlines()
+    ):
+        line = line.strip()
+        if line.startswith(startswith) and contains in line:
+            return line
+    raise AssertionError(f"no line starting with {startswith!r} in firmware/{relpath}")
+
+
+def _lock_move() -> str:
+    """The torque-limited (H1) U move that engages the tool lock."""
+    return _firmware_line("macro/tool_lock.g", "G1 U", "H1")
+
+
 # ---------------------------------------------------------------------------
 # Tests: T{n} expansion via send_gcode
 # ---------------------------------------------------------------------------
@@ -64,7 +84,7 @@ def test_tool_change_from_no_active_tool_expands_tpre_and_tpost(request):
     # tpost0 expanded: G1 R2 Z0 is its unique restore-Z command
     assert "G1 R2 Z0" in content
     # tool_lock.g (nested M98) content
-    assert "G1 U80 F1500" in content
+    assert _lock_move() in content
     # no tfree since no prior active tool
     assert "tfree0.g" not in content
 
@@ -84,12 +104,12 @@ def test_tool_change_with_active_tool_expands_tfree_then_tpre_tpost(request):
     # tfree0 content (freeing tool 0)
     assert "; tfree0.g" in content
     assert "G1 Z2" in content
-    # tpre1 content (real firmware: G0 X270 Y270 F20000)
-    assert "G0 X270 Y270 F20000" in content
+    # tpre1 content
+    assert _firmware_line("sys/tpre1.g", "G0 X") in content
     # tpost1 content (real firmware: G53 G1 X210 F6000)
-    assert "G53 G1 X210 F6000" in content
+    assert _firmware_line("sys/tpost1.g", "G53 G1 X") in content
     # nested tool_lock.g
-    assert "G1 U80 F1500" in content
+    assert _lock_move() in content
 
 
 def test_park_tool_expands_tfree_for_active_tool(request):
@@ -150,7 +170,7 @@ def test_select_tool_produces_same_expansion_as_send_gcode(request):
     # Both logs should contain identical macro expansion content
     assert "; === tool change: T0 ===" in sel_content
     assert "G60 S0" in sel_content
-    assert "G1 U80 F1500" in sel_content
+    assert _lock_move() in sel_content
     # Expansion content matches reference
     assert ref_content == sel_content
 
@@ -187,7 +207,7 @@ def test_nested_m98_in_macro_is_expanded(request):
     # tpost0.g has M98 P"/macros/tool_lock.g" which should be expanded
     assert '; M98 P"/macros/tool_lock.g"' in content
     # The content of tool_lock.g should appear
-    assert "G1 U80 F1500" in content
+    assert _lock_move() in content
 
 
 def test_standalone_m98_send_gcode_expands_macro(request):

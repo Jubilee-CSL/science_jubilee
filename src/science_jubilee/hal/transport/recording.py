@@ -69,7 +69,12 @@ class RecordingTransport(BaseTransport):
             # Logging should never break transport use
             pass
 
-        # Snapshot machine state for the digital twin fallback
+        # Snapshot machine state for the digital twin fallback. Only a real
+        # machine writes it: a mock replays the last real snapshot, and saving
+        # the mock's summary would replace it with a lossy copy (no address,
+        # no parks).
+        if self.is_mock:
+            return
         try:
             import json as _json
 
@@ -153,18 +158,61 @@ class RecordingTransport(BaseTransport):
                 return candidate
         return None
 
+    @staticmethod
+    def _gcode_lines(text: str) -> List[str]:
+        """Skip blank lines and comments."""
+        result = []
+        for line in text.splitlines():
+            stripped = line.strip()
+            if stripped and not stripped.startswith(";"):
+                result.append(stripped)
+        return result
+
     def _read_gfile(self, path: Path) -> List[str]:
-        """Read a .g file; skip blank lines and comments."""
+        """Read a local .g file; skip blank lines and comments."""
         try:
-            raw = path.read_text(encoding="utf-8").splitlines()
-            result = []
-            for line in raw:
-                stripped = line.strip()
-                if stripped and not stripped.startswith(";"):
-                    result.append(stripped)
-            return result
+            return self._gcode_lines(path.read_text(encoding="utf-8"))
         except Exception:
             return []
+
+    def _read_machine_macro(self, rrf_path: str) -> Optional[str]:
+        """The macro as stored on the machine, or None if it cannot be read.
+
+        Bare names resolve to 0:/sys/ as in RRF. Read on every call: the
+        machine's macros change when tools are recalibrated.
+        """
+        reader = getattr(self._inner, "read_file", None)
+        if self.is_mock or reader is None:
+            return None
+        clean = rrf_path.strip()
+        if not clean.startswith("0:/"):
+            clean = clean.lstrip("/")
+            clean = "0:/" + (clean if "/" in clean else f"sys/{clean}")
+        try:
+            return reader(clean, timeout=5.0)
+        except Exception:
+            return None
+
+    def _macro_lines(self, rrf_path: str) -> Optional[tuple[List[str], str]]:
+        """(lines, source) for a macro: the machine's copy when readable,
+        else the local firmware copy. None when neither exists."""
+        text = self._read_machine_macro(rrf_path)
+        if text is not None:
+            return self._gcode_lines(text), "machine"
+        path = self._resolve_macro_path(rrf_path)
+        if path is None:
+            return None
+        return self._read_gfile(path), "local copy"
+
+    def _append_macro(self, lines: List[str], name: str) -> None:
+        """Append a tool-change macro, expanded, with a provenance comment."""
+        found = self._macro_lines(name)
+        if found is None:
+            lines.append(f"; (macro not found: {name})")
+            return
+        body, source = found
+        lines.append(f"; {name}  ({source})")
+        lines.extend(self._expand_lines(body))
 
     def _expand_lines(self, lines: List[str], depth: int = 0) -> List[str]:
         """Recursively expand M98 macro calls."""
@@ -175,10 +223,9 @@ class RecordingTransport(BaseTransport):
             m98 = re.match(r'^M98\s+P"([^"]+)"', line.strip())
             if m98:
                 result.append(f"; {line.strip()}")
-                macro_path = self._resolve_macro_path(m98.group(1))
-                if macro_path:
-                    inner = self._read_gfile(macro_path)
-                    result.extend(self._expand_lines(inner, depth + 1))
+                found = self._macro_lines(m98.group(1))
+                if found is not None:
+                    result.extend(self._expand_lines(found[0], depth + 1))
                 else:
                     result.append(f"; (macro not found: {m98.group(1)})")
             else:
@@ -205,36 +252,15 @@ class RecordingTransport(BaseTransport):
                 lines.append(f"; === tool change: T{idx} ===")
                 # Free current tool first
                 if cur >= 0:
-                    tfree_path = self._resolve_macro_path(f"tfree{cur}.g")
-                    if tfree_path:
-                        lines.append(f"; tfree{cur}.g")
-                        lines.extend(self._expand_lines(self._read_gfile(tfree_path)))
-                    else:
-                        lines.append(f"; (macro not found: tfree{cur}.g)")
-                # Approach new tool
-                tpre_path = self._resolve_macro_path(f"tpre{idx}.g")
-                if tpre_path:
-                    lines.append(f"; tpre{idx}.g")
-                    lines.extend(self._expand_lines(self._read_gfile(tpre_path)))
-                else:
-                    lines.append(f"; (macro not found: tpre{idx}.g)")
-                # Lock and restore
-                tpost_path = self._resolve_macro_path(f"tpost{idx}.g")
-                if tpost_path:
-                    lines.append(f"; tpost{idx}.g")
-                    lines.extend(self._expand_lines(self._read_gfile(tpost_path)))
-                else:
-                    lines.append(f"; (macro not found: tpost{idx}.g)")
+                    self._append_macro(lines, f"tfree{cur}.g")
+                # Approach new tool, then lock and restore
+                self._append_macro(lines, f"tpre{idx}.g")
+                self._append_macro(lines, f"tpost{idx}.g")
             else:
                 # T-1: park only
                 lines.append("; === park tool: T-1 ===")
                 if cur >= 0:
-                    tfree_path = self._resolve_macro_path(f"tfree{cur}.g")
-                    if tfree_path:
-                        lines.append(f"; tfree{cur}.g")
-                        lines.extend(self._expand_lines(self._read_gfile(tfree_path)))
-                    else:
-                        lines.append(f"; (macro not found: tfree{cur}.g)")
+                    self._append_macro(lines, f"tfree{cur}.g")
 
             lines.append(f"; {stripped}")
             return lines
@@ -243,10 +269,9 @@ class RecordingTransport(BaseTransport):
         m98_match = re.match(r'^M98\s+P"([^"]+)"', stripped)
         if m98_match:
             lines = [f"; {stripped}"]
-            macro_path = self._resolve_macro_path(m98_match.group(1))
-            if macro_path:
-                inner = self._read_gfile(macro_path)
-                lines.extend(self._expand_lines(inner))
+            found = self._macro_lines(m98_match.group(1))
+            if found is not None:
+                lines.extend(self._expand_lines(found[0]))
             else:
                 lines.append(f"; (macro not found: {m98_match.group(1)})")
             return lines

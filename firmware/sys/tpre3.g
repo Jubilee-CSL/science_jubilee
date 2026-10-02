@@ -1,7 +1,6 @@
 ; tpre3.g
-; Runs after freeing the previous tool if the next tool is tool-3.
-; Note: tool offsets are not applied at this point!
+; Runs after the previous tool is freed and before Tool 3 is picked up.
+; Tool offsets are NOT yet applied at this stage.
 
-G90                         ; Ensure the machine is in absolute mode before issuing movements.
-G0 X19 Y280.0 Z50.0 F20000 ; Rapid to the approach position without any current tool.
-G60 S0                      ; Save this position as the reference point from which to later apply new tool offsets.
+G90                         ; Ensure absolute positioning mode is active
+G53 G0 X19.00 Y280.00 Z100.00 F20000 ; Move to a safe approach position using machine coordinates (no tool mounted)
